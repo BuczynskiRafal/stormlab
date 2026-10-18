@@ -1,0 +1,63 @@
+[tool.black]
+line-length = 130
+target-version = ['py310']
+
+[tool.pytest.ini_options]
+testpaths = ["app/sa/core/tests"]
+addopts = [
+    "-vvv",
+    "--tb=short",
+    "--cov=app/sa/core",
+    "--cov-report=term-missing",
+    "-m",
+    "not parity",
+]
+markers = [
+    "slow: end-to-end tests that run a full SWMM simulation (deselect with -m 'not slow')",
+    "parity: compares the new extraction against the frozen golden one (opt in with --run-parity)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::FutureWarning",
+]
+
+[tool.isort]
+profile = "black"
+line_length = 130
+
+[tool.ruff]
+line-length = 130
+target-version = 'py310'
+extend-exclude = ["app/migrations", "app/*/migrations"]
+
+[tool.flake8]
+ignore = ["E501", "W291"]
+
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+include = ["app/sa"]
+exclude = ["**/tests/**", "**/migrations/**"]
+
+reportMissingImports = false
+reportMissingTypeStubs = false
+reportAttributeAccessIssue = false
+reportGeneralTypeIssues = false
+reportCallIssue = false
+
+reportAssignmentType = false
+reportReturnType = true
+reportUndefinedVariable = true
+reportArgumentType = false
+
+[tool.coverage.run]
+source = ["app/sa/core"]
+omit = ["*/tests/*", "*/migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

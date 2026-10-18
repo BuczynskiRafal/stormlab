@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt --system
+
+      - name: Run pre-commit checks
+        uses: pre-commit/action@v3.0.1
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.12']
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt --system
+
+      - name: Run core tests with coverage
+        run: pytest app/sa/core/tests
+
+  django-and-gnn:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies (including TensorFlow)
+        run: |
+          uv pip install -r requirements.txt --system
+          uv pip install -r app/requirements.txt --system
+
+      - name: Run GNN & TensorFlow serving tests
+        run: >-
+          pytest
+          app/sa/core/tests/test_gnn_graph.py
+          app/sa/core/tests/test_gnn_serving.py
+          app/sa/core/tests/test_gnn_c3c_serving.py
+          app/sa/core/tests/test_gnn_parity.py
+          app/sa/core/tests/test_feature_contract.py
+          app/sa/core/tests/test_gnn_killswitch.py
+
+      - name: Run Django test suite
+        env:
+          DJANGO_ENV: testing
+        working-directory: app
+        run: python manage.py test accounts sa

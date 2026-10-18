@@ -1,0 +1,40 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+        exclude: &protected '\.(inp|rpt|out|bak|xlsx|png|keras|parquet)$'
+      - id: trailing-whitespace
+        exclude: *protected
+      - id: requirements-txt-fixer
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.10
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^\.?.*\.py$
+        exclude: *protected
+      - id: ruff-format
+        files: ^\.?.*\.py$
+        exclude: *protected
+
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.391
+    hooks:
+      - id: pyright
+        # `scripts/` and the root `conftest.py` are part of the verification path;
+        # a hook that does not cover them lets the next change to either land
+        # untyped while `pyright stormlab scripts` is still reported as green.
+        files: ^(app/sa)/.*\.py$|^conftest\.py$
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit-msg]
