@@ -1,0 +1,3477 @@
+/*
+ * app.css - jeden arkusz stylów aplikacji.
+ * Powstał ze scalenia style.css (warstwa bazowa) i academic-theme.css (motyw);
+ * kolejność sekcji odtwarza dawną kolejność ładowania, więc kaskada jest
+ * identyczna jak przed scaleniem. Ładowany po Bootstrapie 5.1.3.
+ *
+ * Typografia: Source Serif 4 (nagłówki) + Source Sans 3 (treść) + JetBrains Mono
+ * (liczby); rodziny wczytuje jeden <link> w base.html, nie reguła importu CSS.
+ */
+
+/* ============================================================
+   TOKENY
+   ============================================================ */
+
+:root {
+    /* Pozostałości warstwy bazowej (dawny style.css): tylko te nazwy, które nadal
+       czyta któraś reguła w tym pliku - konsument jest wypisany przy każdej grupie.
+       Dawna skala odstępów jest teraz literałami w regułach, a dawne barwy widgetu
+       wgrywania pliku i skala promieni pochodzą z warstwy tokenów poniżej; to
+       jedyny słownik barw, powierzchni i promieni w aplikacji. */
+
+    /* Cienie: .alert */
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+
+    /* Typografia i przejścia: html/body, nagłówki, .hero-subtitle, .feature-*, .upload-card */
+    --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.625;
+    --transition-normal: 200ms ease;
+
+    /* ============================================================
+       Warstwa tokenów: papier inżynierski + woda.
+       Jedyne źródło skali --radius-*, powierzchni, barw i wysokości nagłówka.
+       ============================================================ */
+
+    /* Powierzchnie - neutralny papier. Wersja z 2026-09-05: autor odrzucił ciepłe
+       (kremowe) tło strony i wiersze tabel; wracamy do neutralnych tonów sprzed
+       planu 15 (dawne --paper-white / --paper-warm / --paper-tan). */
+    --surface-0: #FFFFFF;   /* karty, panele, pasek nagłówka, komórki tabel */
+    --surface-1: #FAFAF8;   /* tło strony (neutralny papier) */
+    --surface-2: #F5F4F0;   /* stopka, hover, chipy neutralne */
+    --tint-row:  #F8FAFC;   /* zebra - ledwie widoczna, chłodna, nie kremowa */
+    --rule-soft:   #E8E6DF; /* separatory wewnątrz kart i tabel, linia stopki */
+    --rule-strong: #CBD5E1; /* neutralne akcenty: strefa upuszczania pliku, kciuk paska
+                               przewijania, obramowanie akordeonu w fokusie */
+
+    /* Struktura, nigdy tekst: krawędzie i pasma nagłówków. Ciepły papier bez
+       zimnych krawędzi zlewał się w jedną plamę - te wartości przywracają
+       granice sprzed planu 15. Tekst zostaje na --ink/--text/--muted. */
+    --slate-100: #F1F5F9;   /* kolumna etykiet, tło hover przycisku konturowego */
+    --slate-200: #E2E8F0;   /* pasmo nagłówka tabeli */
+    --slate-300: #CBD5E1;   /* krawędzie kart, paneli, akordeonu, pól formularzy */
+    --slate-500: #64748B;   /* obramowanie tabel i przycisków konturowych */
+    --slate-600: #475569;   /* etykieta przycisku konturowego */
+    --slate-band-top: #E8ECF1;    /* pasmo nagłówków kart/akordeonów: góra gradientu */
+    --slate-band-bottom: #DFE5ED; /* ...dół gradientu i stan rozwinięty */
+
+    /* Tekst */
+    --ink: #1E2229;
+    --text: #2B2F36;
+    --muted: #6E6A62;
+    --subtle: #9A948A;      /* wyłącznie dekoracja - za jasny na tekst */
+
+    /* Akcent: woda (barwa kropli z logo) */
+    --water-700: #1F6A94;
+    --water-600: #2A7DAB;
+    --water-300: #9CCBE3;
+    --water-100: #E3F1F8;
+    --water-050: #F1F8FC;
+
+    /* Statusy: odcień tekstu/ikony + podkładka */
+    --ok:   #397453;  --ok-wash:   #EAF5EE;
+    --warn: #8F5E20;  --warn-wash: #FBF1E3;
+    --bad:  #B2453F;  --bad-wash:  #FBECEA;
+    --info: #3E6C96;  --info-wash: #EAF1F8;
+
+    /* Kształt, cień, warstwy */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-pill: 999px;
+    --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-2: 0 4px 14px rgba(15, 23, 42, 0.10);
+    --header-h: 72px;
+    --z-header: 100;
+    --z-sticky-bar: 90;
+    --z-fab: 80;   /* modale Bootstrapa (1050+) zostają ponad */
+
+    /* Typografia */
+    --font-display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --font-body: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+}
+
+/* ============================================================
+   WARSTWA BAZOWA (dawny style.css)
+   ============================================================ */
+
+html {
+    /* Globalne, nie tylko na /about/: kotwice i przycisk "do góry" przewijają
+       płynnie na każdej stronie. Wyłączane w bloku prefers-reduced-motion. */
+    scroll-behavior: smooth;
+}
+
+html, body {
+    min-height: 100%;
+    font-size: 16px;
+    margin: 0;
+    font-family: var(--font-family-sans);
+    line-height: var(--line-height-normal);
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    -ms-overflow-style: scrollbar;
+    -webkit-tap-highlight-color: transparent;
+    color: var(--text);
+}
+
+.card .card-body {
+    transition: all 0.3s ease;
+}
+
+body {
+    font-weight: 400;
+    overflow-y: scroll;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 0px solid black;
+    margin: 0;
+    min-height: 100vh;
+}
+
+.content-wrapper {
+    flex: 1;
+    display: block;
+    padding-top: 1.75rem;
+    padding-bottom: 1.75rem;
+}
+
+/* Results V2 Page Layout: full viewport fit with balanced vertical spacing */
+@media (min-height: 520px) {
+    body:has(#storm-results-v2),
+    body.results-v2-page {
+        height: 100vh;
+        overflow-y: hidden;
+    }
+
+    body:has(#storm-results-v2) .content-wrapper,
+    body.results-v2-page .content-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding-top: 1.125rem;
+        padding-bottom: 1.125rem;
+    }
+
+    body:has(#storm-results-v2) .container-fluid,
+    body.results-v2-page .container-fluid {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        padding: 0 !important;
+    }
+}
+.profile-image {
+    border-radius: 50%;
+    object-fit: cover;
+    display: inline-block;
+    overflow: hidden;
+    line-height: 0;
+    width: 50px;
+    height: 50px;
+}
+
+.center-text {
+    text-align: center;
+}
+
+*,:after,:before {
+    box-sizing: border-box;
+}
+
+a {
+    font-size: 16px;
+    font-weight:400;
+}
+
+label {
+    display: inline-block;
+    font-weight: bold;
+}
+
+.containerwide {
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+@media (min-width: 576px){
+  .containerwide {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 768px){
+  .containerwide {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 992px){
+  .containerwide {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 1200px){
+  .containerwide {
+    max-width: 100%;
+  }
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: var(--line-height-tight);
+}
+
+h1 {
+    font-size: 2.5rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+h2 {
+    font-size: 2rem;
+    margin-bottom: 1.25rem;
+}
+
+h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+h4 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+h5, h6 {
+    font-size: 1.125rem;
+    margin-bottom: 0.75rem;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: var(--tint-row);
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--water-050);
+    cursor: pointer;
+}
+
+.scrollable-table-container {
+    overflow-x: auto;
+    position: relative;
+    cursor: grab;
+}
+
+.scrollable-table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollable-table-container::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.scrollable-table-container::-webkit-scrollbar-thumb:hover {
+    border: 0px solid transparent;
+    border-radius: 6px;
+}
+
+.scrollable-table-container:active {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.scrollable-table-container::before {
+    content: "↔ Przeciągnij aby przewinąć";
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    color: white;
+    font-weight: 500;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.scrollable-table-container:hover::before {
+    opacity: 1;
+}
+
+.scrollable-table-container.hide-badge::before {
+    opacity: 0;
+}
+
+th {
+    text-align: inherit;
+}
+
+*, ::after, ::before {
+    box-sizing: border-box;
+}
+
+table td, table th {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.table th, .table td {
+    padding: .75rem;
+    vertical-align: top;
+    text-align: center;
+    z-index: 1;
+}
+
+.table th  {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--text);
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.table th:first-child, .table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+.table th:first-child {
+    z-index: 11;
+}
+
+.table th:not(:first-child), .table td:not(:first-child) {
+    position: relative;
+    border-left: none;
+    z-index: 1;
+}
+
+tfoot td {
+    position: sticky;
+    bottom: 0;
+    background-color: var(--surface-1);
+}
+
+tbody tr:nth-child(odd) {
+    background-color: var(--tint-row);
+}
+
+.table-container {
+    overflow: auto;
+    position: relative;
+}
+
+.table-container thead th {
+    position: sticky;
+    top: 0;
+    color: var(--text);
+    z-index: 3;
+}
+
+.table-container thead {
+    z-index: 3;
+    background-color: var(--slate-200);
+}
+
+.sticky-cell {
+    position: sticky;
+    left: 0;
+    background-color: var(--surface-1);
+    color: var(--text);
+    z-index: 10;
+    border-right: 1px solid var(--rule-soft);
+    overflow: hidden;
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: 0rem;
+}
+a {
+    text-decoration: none;
+    color: var(--water-700);
+}
+
+.accordion-item {
+    position: relative;
+}
+
+.accordion-item .accordion-header {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item .accordion-header .accordion-button {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item .accordion-collapse {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item .accordion-body {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item .scrollable-accordion-body {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item .scrollable-table-container {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item .table {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    overflow: hidden;
+}
+
+.accordion-item .table thead th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.accordion-item .table thead th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.accordion-item .table tbody td {
+    border-radius: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.accordion-item .table thead th:not(:first-child):not(:last-child) {
+    border-radius: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+#sessionsTable {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    overflow: hidden;
+}
+
+#sessionsTable thead th:first-child {
+    border-top-left-radius: 12px;
+}
+
+#sessionsTable thead th:last-child {
+    border-top-right-radius: 12px;
+}
+
+#sessionsTable thead th:not(:first-child):not(:last-child) {
+    border-radius: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+#sessionsTable tbody td {
+    border-radius: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.accordion-item .accordion-button:not(.collapsed) {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item .accordion-button::before,
+.accordion-item .accordion-button::after {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item:first-child {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item:first-child .accordion-header {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion-item:first-child .accordion-button {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion > .accordion-item:first-of-type {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion > .accordion-item:first-of-type .accordion-header {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.accordion > .accordion-item:first-of-type .accordion-button {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+#accordionMenu .accordion-item:first-child,
+#accordionMenu .accordion-item:first-child .accordion-header,
+#accordionMenu .accordion-item:first-child .accordion-button {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-radius: 12px 12px 0 0 !important;  /* bije .accordion-item poniżej (też !important) */
+}
+
+.accordion-header {
+    transition: all 0.2s ease-in-out;
+}
+
+.accordion-header.sticky {
+    position: fixed;
+    z-index: var(--z-sticky-bar);
+    background-color: var(--slate-band-top);
+    box-shadow: var(--shadow-1);
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    transition: none;
+}
+
+.accordion-header.sticky .accordion-button {
+    border-radius: 0;
+    margin: 0;
+}
+
+.accordion-body {
+    position: relative;
+}
+
+.scrollable-accordion-body {
+    position: relative;
+}
+
+.scrollable-table-container .table thead th {
+    color: var(--text);
+}
+
+.scrollable-table-container .table th:first-child,
+
+.accordion-item.header-sticky .scrollable-table-container .table thead th {
+    z-index: 9;
+}
+
+.accordion-item.header-sticky .scrollable-table-container .table thead th:first-child {
+    z-index: 10;
+}
+
+.scrollable-table-container .table thead th[style*="top"] {
+    position: sticky;
+}
+
+.accordion-header.sticky .accordion-button {
+    border: 1px solid var(--slate-300);
+}
+
+.card {
+    margin-bottom: 1.5rem;
+}
+
+.btn {
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.btn-success {
+    background-color: var(--ok);
+    border-color: var(--ok);
+    color: #ffffff;
+}
+
+.btn-success:hover {
+    background-color: #2F6246;
+    border-color: #2F6246;
+    color: #ffffff;
+}
+
+.btn-outline-secondary {
+    border-color: var(--slate-300);
+    color: var(--muted);
+    background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--slate-100);
+    color: var(--ink);
+    border-color: var(--slate-500);
+}
+
+.input-group .form-control,
+.form-select {
+    height: calc(2.25rem + 2px);
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-sm);
+}
+
+.input-group-text {
+    height: calc(2.25rem + 2px);
+    padding: 0.375rem 0.75rem;
+}
+
+.fas, .far, .fab, .fal, .fad {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-style: normal;
+    display: inline-block;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+}
+
+.far {
+    font-weight: 400;
+}
+
+.fab {
+    font-family: "Font Awesome 6 Brands";
+    font-weight: 400;
+}
+
+.btn-outline-danger:focus-visible,
+.delete-btn:focus-visible {
+    outline: 2px solid var(--bad);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+/* Center buttons in Actions column */
+#sessionsTable tbody td:last-child {
+    text-align: center;
+}
+
+#sessionsTable tbody td:last-child .d-flex {
+    justify-content: center;
+}
+
+/* Nagłówki kart na /analysis/ i widoku szczegółów (karta "Latest Analysis
+   Session" zniknęła razem z kafelkami historii). */
+.card-header h5 {
+    text-align: center;
+}
+
+.container-fluid {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.containerwide {
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+
+.alert {
+    border: none;
+    border-radius: var(--radius-md);
+    border-left: 4px solid;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1rem;
+}
+
+.alert-success {
+    background-color: var(--ok-wash);
+    border-left-color: var(--ok);
+    color: var(--ok);
+}
+
+.alert-danger {
+    background-color: var(--bad-wash);
+    border-left-color: var(--bad);
+    color: var(--bad);
+}
+
+.form-control {
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    padding: 0.75rem;
+    background-color: var(--surface-0);
+    color: var(--text);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--water-600);
+    box-shadow: none;
+}
+
+/* Widoczny pierścień zamiast `outline: none` + bladej poświaty: --water-100 na
+   --surface-0 daje 1,1:1, czyli fokus niewidoczny dla klawiatury. */
+.form-control:focus-visible,
+.form-select:focus-visible,
+.page-link:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+}
+
+/* Modern File Input Styling */
+.file-input-wrapper {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    width: 100%;
+}
+
+.file-input-wrapper input[type=file] {
+    position: absolute;
+    left: -9999px;
+    opacity: 0;
+}
+
+.file-input-display {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border: 2px dashed var(--rule-strong);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 120px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.file-input-display:hover {
+    border-color: var(--water-300);
+    background: linear-gradient(135deg, var(--water-050) 0%, var(--water-100) 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+}
+
+/* Przeciąganie pliku nad polem: mocniejsza ramka i pełna podkładka - stan musi być
+   odróżnialny od zwykłego hoveru, który jest gradientem od --water-050. */
+.file-input-display.drag-over {
+    border-color: var(--water-600);
+    background: var(--water-100);
+    transform: scale(1.02);
+}
+
+.file-input-content {
+    width: 100%;
+    text-align: center;
+}
+
+.file-input-icon {
+    font-size: 3rem;
+    color: var(--water-600);
+    margin-bottom: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.file-input-display:hover .file-input-icon {
+    color: var(--water-700);
+    transform: scale(1.1);
+}
+
+.file-input-text {
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.file-input-subtext {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.file-input-selected {
+    background: var(--ok-wash);
+    border-color: var(--ok);
+}
+
+.file-input-selected .file-input-icon {
+    color: var(--ok);
+}
+
+.file-input-selected .file-input-text {
+    color: var(--ok);
+}
+
+.mb-4 {
+    margin-bottom: 1.5rem;
+}
+
+.mt-4 {
+    margin-top: 1.5rem;
+}
+
+/* ============================================
+   Engineering Clarity Design System
+   ============================================ */
+
+/* Page Title */
+.page-title {
+    color: var(--ink);
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+/* Upload Card */
+.upload-card {
+    background-color: var(--surface-0);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--slate-300);
+    box-shadow: var(--shadow-1);
+    transition: box-shadow var(--transition-normal);
+}
+
+.upload-card:hover {
+    box-shadow: var(--shadow-2);
+}
+
+/* Footer styling */
+footer {
+    margin-top: auto;
+}
+
+.index-page {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.index-container {
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.hero-section {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 1rem;
+    letter-spacing: -0.025em;
+}
+
+.hero-subtitle {
+    font-size: 1.125rem;
+    color: var(--muted);
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    line-height: var(--line-height-relaxed);
+}
+
+.hero-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.features-section {
+    padding: 1.5rem 0;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.feature-card {
+    background-color: var(--surface-0);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 1px solid var(--slate-300);
+    transition: box-shadow var(--transition-normal), border-color var(--transition-normal);
+    box-shadow: var(--shadow-1);
+}
+
+.feature-card:hover {
+    box-shadow: var(--shadow-2);
+    border-color: var(--slate-500);
+}
+
+.feature-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--water-100);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.feature-icon i {
+    font-size: 1.25rem;
+    color: var(--water-700);
+}
+
+.feature-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+}
+
+.feature-description {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: var(--line-height-relaxed);
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-title {
+        font-size: 2rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1rem;
+    }
+}
+
+/* ============================================================
+   MOTYW AKADEMICKI (dawny academic-theme.css)
+   ============================================================ */
+
+/* ============================================================
+   BASE REFINEMENTS
+   ============================================================ */
+
+body {
+    font-family: var(--font-body);
+    /* Papier (neutralny, jak przed planem 15) zostaje na stronie, karty są białe:
+       dopiero ta różnica daje im brzeg. */
+    background: var(--surface-1);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+}
+
+h4.mb-0, h5.mb-0, h6.mb-0 {
+    font-family: var(--font-display);
+    font-weight: 600;
+}
+
+/* ============================================================
+   REFINED CARD DESIGN
+   ============================================================ */
+
+.card {
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    overflow: hidden;
+}
+
+/* Only a card that is itself a link earns the lift; a static panel stays still. */
+a > .card:hover,
+a.card:hover {
+    box-shadow: var(--shadow-2);
+    border-color: var(--slate-500);
+}
+
+.card-header {
+    /* Pasmo sprzed planu 15: chłodny gradient odcina nagłówek od białej karty.
+       background-color stoi obok gradientu jako wartość realna (klony i starsze
+       przeglądarki czytają samo tło). */
+    background-color: var(--slate-band-top);
+    background-image: linear-gradient(to bottom, var(--slate-band-top) 0%, var(--slate-band-bottom) 100%);
+    border-bottom: 1px solid var(--slate-300);
+    padding: 0.875rem 1.25rem;
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.card-header h4,
+.card-header h5,
+.card-header h6 {
+    font-size: 1rem;
+    margin: 0;
+}
+
+.card-header i {
+    color: var(--water-600);
+}
+
+.card-body {
+    padding: 1.25rem 1.5rem;
+    background-color: var(--surface-0);
+}
+
+/* ============================================================
+   ELEGANT TABLE DESIGN
+   ============================================================ */
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin-bottom: 0;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+    box-shadow: var(--shadow-1);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--slate-500);
+}
+
+/* Ensure tables inside responsive wrappers show borders */
+.table-responsive {
+    border: 1px solid var(--slate-500);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-1);
+}
+
+.table-responsive > .table {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+
+/* Table Header - Strong & Distinguished */
+/* Override Bootstrap's 2px thead border */
+.table > thead,
+.table thead,
+table > thead,
+table thead {
+    border-bottom: 1px solid var(--slate-300);
+    border-bottom-width: 1px;
+}
+
+.table > :not(caption) > * > * {
+    border-bottom-width: 1px;
+}
+
+/* Override Bootstrap's border-bottom-width on thead specifically */
+.table > :not(:first-child) {
+    border-top: none;
+}
+
+.table > tbody {
+    border-top: 1px solid var(--slate-300);
+}
+
+.table thead th {
+    /* Pasmo slate sprzed planu 15, ale PŁASKIE, nie gradientowe: klon nagłówka
+       w main.js kopiuje wyłącznie computedStyle(th).backgroundColor, więc gradient
+       zostałby w oryginale, a klon dostałby samą barwę - dwa różne nagłówki.
+       check_tables.py pilnuje, że background-image tu jest `none`. */
+    background-color: var(--slate-200);
+    background-image: none;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-bottom: 1px solid var(--slate-300);
+    vertical-align: middle;
+    position: relative;
+}
+
+/* Wykluczenie panelu przewodu: ta strona ma własną, płaską skórkę (§23.14.1), a podniesionej
+   wagi poniżej nie da się przebić bez dokładania kolejnej pozycji do budżetu wag. */
+thead th:not(:where(.conduit-page *)) {
+    /* `thead th` (0,0,2) przegrywa z Bootstrapowym `.table > :not(caption) > * > *`
+       (0,1,3), które maluje komórki na var(--bs-table-bg), oraz z `.table-dark`
+       (0,1,0), które ustawia color: #fff - stąd !important na obu własnościach. */
+    background-color: var(--slate-200) !important;
+    /* Bootstrap nie ustawia background-image; ta deklaracja gasi gradienty warstwy
+       bazowej, żeby computedStyle(th).backgroundColor klonu nagłówka (main.js) był
+       nieprzezroczysty. */
+    background-image: none !important;
+    color: var(--ink) !important;
+}
+
+/* Table Body Cells */
+.table tbody td {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-bottom: 1px solid var(--rule-soft);
+    color: var(--text);
+    background-color: var(--surface-0);
+    vertical-align: middle;
+    transition: background-color 0.15s ease;
+}
+
+.table th, .table td {
+    border: none;
+    border-bottom: 1px solid var(--rule-soft);
+}
+
+/* Vertical separators between columns */
+.table thead th:not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.table tbody td:not(:last-child) {
+    border-right: 1px solid var(--rule-soft);
+}
+
+/* First column: emphasis by weight, not by a second colour - but it stays opaque,
+   because the base layer pins it with position: sticky while the table scrolls. */
+.table th:first-child,
+.table td:first-child {
+    background-color: var(--surface-0);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.table th:first-child {
+    background-color: var(--slate-200);
+}
+
+/* Striped rows - the zebra runs the full width, first column included */
+.table-striped tbody tr:nth-of-type(odd) td,
+.table-striped tbody tr:nth-of-type(odd) td:first-child {
+    background-color: var(--tint-row);
+}
+
+.table-striped tbody tr:nth-of-type(even) td,
+.table-striped tbody tr:nth-of-type(even) td:first-child {
+    background-color: var(--surface-0);
+}
+
+/* Hover state - one wash across the row */
+.table-hover tbody tr:hover td,
+.table-hover tbody tr:hover td:first-child {
+    background-color: var(--water-050);
+    cursor: pointer;
+}
+
+.table-hover tbody tr:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Table links */
+.table a {
+    color: var(--water-700);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.15s ease;
+}
+
+.table a:hover {
+    color: var(--water-600);
+    text-decoration: underline;
+}
+
+/* Scrollable container refinements */
+.scrollable-table-container {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--slate-500);
+    box-shadow: var(--shadow-1);
+    background-color: var(--surface-0);
+}
+
+/* Remove sticky positioning from old styles */
+.scrollable-table-container .table thead th {
+    position: relative;
+    top: auto;
+    z-index: auto;
+    box-shadow: none;
+}
+
+.scrollable-table-container .table th:first-child,
+.scrollable-table-container .table td:first-child {
+    position: relative;
+    left: auto;
+    z-index: auto;
+}
+
+.scrollable-table-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.scrollable-table-container::-webkit-scrollbar-track {
+    background: var(--surface-2);
+}
+
+.scrollable-table-container::-webkit-scrollbar-thumb {
+    background: var(--rule-strong);
+    border-radius: 3px;
+}
+
+.scrollable-table-container::-webkit-scrollbar-thumb:hover {
+    background: var(--subtle);
+}
+
+.scrollable-table-container::before {
+    background: var(--water-700);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: var(--radius-pill);
+}
+
+/* Data Table specific */
+.data-table thead th {
+    position: relative;
+    top: auto;
+    z-index: auto;
+    box-shadow: none;
+}
+
+/* Accordion tables - ensure visible borders */
+.accordion-body .scrollable-table-container .table {
+    border: none;
+}
+
+.accordion-body .scrollable-table-container {
+    border: 1px solid var(--slate-500);
+    box-shadow: none;
+}
+
+/* ============================================================
+   PROPERTY TABLE (Detail View)
+   ============================================================ */
+
+/* ============================================================
+   REFINED BADGES
+   ============================================================ */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    letter-spacing: 0;
+    padding: 0.3em 0.7em;
+    border-radius: var(--radius-pill);
+    /* Sentence case on purpose: main.js compares the badge text ("Completed"). */
+    text-transform: none;
+}
+
+/* The 6 px dot carries the status colour. It is painted explicitly rather than with
+   currentColor, because Bootstrap's .text-dark utility repaints the label on some
+   badges and the dot still has to read as a status. */
+.badge.bg-success::before,
+.badge.bg-warning::before,
+.badge.bg-danger::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.badge.bg-success::before {
+    background-color: var(--ok);
+}
+
+.badge.bg-warning::before {
+    background-color: var(--warn);
+}
+
+.badge.bg-danger::before {
+    background-color: var(--bad);
+}
+
+.badge.bg-success,
+.bg-success {
+    background-color: var(--ok-wash) !important;  /* bije .bg-success Bootstrapa (utility ma !important) */
+    color: var(--ok);
+}
+
+.badge.bg-warning,
+.bg-warning {
+    background-color: var(--warn-wash) !important;  /* bije .bg-warning Bootstrapa (utility ma !important) */
+    color: var(--warn);
+}
+
+.badge.bg-danger,
+.bg-danger {
+    background-color: var(--bad-wash) !important;  /* bije .bg-danger Bootstrapa (utility ma !important) */
+    color: var(--bad);
+}
+
+/* bg-primary marks the model's recommendation on the results table - informational,
+   so it takes the accent wash rather than a status colour. */
+.badge.bg-primary,
+.bg-primary {
+    background-color: var(--water-100) !important;  /* bije .bg-primary Bootstrapa (utility ma !important) */
+    color: var(--water-700);
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.btn {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+.btn-primary {
+    background-color: var(--water-600);
+    border-color: var(--water-600);
+    color: #ffffff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--water-700);
+    border-color: var(--water-700);
+    color: #ffffff;
+}
+
+/* Kontur sprzed planu 15: 2 px slate. Blada ciepła krawędź ginęła na papierze,
+   a to jest przycisk powrotu, nie ozdoba. Wypełniony .btn-primary zostaje wodny. */
+.btn-outline-primary {
+    color: var(--slate-600);
+    background-color: transparent;
+    border: 2px solid var(--slate-500);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+    background-color: var(--slate-100);
+    color: var(--slate-600);
+    border-color: var(--slate-500);
+}
+
+.btn-outline-success {
+    color: var(--ok);
+    border-color: var(--slate-300);
+}
+
+.btn-outline-success:hover {
+    background-color: var(--ok-wash);
+    color: var(--ok);
+    border-color: var(--ok);
+}
+
+.btn-outline-warning {
+    color: var(--warn);
+    border-color: var(--slate-300);
+}
+
+.btn-outline-warning:hover {
+    background-color: var(--warn-wash);
+    color: var(--warn);
+    border-color: var(--warn);
+}
+
+.btn-outline-danger {
+    color: var(--bad);
+    border-color: var(--slate-300);
+    background-color: transparent;
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--bad-wash);
+    color: var(--bad);
+    border-color: var(--bad);
+}
+
+.btn-sm {
+    font-size: 0.8rem;
+    padding: 0.375rem 0.75rem;
+}
+
+/* A ghost circle for a single icon action; .delete-btn is the row-level bin on
+   /history/, which still carries the Bootstrap outline classes in its markup. */
+.btn-icon,
+.delete-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border-color: transparent;
+    background-color: transparent;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.btn-icon:hover,
+.delete-btn:hover {
+    background-color: var(--bad-wash);
+    border-color: transparent;
+    color: var(--bad);
+}
+
+/* ============================================================
+   ACCORDION REFINEMENTS
+   ============================================================ */
+
+.accordion {
+    border-radius: var(--radius-md);
+}
+
+.accordion-item {
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-md) !important;  /* bije .accordion-item:last-of-type Bootstrapa */
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.accordion-button {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--ink);
+    /* To samo pasmo co .card-header - nagłówek sekcji wyników ma być widoczną
+       krawędzią, nie kolejnym odcieniem papieru. */
+    background-color: var(--slate-band-top);
+    background-image: linear-gradient(to bottom, var(--slate-band-top) 0%, var(--slate-band-bottom) 100%);
+    padding: 1rem 1.25rem;
+    border: none;
+    border-bottom: 1px solid var(--slate-300);
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: var(--slate-band-bottom);
+    background-image: none;
+    color: var(--ink);
+    box-shadow: none;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: var(--rule-strong);
+}
+
+.accordion-button::after {
+    background-size: 1rem;
+    opacity: 0.6;
+}
+
+.accordion-body {
+    padding: 0;
+    background-color: var(--surface-0);
+}
+
+/* ============================================================
+   SESSION INFO HEADER
+   ============================================================ */
+
+.container-fluid > .row:first-child .card {
+    border-left: 3px solid var(--water-600);
+}
+
+/* ============================================================
+   CONNECTED ELEMENTS
+   ============================================================ */
+
+.card-body .mb-3 strong {
+    font-size: 0.85rem;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+/* ============================================================
+   RECOMMENDATION CARDS
+   ============================================================ */
+
+/* ============================================================
+   TYPOGRAPHY REFINEMENTS
+   ============================================================ */
+
+strong {
+    font-weight: 700;
+    color: var(--ink);
+}
+
+small {
+    font-size: 0.8rem;
+    color: var(--text);
+}
+
+.fw-bold {
+    font-weight: 700;
+    color: var(--ink);
+}
+
+/* ============================================================
+   HEADER & NAVIGATION
+   ============================================================ */
+
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-header);
+    /* Opaque on purpose: a translucent bar let page content ghost through it. */
+    background-color: var(--surface-0);
+    border-bottom: 1px solid var(--slate-300);
+}
+
+.site-header-inner {
+    /* --header-h is the full height of the sticky bar, the bottom rule included, so
+       that `top: var(--header-h)` on .bulk-action-bar lands flush against it. */
+    min-height: calc(var(--header-h) - 1px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.site-brand {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.site-brand img {
+    display: block;
+    height: 44px;
+    width: auto;
+}
+
+.site-nav .nav {
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.site-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.625rem;
+}
+
+.site-actions form {
+    margin: 0;
+}
+
+/* `justify-content: space-between` centres the middle child only when both flanks are
+   equally wide; the brand is 36 px and the actions 137 px, so the nav sat
+   (137 - 36) / 2 = 50 px left of the bar's centre. Giving both flanks the same share of
+   the free space puts the nav on the true centre for any width of either side. Only
+   above the collapse breakpoint: below it the actions live inside #siteNavCollapse and
+   the brand shares the row with the toggler. */
+@media (min-width: 768px) {
+    .site-brand,
+    .site-actions {
+        flex: 1 1 0;
+    }
+
+    .site-nav {
+        flex: 0 0 auto;
+    }
+}
+
+.site-avatar-link {
+    display: inline-flex;
+    border-radius: 50%;
+    line-height: 0;
+}
+
+.site-avatar-link:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 2px;
+}
+
+.nav-link {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-sm);
+    /* 2px of the underline is drawn by .is-active; the transparent border keeps
+       the inactive links on the same baseline. */
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.nav-link:hover {
+    color: var(--water-700);
+    background-color: var(--water-050);
+}
+
+.site-nav .nav-link.is-active {
+    color: var(--ink);
+    font-weight: 600;
+    border-bottom-color: var(--water-600);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.nav-link:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 2px;
+}
+
+/* ============================================================
+   UTILITY OVERRIDES
+   ============================================================ */
+
+.text-primary {
+    color: var(--water-700) !important;  /* bije .text-primary Bootstrapa (utility ma !important) */
+}
+
+.text-danger {
+    color: var(--bad) !important;  /* bije .text-danger Bootstrapa (utility ma !important) */
+}
+
+.text-muted {
+    color: var(--muted) !important;  /* bije .text-muted Bootstrapa (utility ma !important) */
+}
+
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+
+.pagination {
+    gap: 0.25rem;
+}
+
+.page-link {
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--water-700);
+    background-color: transparent;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.35rem 0.7rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.page-link:hover {
+    background-color: var(--water-050);
+    border-color: var(--water-300);
+    color: var(--water-700);
+}
+
+.page-item.active .page-link {
+    background-color: var(--water-600);
+    border-color: var(--water-600);
+    color: #ffffff;
+}
+
+.page-item.disabled .page-link {
+    color: var(--muted);  /* --subtle (2,97:1 na --surface-0) jest tylko do dekoracji */
+    background-color: transparent;
+    border-color: transparent;
+}
+
+/* Gap utilities */
+.gap-2 {
+    gap: 0.5rem;
+}
+
+.gap-3 {
+    gap: 0.75rem !important;  /* bije .gap-3 Bootstrapa (1rem, utility ma !important) */
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+footer {
+    /* Stopka dokładnie jak przed planem 15: --surface-2 nad kreską --rule-soft, tekst
+       --muted. Kreska wraca z --slate-300 na --rule-soft (odwrócenie fragmentu 458135e) -
+       autor uznał slate za zbyt twardy pod stopką. */
+    background-color: var(--surface-2);
+    border-top: 1px solid var(--rule-soft);
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.site-footer-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.site-footer-brand {
+    display: inline-flex;
+    line-height: 0;
+    opacity: 0.75;
+    transition: opacity 0.15s ease;
+}
+
+.site-footer-brand:hover {
+    opacity: 1;
+}
+
+.site-footer-copy {
+    margin: 0;
+    color: var(--muted);
+}
+
+.site-footer-nav .nav-link {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    border-bottom: none;
+}
+
+.site-footer-nav .nav-link:hover {
+    color: var(--water-700);
+    background-color: transparent;
+    text-decoration: underline;
+}
+
+/* ============================================================
+   BACK TO TOP
+   ============================================================ */
+
+.back-to-top {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: var(--z-fab);
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: var(--water-600);
+    color: #ffffff;
+    font-size: 0.95rem;
+    box-shadow: var(--shadow-2);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    /* visibility, not just opacity: an opacity-0 button stays focusable and would
+       sit in the tab order of every page while scrolled to the top. The delay keeps
+       the fade-out visible - visibility flips only after the 160 ms transition. */
+    visibility: hidden;
+    transition: opacity 160ms ease, transform 160ms ease, background-color 160ms ease, visibility 0s linear 160ms;
+}
+
+.back-to-top.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    visibility: visible;
+    transition: opacity 160ms ease, transform 160ms ease, background-color 160ms ease, visibility 0s linear 0s;
+}
+
+.back-to-top:hover {
+    background-color: var(--water-700);
+}
+
+.back-to-top:focus-visible {
+    outline: 2px solid var(--water-700);
+    outline-offset: 3px;
+}
+
+/* ============================================================
+   BULK SELECTION - History Page
+   ============================================================ */
+
+.bulk-action-bar {
+    position: sticky;
+    top: var(--header-h);
+    z-index: var(--z-sticky-bar);
+    background-color: var(--water-050);
+    border: 1px solid var(--water-300);
+    border-radius: var(--radius-md);
+    margin: 0 0 1rem 0;
+    padding: 0 12px;
+    animation: slideDown 0.2s ease-out;
+    box-shadow: var(--shadow-1);
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.bulk-action-bar .bulk-count {
+    color: var(--ink);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+}
+
+.bulk-action-bar .btn-link {
+    color: var(--water-700);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.bulk-action-bar .btn-link:hover {
+    color: var(--info);
+}
+
+.bulk-action-bar .btn-danger {
+    background-color: var(--bad);
+    border-color: var(--bad);
+}
+
+.bulk-action-bar .btn-danger:hover {
+    background-color: #9A3B36;
+    border-color: #9A3B36;
+}
+
+.session-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--water-600);
+}
+
+.session-checkbox:checked {
+    animation: checkPop 0.15s ease-out;
+}
+
+@keyframes checkPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+tr.selected td,
+tr.selected td:first-child {
+    background-color: var(--water-100) !important;  /* bije tła komórek .table tbody td */
+}
+
+tr.selected:hover td,
+tr.selected:hover td:first-child {
+    background-color: var(--water-300) !important;  /* bije podświetlenie hover i zaznaczenie wiersza */
+}
+
+.checkbox-cell {
+    width: 40px;
+    text-align: center;
+}
+
+/* Bulk Delete Modal */
+#bulkDeleteModal .modal-content {
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+}
+
+#bulkDeleteModal .modal-header {
+    background-color: var(--bad-wash);
+    border-bottom: 1px solid var(--rule-soft);
+    padding: 1rem 1.5rem;
+}
+
+#bulkDeleteModal .modal-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--bad);
+}
+
+#bulkDeleteModal .modal-body {
+    font-family: var(--font-body);
+    color: var(--text);
+    padding: 1.5rem;
+    background-color: var(--surface-0);
+}
+
+#bulkDeleteModal .modal-body p {
+    margin-bottom: 0.75rem;
+}
+
+#bulkDeleteModal .modal-body .alert {
+    background-color: var(--warn-wash);
+    border: 1px solid var(--rule-soft);
+    color: var(--warn);
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+#bulkDeleteModal .modal-footer {
+    background: var(--surface-1);
+    border-top: 1px solid var(--rule-soft);
+    padding: 1rem 1.5rem;
+}
+
+#bulkDeleteModal .btn-outline-secondary {
+    border-color: var(--slate-300);
+    color: var(--text);
+}
+
+#bulkDeleteModal .btn-outline-secondary:hover {
+    background-color: var(--slate-100);
+    border-color: var(--slate-500);
+}
+
+#bulkDeleteModal .btn-danger {
+    background-color: var(--bad);
+    border-color: var(--bad);
+}
+
+#bulkDeleteModal .btn-danger:hover {
+    background-color: #9A3B36;
+    border-color: #9A3B36;
+}
+
+/* BEGIN history */
+
+/* Scoped to /history/ (`.history-page` wraps the view). The status pill, the bulk
+   bar and the row checkboxes are styled higher up in this file; what follows is the
+   page frame, the filter bar, the count chips and the two empty states. */
+
+
+/* Filter bar: search grows, the three selects keep their natural width. */
+.history-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.history-filters-search {
+    flex: 1 1 22rem;
+    min-width: 0;
+    max-width: 32rem;
+}
+
+/* The base layer rounds every .input-group .form-control, which would make the field
+   overlap its own addons; inside the bar only the outer edges are rounded. */
+.history-filters .input-group > .form-control,
+.history-filters .input-group > .input-group-text,
+.history-filters .input-group > .btn {
+    border-radius: 0;
+}
+
+.history-filters .input-group > :first-child {
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
+}
+
+.history-filters .input-group > :last-child {
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+}
+
+.history-filters .input-group-text {
+    background-color: var(--slate-100);
+    border: 1px solid var(--slate-300);
+    border-right: none;
+    color: var(--muted);
+}
+
+.history-filters .input-group .form-control {
+    border-left: none;
+}
+
+.history-filters .input-group .btn {
+    border-width: 1px;
+    height: calc(2.25rem + 2px);
+}
+
+.history-filters-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.history-filters-controls .form-select {
+    width: auto;
+    min-width: 8.5rem;
+}
+
+.history-filters-controls #perPageSelect {
+    min-width: 5rem;
+}
+
+.history-filters-label {
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+/* Rows ------------------------------------------------------------------- */
+
+.history-date-day {
+    display: block;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: var(--ink);
+}
+
+.history-date-time {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.history-file {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text);
+    word-break: break-all;
+}
+
+.history-zone {
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+/* Counts are chips, not badges: main.js reads the first `.badge` of a row as the
+   status, so nothing else in the row may carry that class. */
+.count-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5em;
+    padding: 0.2em 0.6em;
+    border-radius: var(--radius-pill);
+    background-color: var(--surface-2);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.history-table .count-col {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.history-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+}
+
+.history-range {
+    margin: 1rem 0 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+/* Empty states ------------------------------------------------------------ */
+
+.history-empty {
+    text-align: center;
+    padding: 3.5rem 1.5rem;
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+}
+
+.history-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1.25rem;
+    border-radius: 50%;
+    background-color: var(--water-100);
+    color: var(--water-700);
+    font-size: 1.5rem;
+}
+
+.history-empty h4 {
+    font-family: var(--font-display);
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+}
+
+.history-empty p {
+    margin-bottom: 1.5rem;
+}
+
+/* Mobile ------------------------------------------------------------------ */
+
+/* 767.98, nie 768 - patrz komentarz przy nagłówku: przy dokładnie 768 CSS px
+   pasowałby i ten blok, i Bootstrapowy `min-width: 768px`. */
+@media (max-width: 767.98px) {
+    /* Only the table scrolls sideways; the document itself must not. */
+    .history-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .history-filters,
+    .history-filters-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .history-filters-search {
+        flex: 1 1 auto;
+        max-width: none;
+    }
+
+    .history-filters-controls {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .history-filters-controls .form-select {
+        width: 100%;
+    }
+}
+
+/* END history */
+
+/* BEGIN mobile-nav */
+/* ============================================================
+   MOBILE NAVIGATION (Bootstrap collapse below 768 px)
+   ============================================================ */
+
+/* #siteNavCollapse exists only so Bootstrap's collapse plugin has one element to
+   toggle. Above the breakpoint it must not be a box at all: `display: contents`
+   is the only value that keeps .site-header-inner a three-child flex row
+   (brand / nav / actions), so `justify-content: space-between` distributes them
+   exactly as it did before the wrapper existed. `display: flex` - what
+   .navbar-expand-* gives its .navbar-collapse - would make it a two-child row and
+   move the nav. The id (1,0,0) beats Bootstrap's `.collapse:not(.show)` (0,2,0)
+   on specificity alone, so the override needs no priority flag; below the
+   breakpoint the rule simply does not apply and Bootstrap's show/hide takes over. */
+@media (min-width: 768px) {
+    #siteNavCollapse,
+    #siteNavCollapse > .site-nav-collapse-inner {
+        display: contents;
+    }
+}
+
+.site-nav-toggler {
+    /* Shown only below the breakpoint; 44 px is the minimum comfortable tap target. */
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text);
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-sm);
+}
+
+.site-nav-toggler:hover {
+    color: var(--ink);
+    background-color: var(--surface-2);
+}
+
+.site-nav-toggler:focus {
+    /* Bootstrap's .navbar-toggler:focus draws a 4 px currentColor ring on mouse
+       clicks too; the project's focus ring is drawn by :focus-visible below. */
+    box-shadow: none;
+}
+
+.site-nav-toggler:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 2px;
+}
+
+.site-nav-toggler .fa-xmark {
+    display: none;
+}
+
+.site-nav-toggler[aria-expanded="true"] .fa-bars {
+    display: none;
+}
+
+.site-nav-toggler[aria-expanded="true"] .fa-xmark {
+    display: inline-block;
+}
+
+/* 767.98, not 768: at exactly 768 CSS px a `max-width: 768px` block and
+   Bootstrap's `min-width: 768px` breakpoint both match, which would leave the
+   toggler next to an already-expanded menu. */
+@media (max-width: 767.98px) {
+    .site-nav-toggler {
+        display: inline-flex;
+    }
+
+    /* Taken out of flow so the bar stays --header-h tall whether the menu is open
+       or closed - that is what makes the token true on mobile as well and lets
+       .bulk-action-bar stick to `top: var(--header-h)`. .site-header is
+       `position: sticky`, so it is the containing block; being its child, the menu
+       shares its stacking context and paints above the page content. The padding
+       lives on the inner element, because Bootstrap animates the height of this
+       one from 0. */
+    #siteNavCollapse {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: var(--surface-0);
+        border-bottom: 1px solid var(--rule-soft);
+        box-shadow: var(--shadow-2);
+    }
+
+    .site-nav-collapse-inner {
+        padding-top: 0.5rem;
+        padding-bottom: 1rem;
+    }
+
+    #siteNavCollapse .site-nav .nav {
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 0;
+    }
+
+    #siteNavCollapse .site-nav li {
+        width: 100%;
+    }
+
+    #siteNavCollapse .nav-link {
+        display: block;
+        /* ~48 px tall: 0.75rem of padding either side of a 0.95rem line. */
+        padding: 0.75rem;
+        /* Stacked, the 2 px active underline reads as a full-width rule; the accent
+           moves to the leading edge. */
+        border-bottom: 0;
+        border-left: 3px solid transparent;
+        border-radius: var(--radius-sm);
+    }
+
+    #siteNavCollapse .site-nav .nav-link.is-active {
+        border-left-color: var(--water-600);
+        background-color: var(--water-050);
+    }
+
+    #siteNavCollapse .site-actions {
+        justify-content: flex-start;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--rule-soft);
+    }
+
+    #siteNavCollapse .site-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    #siteNavCollapse .profile-image {
+        width: 44px;
+        height: 44px;
+    }
+}
+/* END mobile-nav */
+
+/* BEGIN auth */
+/* ============================================================
+   AUTH PAGES (login, register)
+   ============================================================ */
+
+.auth-shell {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 0 3rem;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 2rem;
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+}
+
+.auth-kicker {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.auth-title {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 600;
+    /* The base layer centres every bare h1; in the card the heading sits on the
+       same left edge as the kicker, the labels and the fields. */
+    text-align: left;
+    color: var(--ink);
+}
+
+.auth-lede {
+    margin: 0 0 1.5rem;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+/* crispy's bootstrap4 pack wraps every field in .form-group, a class Bootstrap 5
+   dropped, so the spacing between fields has to come from here. */
+.auth-card .form-group {
+    margin-bottom: 1rem;
+}
+
+.auth-card label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.auth-card .asteriskField {
+    margin-left: 0.15rem;
+    color: var(--bad);
+}
+
+.auth-card .form-control {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+    color: var(--text);
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-sm);
+}
+
+.auth-card .form-text,
+.auth-card .helptext {
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.auth-card .form-text ul {
+    margin: 0.25rem 0 0;
+    padding-left: 1.1rem;
+}
+
+.auth-card .form-control.is-invalid {
+    border-color: var(--bad);
+}
+
+.auth-card .invalid-feedback {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--bad);
+}
+
+/* Non-field errors - a wrong e-mail/password pair on /accounts/login/ - reach the
+   page as the .alert.alert-block.alert-danger that crispy puts above the fields. */
+.auth-card .alert-danger {
+    margin-bottom: 1.25rem;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.88rem;
+    color: var(--bad);
+    background-color: var(--bad-wash);
+    border-left-color: var(--bad);
+    box-shadow: none;
+}
+
+/* crispy wraps the messages in a <ul>; a bullet in front of a single sentence
+   reads as a stray mark, and several messages already stack as separate lines. */
+.auth-card .alert-danger ul {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.auth-submit {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 0.5rem;
+    font-weight: 600;
+}
+
+.auth-alt {
+    margin: 1.5rem 0 0;
+    padding-top: 1.25rem;
+    font-size: 0.9rem;
+    text-align: center;
+    color: var(--muted);
+    border-top: 1px solid var(--rule-soft);
+}
+
+.auth-alt a {
+    color: var(--water-700);
+    font-weight: 600;
+}
+
+@media (max-width: 767.98px) {
+    .auth-shell {
+        padding: 1rem 0 2rem;
+    }
+
+    .auth-card {
+        padding: 1.5rem 1.25rem;
+    }
+}
+/* END auth */
+
+/* BEGIN conduit-panel */
+/* Skin of the conduit panel. The page carries its own light palette, which takes
+   precedence over the application layer here. Every rule below is scoped by
+   .conduit-page, so no other page is affected. No shadows, no gradients, no serif or
+   mono face (numbers align through font-variant-numeric: tabular-nums) and no icon
+   font. No rule in this block raises its own weight. */
+
+/* Page tokens - declarations only; rev/findings/plan15-checks/contrast.py reads them. */
+.conduit-page {
+    --cp-bg: #f3f5f8;
+    --cp-panel: #ffffff;
+    --cp-text: #203247;
+    /* Secondary text: dark enough for 4.5:1 against both the page ground and a
+       surface (4.56:1 and 4.98:1), which small text needs. */
+    --cp-muted: #617186;
+    --cp-line: #e3e9ef;
+    --cp-accent: #256caa;
+    --cp-soft: #eef5fb;
+    --cp-warn: #986017;
+    --cp-warn-bg: #fff4df;
+    --cp-good: #327865;
+    --cp-flood: #9f3028;
+    /* Type scale of the page, rounded to half pixels. Every size in the rules below
+       comes from one of these steps; the only pixel sizes elsewhere are the labels of
+       the profile SVG, which are in viewBox units. */
+    --cp-fs-eyebrow: 13px;
+    --cp-fs-small: 14.5px;
+    --cp-fs-label: 15.5px;
+    --cp-fs-body: 17px;
+    --cp-fs-title: 18px;
+    --cp-fs-lead: 24px;
+    --cp-fs-score: 25px;
+    --cp-fs-metric: 30px;
+    /* The page heading is the profile card's head: a card title, one step larger. */
+    --cp-fs-h1: 21.5px;
+}
+
+/* Full width of the content area: the negative margins cancel the padding of
+   .content-wrapper (1.75rem / 2.5rem) and .containerwide (2rem), so the page ground
+   runs from the navigation bar to the application footer. .containerwide has no
+   max-width, so the cancellation is exact. */
+.conduit-page {
+    margin: -1.75rem -2rem -2.5rem;
+    padding: 24px 28px 28px;
+    background: var(--cp-bg);
+    color: var(--cp-text);
+    font-family: var(--font-body);
+    font-size: var(--cp-fs-body);
+    line-height: 1.5;
+}
+
+.conduit-page h1,
+.conduit-page h2,
+.conduit-page h6 {
+    font-family: var(--font-body);
+    color: var(--cp-text);
+    text-align: left;
+    margin: 0;
+}
+
+.conduit-page a {
+    font-size: inherit;
+}
+
+.conduit-page p {
+    margin: 0;
+}
+
+/* Flat surfaces instead of the application cards: .card stays on #conduit-details but
+   loses the shadow, the 14px radius and the slate border. */
+.conduit-page .card,
+.conduit-page .panel-surface {
+    background: var(--cp-panel);
+    border: 1px solid var(--cp-line);
+    border-radius: 10px;
+    box-shadow: none;
+    overflow: hidden;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+/* --- Page heading: the head of the profile card --- */
+/* Back to the results: an outlined button on the right of the page heading (the head
+   of the profile card). */
+.conduit-page .panel-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 13px;
+    border: 1px solid var(--cp-accent);
+    border-radius: 7px;
+    background: var(--cp-panel);
+    color: var(--cp-accent);
+    font-size: var(--cp-fs-small);
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.conduit-page .panel-back:hover,
+.conduit-page .panel-back:focus-visible {
+    background: var(--cp-soft);
+}
+
+.conduit-page .panel-back:focus-visible {
+    outline: 2px solid var(--cp-accent);
+    outline-offset: 2px;
+}
+
+/* Pager and Back stay one group on the right of the title. It wraps only when two long
+   (truncated) names and Back do not fit a phone row; otherwise the card would clip Back. */
+.conduit-page .panelhead-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Previous / next conduit: one segmented control dressed like .panel-back (same outline,
+   radius, type and height), the two halves split by a 1 px rule. The group carries the
+   outline and does not clip (overflow: hidden would also cut the focus ring), so each
+   half rounds its own outer corners to the inner radius of the outline. The links must
+   not take the site-nav class .nav-link: its padding and bottom border squeezed the
+   chevron of the old edge handles to 0 px. */
+.conduit-page .conduit-pager {
+    display: inline-flex;
+    border: 1px solid var(--cp-accent);
+    border-radius: 7px;
+    background: var(--cp-panel);
+}
+
+.conduit-page .conduit-pager-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px 6px 9px;
+    color: var(--cp-accent);
+    font-size: var(--cp-fs-small);
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.conduit-page .conduit-pager-link:first-child {
+    border-radius: 6px 0 0 6px;
+}
+
+.conduit-page .conduit-pager-link:last-child {
+    padding: 6px 9px 6px 12px;
+    border-left: 1px solid var(--cp-accent);
+    border-radius: 0 6px 6px 0;
+}
+
+/* Fixed size: the chevron is a flex item and must not shrink. */
+.conduit-page .conduit-pager-icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+}
+
+/* Long SWMM names are cut; the full name stays in aria-label and title. The minimum
+   width fits the usual short names (K1..K999) and the dash of a missing neighbour, so
+   the group keeps one footprint from the first to the last conduit instead of shifting
+   the right-aligned head by a name's width. */
+.conduit-page .conduit-pager-name {
+    min-width: 4ch;
+    max-width: 10ch;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.conduit-page a.conduit-pager-link:hover,
+.conduit-page a.conduit-pager-link:focus-visible {
+    background: var(--cp-soft);
+    color: var(--cp-accent);
+}
+
+/* Lifted over the neighbouring half, so the divider does not cross the ring. */
+.conduit-page a.conduit-pager-link:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--cp-accent);
+    outline-offset: 2px;
+}
+
+/* No neighbour at the first or last conduit: the half stays, muted and inert. */
+.conduit-page .conduit-pager-link.is-disabled {
+    color: var(--cp-muted);
+    cursor: default;
+}
+
+/* --- Two columns: profile and prediction --- */
+.conduit-page .panel-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.75fr) minmax(260px, 1fr);
+    gap: 20px;
+    /* Both cards end at the same height (stretch). So that the shorter one leaves no
+       white gap, both are flex columns: in the profile card the drawing area grows, in
+       the prediction card the spare room lands above the design rules, which are pushed
+       to the bottom. */
+}
+
+.conduit-page .panel-profile-card,
+.conduit-page .predictions-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.conduit-page #conduit-diagram {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-height: 0;
+}
+
+.conduit-profile-scroll {
+    overflow-x: auto;
+}
+
+.conduit-profile-scroll:focus-visible {
+    outline: 2px solid var(--cp-accent);
+    outline-offset: -2px;
+}
+
+.conduit-page .conduit-profile-scroll {
+    width: 100%;
+    min-width: 0;
+}
+
+/* In the two-column layout the profile card stretches to the height of the prediction
+   card and the drawing grows with it instead of standing in an empty field. */
+@media (min-width: 880.02px) {
+    .conduit-page #conduit-diagram {
+        align-items: stretch;
+    }
+
+    .conduit-page .conduit-profile-scroll {
+        display: flex;
+    }
+
+    .conduit-page .conduit-profile {
+        height: auto;
+        min-height: 325px;
+        max-height: 460px;
+        flex: 1;
+    }
+}
+
+.conduit-page .prediction {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.conduit-page .panelhead {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    /* The profile head carries the Back button; on a phone it drops under the title. */
+    flex-wrap: wrap;
+}
+
+.conduit-page .panelhead-title {
+    font-size: var(--cp-fs-title);
+    font-weight: 600;
+}
+
+.conduit-page .panel-page-title {
+    font-size: var(--cp-fs-h1);
+    line-height: 1.25;
+    letter-spacing: -0.3px;
+}
+
+.conduit-page .panelhead-sub {
+    font-size: var(--cp-fs-small);
+    color: var(--cp-muted);
+}
+
+.conduit-page .panel-eyebrow {
+    display: block;
+    font-size: var(--cp-fs-eyebrow);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--cp-muted);
+}
+
+/* --- Longitudinal profile (conduit-panel.js) ---
+   The SVG names no colour: the whole palette lives here, matched on the data-role
+   attributes and the cp-* classes. The viewBox is 580x256 and the drawing is shown at
+   325 px high, so the labels scale with it and keep their viewBox sizes. */
+.conduit-profile {
+    display: block;
+    width: 100%;
+    /* Below this width the labels would fall under ~7 px; the drawing scrolls in its
+       own box instead of shrinking with the viewport. */
+    min-width: 620px;
+    height: 325px;
+    background: var(--cp-panel);
+}
+
+.conduit-profile text {
+    font-family: var(--font-body);
+    font-size: 12px;
+    fill: var(--cp-muted);
+}
+
+.conduit-profile .cp-small {
+    font-size: 10px;
+}
+
+.conduit-profile .cp-accent {
+    fill: var(--cp-accent);
+}
+
+.conduit-profile .cp-grid-line {
+    fill: none;
+    stroke: var(--cp-line);
+    stroke-width: 0.6;
+}
+
+.conduit-profile .cp-hatch-line {
+    fill: none;
+    stroke: var(--cp-muted);
+    stroke-width: 0.7;
+    opacity: 0.5;
+}
+
+.conduit-profile [data-role="soil"] {
+    fill: var(--cp-muted);
+    opacity: 0.07;
+}
+
+.conduit-profile [data-role="ground"] {
+    fill: none;
+    stroke: var(--cp-muted);
+    stroke-width: 2;
+}
+
+/* The pipe and the shafts are fill-only bodies; their outlines are separate open
+   paths (pipe-wall: crown and invert, shaft-wall: open where the pipe enters), so the
+   pipe has open ends and joins the shafts at their walls. Butt caps: the joins are
+   drawn by the geometry, a cap would overshoot them. */
+/* Empty pipe reads like an empty manhole: only water is blue, in the pipe and the shafts alike. */
+.conduit-profile [data-role="pipe"] {
+    fill: var(--cp-panel);
+}
+
+.conduit-profile [data-role="pipe-wall"] {
+    fill: none;
+    stroke: var(--cp-accent);
+    stroke-width: 2;
+    stroke-linecap: butt;
+}
+
+.conduit-profile [data-role="water"],
+.conduit-profile [data-role="shaft-water"] {
+    fill: var(--cp-accent);
+    opacity: 0.19;
+}
+
+.conduit-profile [data-role="flood"] {
+    fill: var(--cp-flood);
+    stroke: var(--cp-flood);
+    stroke-width: 1;
+    stroke-linejoin: round;
+}
+
+.conduit-profile [data-role="flow-arrow"] {
+    fill: none;
+    stroke: var(--cp-accent);
+    stroke-width: 1.5;
+}
+
+.conduit-profile [data-role="shaft"] {
+    fill: var(--cp-panel);
+}
+
+.conduit-profile [data-role="shaft-wall"] {
+    fill: none;
+    stroke: var(--cp-muted);
+    stroke-width: 2;
+    stroke-linecap: butt;
+}
+
+.conduit-profile [data-role="lid"] {
+    fill: none;
+    stroke: var(--cp-text);
+    stroke-width: 4;
+    stroke-linecap: butt;
+}
+
+.conduit-profile path[data-role="cover-dim"],
+.conduit-profile path[data-role="length-dim"] {
+    fill: none;
+    stroke: var(--cp-muted);
+    stroke-width: 1;
+}
+
+.conduit-profile [data-role="length-label-bg"] {
+    fill: var(--cp-panel);
+}
+
+/* --- Node cards: the only content under the drawing, open by default --- */
+.conduit-page .chain-details {
+    margin: 0 20px 18px;
+}
+
+.conduit-page .chain-details > summary {
+    padding: 10px 0;
+    border-top: 1px solid var(--cp-line);
+    font-size: var(--cp-fs-label);
+    font-weight: 600;
+    color: var(--cp-text);
+    cursor: pointer;
+}
+
+.conduit-page .chain-details > summary:focus-visible {
+    outline: 2px solid var(--cp-accent);
+    outline-offset: 2px;
+}
+
+.conduit-page .chain-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.conduit-page .node-card {
+    background: var(--cp-bg);
+    border-radius: 7px;
+    padding: 14px 16px;
+    min-width: 0;
+    font-size: var(--cp-fs-small);
+}
+
+.conduit-page .node-card.is-flooded {
+    border: 1px solid var(--cp-flood);
+}
+
+.conduit-page .node-card-role {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: var(--cp-fs-eyebrow);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--cp-muted);
+}
+
+.conduit-page .node-card-flood-status {
+    color: var(--cp-flood);
+    font-weight: 600;
+}
+
+.conduit-page .node-card-name {
+    font-size: var(--cp-fs-title);
+    font-weight: 600;
+    margin: 2px 0 10px;
+}
+
+.conduit-page .node-card dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+    row-gap: 4px;
+    margin: 0;
+}
+
+.conduit-page .node-card dl + dl {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cp-line);
+}
+
+.conduit-page .node-card dt {
+    color: var(--cp-muted);
+    font-weight: 400;
+}
+
+.conduit-page .node-card dd {
+    margin: 0;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: break-word;
+}
+
+.conduit-page .chain-link {
+    display: inline-block;
+    margin: 0 8px 2px 0;
+    color: var(--cp-accent);
+    text-decoration: none;
+}
+
+.conduit-page .chain-link:hover,
+.conduit-page .chain-link:focus-visible {
+    text-decoration: underline;
+}
+
+.conduit-page .node-card-missing,
+.conduit-page .panel-empty {
+    color: var(--cp-muted);
+    font-style: italic;
+}
+
+/* --- Prediction card --- */
+.conduit-page .prediction {
+    padding: 0 20px 18px;
+}
+
+.conduit-page .recommend {
+    padding: 16px;
+    background: var(--cp-soft);
+    border-radius: 8px;
+    margin-bottom: 17px;
+}
+
+.conduit-page .selected-value {
+    font-size: var(--cp-fs-lead);
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    margin: 6px 0 12px;
+    overflow-wrap: anywhere;
+}
+
+.conduit-page .prob {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: var(--cp-fs-small);
+    color: var(--cp-muted);
+}
+
+.conduit-page .prob strong {
+    font-size: var(--cp-fs-score);
+    font-weight: 600;
+    color: var(--cp-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.conduit-page .track {
+    height: 6px;
+    background: var(--cp-line);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 7px 0 0;
+}
+
+.conduit-page .track > span {
+    display: block;
+    height: 100%;
+    background: var(--cp-accent);
+}
+
+.conduit-page .prediction-others-title {
+    font-size: var(--cp-fs-small);
+    color: var(--cp-muted);
+}
+
+.conduit-page .alternative {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 54px;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: var(--cp-fs-small);
+}
+
+.conduit-page .alternative .track {
+    grid-column: 1 / -1;
+    height: 5px;
+    margin: 0;
+}
+
+.conduit-page .alternative .track > span {
+    opacity: 0.5;
+}
+
+.conduit-page .prediction-percent {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.conduit-page .prediction-rest > summary {
+    margin-top: 15px;
+    font-size: var(--cp-fs-small);
+    color: var(--cp-accent);
+    cursor: pointer;
+}
+
+/* Design rules: only the changes the rules ask for, one flat row each. */
+/* Right under the classes: pushed to the card bottom it left a hole when the classes are open. */
+.conduit-page .design-rules {
+    padding-top: 18px;
+}
+
+.conduit-page .design-rules-title {
+    padding-bottom: 8px;
+    font-size: var(--cp-fs-small);
+    color: var(--cp-muted);
+}
+
+.conduit-page .design-rule,
+.conduit-page .design-rule-none {
+    padding: 10px 0;
+    border-top: 1px solid var(--cp-line);
+    font-size: var(--cp-fs-small);
+}
+
+.conduit-page .design-rule {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.conduit-page .design-rule > span {
+    color: var(--cp-muted);
+}
+
+.conduit-page .design-rule > b {
+    font-weight: 500;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Results and design criteria ---
+   One card per quantity in the language of the old metric bar (large value, small
+   unit); a failed card takes the warm ground of the failed checks, a passed one stays
+   neutral. Six in a row on a wide screen, three on a medium one, two on a phone. */
+.conduit-page .criteria-card {
+    margin-top: 20px;
+    padding: 17px 20px 20px;
+}
+
+.conduit-page .criteria-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.conduit-page .criteria-count {
+    font-size: var(--cp-fs-small);
+    color: var(--cp-good);
+}
+
+.conduit-page .criteria-count.is-warning {
+    color: var(--cp-warn);
+}
+
+.conduit-page .criteria-grid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+}
+
+.conduit-page .criterion {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 16px 18px;
+    border-radius: 6px;
+    background: var(--cp-bg);
+}
+
+.conduit-page .criterion.is-failed {
+    background: var(--cp-warn-bg);
+}
+
+.conduit-page .criterion-label {
+    font-size: var(--cp-fs-small);
+    color: var(--cp-muted);
+}
+
+.conduit-page .criterion-value {
+    font-size: var(--cp-fs-metric);
+    font-weight: 600;
+    letter-spacing: -0.7px;
+    line-height: 1.2;
+    margin: 5px 0 4px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.conduit-page .criterion-value small {
+    margin-left: 3px;
+    font-size: var(--cp-fs-label);
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--cp-muted);
+}
+
+.conduit-page .criterion-limit {
+    font-size: var(--cp-fs-eyebrow);
+    color: var(--cp-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.conduit-page .criterion-status {
+    margin-top: auto;
+    padding-top: 6px;
+    font-size: var(--cp-fs-eyebrow);
+    font-weight: 500;
+    color: var(--cp-good);
+}
+
+.conduit-page .criterion.is-failed .criterion-value,
+.conduit-page .criterion.is-failed .criterion-status {
+    color: var(--cp-warn);
+}
+
+@media (max-width: 1199.98px) {
+    .conduit-page .criteria-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* --- Tabs and property grid --- */
+.conduit-page .panel-details {
+    margin-top: 20px;
+}
+
+.conduit-page .panel-tabs {
+    display: flex;
+    padding: 0 20px;
+    gap: 28px;
+    border-bottom: 1px solid var(--cp-line);
+    /* Always one row: a wrapped tab list reads as two controls. When there is not
+       enough room the list scrolls - never the page. */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+}
+
+.conduit-page .panel-tab {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 18px 0;
+    font-family: inherit;
+    font-size: var(--cp-fs-label);
+    color: var(--cp-muted);
+    white-space: nowrap;
+}
+
+.conduit-page .panel-tab[aria-selected="true"] {
+    color: var(--cp-accent);
+    border-bottom-color: var(--cp-accent);
+}
+
+.conduit-page .panel-tab:focus-visible {
+    outline: 2px solid var(--cp-accent);
+    outline-offset: 2px;
+}
+
+.conduit-page .panel-tabpanel {
+    padding: 5px 20px 16px;
+}
+
+.conduit-page .panel-tabpanel:focus-visible {
+    outline: 2px solid var(--cp-accent);
+    outline-offset: -2px;
+}
+
+.conduit-page .propertygrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 35px;
+}
+
+.conduit-page .property {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--cp-line);
+    font-size: var(--cp-fs-small);
+}
+
+.conduit-page .property span {
+    color: var(--cp-muted);
+}
+
+.conduit-page .property b {
+    font-weight: 500;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.conduit-page .property b.prop-num {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.conduit-page .propertygroup {
+    margin-top: 14px;
+}
+
+.conduit-page .propertygroup-title {
+    font-size: var(--cp-fs-eyebrow);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--cp-muted);
+}
+
+.conduit-page .catchment-title {
+    font-size: var(--cp-fs-label);
+    font-weight: 600;
+    margin: 10px 0;
+}
+
+/* Catchment table without the chrome of the base layer: no slate band, no small caps,
+   no border and no shadow around it - the rows in the typography of this page. */
+.conduit-page .table-responsive {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.conduit-page .catchment-table {
+    font-size: var(--cp-fs-small);
+    margin-bottom: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.conduit-page .catchment-table th,
+.conduit-page .catchment-table td,
+.conduit-page .catchment-table th:first-child,
+.conduit-page .catchment-table td:first-child {
+    padding: 10px 12px;
+    background-color: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--cp-line);
+    vertical-align: middle;
+}
+
+.conduit-page .catchment-table th,
+.conduit-page .catchment-table th:first-child {
+    font-family: var(--font-body);
+    font-size: var(--cp-fs-eyebrow);
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--cp-muted);
+    white-space: normal;
+    line-height: 1.2;
+}
+
+.conduit-page .catchment-table td,
+.conduit-page .catchment-table td:first-child {
+    color: var(--cp-text);
+    font-weight: 400;
+}
+
+.conduit-page .catchment-table th:not(:last-child),
+.conduit-page .catchment-table td:not(:last-child) {
+    /* Horizontal rules alone separate the cells; the columns are not ruled. */
+    border-right: 0;
+}
+
+.conduit-page .catchment-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.conduit-page .catchment-table td.num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.conduit-page .panel-note {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: var(--cp-soft);
+    border-radius: 6px;
+    font-size: var(--cp-fs-small);
+}
+
+.conduit-page .panel-footnote {
+    margin-top: 8px;
+    font-size: var(--cp-fs-eyebrow);
+    color: var(--cp-muted);
+}
+
+/* Caption under the drawing: what the two water levels are and the vertical
+   exaggeration. One line on a wide screen, it may wrap on a phone. */
+.conduit-page .profile-caption {
+    padding: 2px 22px 14px;
+    font-size: var(--cp-fs-eyebrow);
+    color: var(--cp-muted);
+}
+
+/* Without this the fragment targets would land under the sticky header. */
+#node-inlet,
+#node-outlet,
+[id^="catchment-"],
+.conduit-page .chain-details {
+    scroll-margin-top: calc(var(--header-h) + 8px);
+}
+
+/* One column below this width: at 17 px text two columns break the numbers in the node
+   cards onto a second line. */
+@media (max-width: 880px) {
+    .conduit-page {
+        padding: 20px 16px 24px;
+        /* The one step of the scale that drops on a narrow screen. */
+        --cp-fs-metric: 26.5px;
+    }
+
+    .conduit-page .panel-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .conduit-page .chain-details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* The pager and Back get their own row under the title: pager on the left, Back on
+       the right. */
+    .conduit-page .panelhead-actions {
+        flex: 1 1 100%;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 440px) {
+    .conduit-page .criteria-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .conduit-page .criterion {
+        padding: 14px;
+    }
+
+    .conduit-page .propertygrid {
+        grid-template-columns: 1fr;
+    }
+
+    .conduit-page .chain-details {
+        margin: 0 12px 12px;
+    }
+
+    .conduit-page .panel-tabs {
+        gap: 16px;
+        padding: 0 16px;
+    }
+
+    .conduit-page .panel-tabpanel {
+        padding: 5px 16px 16px;
+    }
+}
+/* END conduit-panel */
+
+/* ============================================================
+   PREFERS-REDUCED-MOTION
+   ============================================================
+
+   Jeden blok na końcu arkusza, nie przy każdym komponencie: media query nie
+   dodaje specyficzności, więc `animation: none` postawione PRZED regułą, która
+   animację włącza, przegrywa na kolejności źródła i cicho nic nie robi. */
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    .back-to-top {
+        transition: none;
+        transform: none;
+    }
+
+    .back-to-top.is-visible {
+        transform: none;
+    }
+
+    .bulk-action-bar {
+        animation: none;
+    }
+
+    .session-checkbox:checked {
+        animation: none;
+    }
+}

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %} User Profile {% endblock %}
+
+{% block content %}
+
+    <div class="container bootstrap snippet">
+        <div class="row">
+
+            <div class="col-sm-4"><!--left col-->
+                <div class="text-center">
+                    <h1>User name</h1>
+                    <img src="{{ user.get_avatar_url }}" class="avatar img-circle img-thumbnail" alt="avatar">
+                    <form action="{% url 'accounts:user_profile' %}" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="user_profile_forms" value="3">
+                        <input type="file" class="text-center center-block file-upload" name="avatar">
+                        {% if avatar_form.errors %}
+                            <div class="text-danger small mt-2">{{ avatar_form.errors.avatar }}</div>
+                        {% endif %}
+                        <br>
+                        <br>
+                        <button type="submit" class="btn btn-primary" id="saveBtn" style="display:none;">Save</button>
+                        <button type="reset" class="btn btn-outline-primary me-2" id="resetBtn" style="display:none;">Reset</button>
+
+                    </form>
+                </div>
+            </div><!--right col-->
+
+            <div class="col-sm-8">
+                <div class="tab-content">
+
+                    <div class="accordion" id="accordionMenu">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                    <strong>Required User Information Management</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionMenu">
+                                <div class="accordion-body">
+                                    <form class="form" action="{% url 'accounts:user_profile' %}" method="POST" id="userInfoForm" enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        {{ user_form|crispy }}
+                                        <input type="hidden" name="user_profile_forms" value="0">
+                                        <div class="form-group">
+                                            <div class="col-xs-12">
+                                                <br>
+                                                <button type="submit" class="btn btn-primary">Save</button>
+                                                <button type="reset" class="btn btn-outline-primary me-2">Reset</button>
+                                            </div>
+                                        </div>
+                                    </form>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                <strong>Password Management</strong>
+                            </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionMenu">
+                            <div class="accordion-body">
+                                <form class="form" action="{% url 'accounts:user_profile' %}" method="POST" id="passwordChangeForm" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    {{ password_form|crispy }}
+                                    <input type="hidden" name="user_profile_forms" value="1">
+                                    <div class="form-group">
+                                        <div class="col-xs-12">
+                                            <br>
+                                            <button type="submit" class="btn btn-primary">Save</button>
+                                            <button type="reset" class="btn btn-outline-primary me-2">Reset</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                    <strong>Additional Information Management</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionMenu">
+                                <div class="accordion-body">
+                                    <form class="form" action="{% url 'accounts:user_profile' %}" method="POST" id="additionalInfoForm" enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        {{ profile_form|crispy }}
+                                        <input type="hidden" name="user_profile_forms" value="2">
+                                        <div class="form-group">
+                                            <div class="col-xs-12">
+                                                <br>
+                                                <button type="submit" class="btn btn-primary">Save</button>
+                                                <button type="reset" class="btn btn-outline-primary me-2">Reset</button>
+                                            </div>
+                                        </div>
+                                    </form>
+
+
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    document.querySelector('.file-upload').addEventListener('change', function() {
+        if(this.files.length > 0) {
+            document.getElementById('saveBtn').style.display = 'inline-block';
+            document.getElementById('resetBtn').style.display = 'inline-block';
+        } else {
+            document.getElementById('saveBtn').style.display = 'none';
+            document.getElementById('resetBtn').style.display = 'none';
+        }
+    });
+    </script>
+
+{% endblock  %}

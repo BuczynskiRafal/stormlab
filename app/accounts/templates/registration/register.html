@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %} Create account {% endblock %}
+
+{% block content %}
+    <div class="auth-shell">
+        <div class="auth-card">
+            <p class="auth-kicker">Stormwater analysis</p>
+            <h1 class="auth-title">Create account</h1>
+            <p class="auth-lede">An account keeps every model you upload and its validation report.</p>
+
+            <form method="post">
+                {% csrf_token %}
+                {# The crispy filter renders form.non_field_errors as .alert.alert-danger above the fields. #}
+                {{ form|crispy }}
+                <button type="submit" class="btn btn-primary auth-submit">Create account</button>
+            </form>
+
+            <p class="auth-alt">Already registered? <a href="{% url 'accounts:login' %}">Log in</a></p>
+        </div>
+    </div>
+{% endblock %}

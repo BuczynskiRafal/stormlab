@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load sa_static %}
+
+{% block title %} Analysis Results {% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% versioned_static 'css/results-v2.css' %}">
+    <link rel="stylesheet" href="{% versioned_static 'css/network-map.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+
+    <!-- Results V2 Root Container -->
+    <div id="storm-results-v2" data-density="compact" data-stripe="false" aria-label="Simulation results workspace">
+
+        <div id="r-overview">
+            <!-- Tabbed Results Workspace Card -->
+            <div class="r-workspace">
+
+                <!-- Tab Navigation & Header Actions -->
+                <div class="r-tabs" role="tablist" aria-label="Network elements">
+                    <div class="r-tabs-list">
+                        <button type="button" class="r-tab" id="r-tab-map" data-tab="map" role="tab" aria-controls="r-map-panel" aria-selected="{% if network_map_data.available %}true{% else %}false{% endif %}">
+                            <i class="fas fa-project-diagram me-1" aria-hidden="true"></i>Map
+                        </button>
+                        <button type="button" class="r-tab" id="r-tab-conduits" data-tab="conduits" role="tab" aria-controls="r-table-panel" aria-selected="{% if network_map_data.available %}false{% else %}true{% endif %}">
+                            Conduits <span class="r-count" id="r-count-conduits">{{ results_v2_data.summary.conduits_count|default:"0" }}</span>
+                        </button>
+                        <button type="button" class="r-tab" id="r-tab-nodes" data-tab="nodes" role="tab" aria-controls="r-table-panel" aria-selected="false">
+                            Nodes <span class="r-count" id="r-count-nodes">{{ results_v2_data.summary.nodes_count|default:"0" }}</span>
+                        </button>
+                        <button type="button" class="r-tab" id="r-tab-catchments" data-tab="catchments" role="tab" aria-controls="r-table-panel" aria-selected="false">
+                            Subcatchments <span class="r-count" id="r-count-catchments">{{ results_v2_data.summary.catchments_count|default:"0" }}</span>
+                        </button>
+                        <button type="button" class="r-tab" id="r-tab-info" data-tab="info" role="tab" aria-controls="r-info-panel" aria-selected="false">
+                            <i class="fas fa-info-circle me-1" aria-hidden="true"></i>Info
+                        </button>
+                    </div>
+                    <div class="r-tabs-actions">
+                        <a href="{% url 'sa:analysis' %}" class="r-action-btn r-action-btn-primary">
+                            <i class="fas fa-plus" aria-hidden="true"></i><span>New Analysis</span>
+                        </a>
+                        <a href="{% url 'sa:history' %}" class="r-action-btn r-action-btn-secondary">
+                            <i class="fas fa-history" aria-hidden="true"></i><span>History</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Table Panel -->
+                <section id="r-table-panel" role="tabpanel" aria-labelledby="r-tab-conduits"{% if network_map_data.available %} hidden{% endif %}>
+
+                    <!-- Action Bar / Filter Toolbar -->
+                    <div class="r-toolbar">
+                        <div class="r-filters">
+                            <label class="r-field r-search">
+                                <span>Search</span>
+                                <span class="r-inputwrap">
+                                    <i class="fas fa-search" aria-hidden="true"></i>
+                                    <input type="search" id="r-search" placeholder="Name, node or category&hellip;" autocomplete="off">
+                                </span>
+                            </label>
+
+                            <label class="r-field" id="r-select-field">
+                                <span id="r-select-label">Recommendation</span>
+                                <select id="r-filter-select">
+                                    <!-- Populated dynamically by results-v2.js per active tab -->
+                                </select>
+                            </label>
+
+                            <label class="r-checkbox" id="r-failed-label">
+                                <input type="checkbox" id="r-failed">
+                                <span id="r-failed-text">Failed checks only</span>
+                            </label>
+                        </div>
+
+                        <div class="r-tools">
+                            <button type="button" class="r-button" id="r-columns" aria-expanded="false" aria-controls="r-column-selection">
+                                <i class="fas fa-columns" aria-hidden="true"></i>Columns <small id="r-column-count"></small>
+                            </button>
+                            <button type="button" class="r-button" id="r-export">
+                                <i class="fas fa-download" aria-hidden="true"></i>CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Viewline: Filter Summary and Reset Button -->
+                    <div class="r-viewline">
+                        <span id="r-filter-summary"></span>
+                        <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear filters</button>
+                    </div>
+
+                    <!-- Column Selection Drawer -->
+                    <div class="r-selection" id="r-column-selection" hidden>
+                        <div class="r-selectionhead">
+                            <div>
+                                <h3>Visible columns</h3>
+                                <p>Changes apply immediately &middot; remembered in this browser</p>
+                            </div>
+                            <div class="r-presets">
+                                <button type="button" class="r-preset" data-preset="overview">Overview</button>
+                                <button type="button" class="r-preset" data-preset="technical" id="r-technical-preset">Hydraulics</button>
+                                <button type="button" class="r-preset" data-preset="all">All columns</button>
+                                <button type="button" class="r-close" id="r-close-columns" aria-label="Close column selection">&times;</button>
+                            </div>
+                        </div>
+                        <div class="r-groups" id="r-column-groups">
+                            <!-- Populated dynamically by results-v2.js -->
+                        </div>
+                    </div>
+
+                    <!-- Data Table Frame & Overflow Container -->
+                    <div class="r-tableframe" id="r-tableframe" data-right="false">
+                        <div class="r-overflow" id="r-overflow">
+                            <table id="r-table">
+                                <!-- Populated dynamically by results-v2.js -->
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Table Footer -->
+                    <footer class="r-foot">
+                        <span id="r-row-count"></span>
+                        <span class="r-scrollhint" id="r-scrollhint" hidden>
+                            <span aria-hidden="true">&harr;</span>
+                            <button type="button" id="r-scroll-columns">More columns to the right</button>
+                        </span>
+                        <span id="r-foot-columns"></span>
+                    </footer>
+
+                </section>
+
+                <!-- Info Panel (shown when Info tab is active) -->
+                <section id="r-info-panel" class="r-info" role="tabpanel" aria-labelledby="r-tab-info" hidden>
+                    <div class="r-info-grid">
+                        <div class="r-info-item">
+                            <span class="r-info-icon"><i class="fas fa-file-alt" aria-hidden="true"></i></span>
+                            <div>
+                                <dt>Model file</dt>
+                                <dd>{{ session.swmm_model.file.name|default:"model.inp" }}</dd>
+                            </div>
+                        </div>
+                        <div class="r-info-item">
+                            <span class="r-info-icon"><i class="fas fa-calendar-alt" aria-hidden="true"></i></span>
+                            <div>
+                                <dt>Simulation date</dt>
+                                <dd>{{ session.created_at|date:"d M Y, H:i" }}</dd>
+                            </div>
+                        </div>
+                        <div class="r-info-item">
+                            <span class="r-info-icon"><i class="fas fa-snowflake" aria-hidden="true"></i></span>
+                            <div>
+                                <dt>Frost zone</dt>
+                                <dd>{{ session.swmm_model.get_zone_display_name|default:"0.80 m" }}</dd>
+                            </div>
+                        </div>
+                        <div class="r-info-item">
+                            <span class="r-info-icon"><i class="fas fa-brain" aria-hidden="true"></i></span>
+                            <div>
+                                <dt>Prediction model</dt>
+                                <dd>{{ results_v2_data.session.model_metadata.model_id|default:"gnn_c3c_winner_v1" }} ({{ results_v2_data.session.model_metadata.feature_contract|default:"v4_physical" }}, {{ results_v2_data.session.model_metadata.target_contract|default:"primary_action_v3" }})</dd>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Network Map Panel (default tab whenever geometry was stored) -->
+                <section id="r-map-panel" role="tabpanel" aria-labelledby="r-tab-map"{% if not network_map_data.available %} hidden{% endif %}>
+                    {% if network_map_data.available %}
+                        <div class="nm-canvas" id="nm-canvas"></div>
+                    {% else %}
+                        <p class="nm-empty">
+                            {% if network_map_data.reason == "too_large" %}Network too large to draw in the browser.{% else %}No network drawing was stored for this session.{% endif %}
+                        </p>
+                    {% endif %}
+                </section>
+
+            </div>
+        </div>
+
+        <!-- Live Region for Accessibility Announcements -->
+        <span class="r-sr" id="r-announcement" role="status" aria-live="polite"></span>
+
+    </div>
+
+    <!-- Embedded Results V2 Data Payload -->
+    {{ results_v2_data|json_script:"results-v2-data" }}
+    {{ network_map_data|json_script:"network-map-data" }}
+
+    <!-- Accessible Fallback for Non-JavaScript Environments -->
+    <noscript>
+        <div class="alert alert-info my-3" role="alert">
+            <strong>JavaScript is required</strong> to display the interactive results table.
+            Please enable JavaScript in your browser, or use the
+            <a href="{% url 'sa:history' %}">session history</a> to access individual conduit panels directly.
+        </div>
+    </noscript>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% versioned_static 'js/results-v2.js' %}" defer></script>
+    <script src="{% versioned_static 'js/network-map.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,18 @@
+# Virtual environments
+venv
+.venv
+
+# Python bytecode
+__pycache__
+*.pyc
+
+# Local database / secrets
+db.sqlite3
+.env
+
+# User uploads and local artifacts
+media/
+*.xlsx
+
+# OS files
+.DS_Store

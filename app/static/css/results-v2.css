@@ -1,0 +1,1529 @@
+/**
+ * ==============================================================================
+ * Stormwater Analysis Results Workspace V2 — Scoped Component Stylesheet
+ * ------------------------------------------------------------------------------
+ * File: app/static/css/results-v2.css
+ * Target Root: #storm-results-v2
+ *
+ * Designed to provide complete design-system isolation from Bootstrap 5 and
+ * existing global stylesheets (app.css). 100% of rules are strictly scoped
+ * under #storm-results-v2.
+ *
+ * Sections:
+ *   1. Design Tokens & CSS Custom Properties
+ *   2. Scoped Root & Base Resets (Bootstrap 5 Shielding)
+ *   3. Workspace Header & Session Metadata
+ *   4. KPI Summary Cards Grid
+ *   5. Workspace Container & Tab Navigation
+ *   6. Action Toolbar & Filtering Controls
+ *   7. Status Viewline & Filter Reset
+ *   8. Column Visibility Chooser Drawer & Presets
+ *   9. Table Frame, Sticky Scroll Area & Overflow Shadow
+ *  10. Table Geometry, Sticky Headers & Column Sorting
+ *  11. Table Data Rows, Sticky Identifier Column & Cell Alignment
+ *  12. Dynamic Filling Meter Progress Bar
+ *  13. Technical Validation Badges & Assessment Indicators
+ *  14. Inline 7-Check Validation Expansion Grid
+ *  15. Empty State & Table Footer
+ *  16. Conduit Panel Detail View
+ *  17. Density Modifiers & Keyframe Animations
+ *  18. Responsive Media Queries (800px, 520px, coarse pointer, 380px)
+ * ==============================================================================
+ */
+
+/* ==============================================================================
+   1. DESIGN TOKENS & CSS CUSTOM PROPERTIES
+   ============================================================================== */
+#storm-results-v2 {
+  color-scheme: light;
+
+  /* Surface & Canvas Tints */
+  --r-bg: #f3f5f8;       /* Widget canvas background tint */
+  --r-white: #ffffff;    /* Card surfaces, inputs, table body row backgrounds */
+
+  /* Typography & Neutral Palette */
+  --r-ink: #203247;      /* High-contrast body text, headings, numbers */
+  --r-muted: #56687d;    /* Secondary text, units, table headers, inactive borders */
+  --r-line: #dde5ed;     /* Clean 1px card and cell borders */
+
+  /* Brand Accent & Soft Tints */
+  --r-blue: #256caa;     /* Brand blue accent, active tabs, selected states, links */
+  --r-soft: #edf4fa;     /* Soft light blue hover backgrounds, active badge tints */
+
+  /* Semantic Validation: Good / Valid / Passed */
+  --r-good: #286c58;     /* Green indicator for passed checks, valid recommendations */
+  --r-goodbg: #edf6f1;   /* Pale green background for validation badges and cards */
+
+  /* Semantic Validation: Warning / Engineering Action Needed */
+  --r-warn: #87520d;     /* Amber / warm brown for failed checks, warnings, changes */
+  --r-warnbg: #fff3db;   /* Pale amber background for failed check cards and buttons */
+
+  /* Semantic Validation: Critical / Flooding */
+  --r-red: #a23832;      /* Crimson red for flooding exclamations and flood metrics */
+  --r-redbg: #fff0ed;    /* Pale red background for critical flood indicators */
+
+  /* Data Table Sizing & Meter Metrics */
+  --r-row: 9px;          /* Vertical padding in table cells (compact mode: 9px, comfortable: 15px) */
+  --r-track: #8091a5;    /* Track background for percentage fill meters */
+  --r-fill: #123c60;     /* Normal fill meter bar fill */
+  --r-fillbad: #593304;  /* Warning fill meter bar fill (when filling > 82.7%) */
+
+  /* Dynamic Viewport Width for Sticky Expansion Rows (updated via JS) */
+  --r-viewport: 850px;
+
+  /* Typography & Layout */
+  font: 14px / 1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--r-ink);
+  background: var(--r-bg);
+  border-radius: 12px;
+  min-width: 0;
+}
+
+/* ==============================================================================
+   1b. WORKSPACE COMPONENT VIEWPORT FIT & SCROLL LAYOUT
+   ============================================================================== */
+@media (min-height: 520px) {
+  #storm-results-v2 {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  #storm-results-v2 #r-overview {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  #storm-results-v2 .r-workspace {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #storm-results-v2 #r-table-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* The map panel fits the workspace the same way the table panel does.  Without it
+     the panel keeps the intrinsic height of .nm-canvas (clamp(320px, 100vh - 300px,
+     900px)) and everything past the workspace edge is cut off by the overflow: hidden
+     above - at 390x844 that swallowed the last 190 px of the drawing together with the
+     schematic note below it, and the page does not scroll, so nothing brought them
+     back.  The canvas shrinks instead (see .nm-canvas in network-map.css); the map
+     rescales itself through its ResizeObserver. */
+  #storm-results-v2 #r-map-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #storm-results-v2 .r-tableframe {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+
+  #storm-results-v2 .r-overflow {
+    flex: 1;
+    min-height: 200px;
+    max-height: calc(100vh - 355px);
+  }
+
+  #storm-results-v2 #r-info-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+@media (max-height: 519px) {
+  #storm-results-v2 .r-overflow {
+    max-height: 320px;
+    min-height: 180px;
+  }
+}
+
+/* ==============================================================================
+   2. SCOPED ROOT & BASE RESETS (BOOTSTRAP 5 SHIELDING)
+   ============================================================================== */
+#storm-results-v2,
+#storm-results-v2 *,
+#storm-results-v2 *::before,
+#storm-results-v2 *::after {
+  box-sizing: border-box;
+}
+
+#storm-results-v2 [hidden] {
+  display: none !important;
+}
+
+#storm-results-v2 button,
+#storm-results-v2 input,
+#storm-results-v2 select {
+  font: inherit;
+}
+
+#storm-results-v2 button,
+#storm-results-v2 select {
+  cursor: pointer;
+}
+
+#storm-results-v2 a {
+  color: var(--r-blue);
+  text-decoration: none;
+}
+
+#storm-results-v2 a:hover {
+  text-decoration: underline;
+}
+
+#storm-results-v2 button {
+  line-height: 1.35;
+  border: 0;
+  background: transparent;
+}
+
+/* Screen-reader only utility */
+#storm-results-v2 .r-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Global SVG and Icon handling (Font Awesome + Lucide support) */
+#storm-results-v2 svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+#storm-results-v2 i.fas,
+#storm-results-v2 i.fa-solid,
+#storm-results-v2 i.fa {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* ==============================================================================
+   3. WORKSPACE HEADER & SESSION METADATA
+   ============================================================================== */
+#storm-results-v2 .r-pagehead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 21px;
+}
+
+#storm-results-v2 h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.7px;
+  color: var(--r-ink);
+}
+
+#storm-results-v2 .r-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  font-size: 12px;
+  color: var(--r-muted);
+}
+
+#storm-results-v2 .r-meta span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ==============================================================================
+   4. KPI SUMMARY CARDS GRID
+   ============================================================================== */
+#storm-results-v2 .r-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--r-white);
+  border: 1px solid var(--r-line);
+  border-radius: 9px;
+  margin-bottom: 20px;
+}
+
+#storm-results-v2 .r-summary button {
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--r-line);
+  padding: 15px 18px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: var(--r-ink);
+  min-width: 0;
+  transition: background-color 0.15s ease;
+}
+
+#storm-results-v2 .r-summary button:last-child {
+  border-right: 0;
+  border-radius: 0 9px 9px 0;
+}
+
+#storm-results-v2 .r-summary button:first-child {
+  border-radius: 9px 0 0 9px;
+}
+
+#storm-results-v2 .r-summary button:hover,
+#storm-results-v2 .r-summary button[aria-pressed=true] {
+  background: var(--r-soft);
+}
+
+#storm-results-v2 .r-summary strong {
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+#storm-results-v2 .r-summary .r-caption {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#storm-results-v2 .r-summary small {
+  display: block;
+  color: var(--r-muted);
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 3px;
+}
+
+#storm-results-v2 .r-summary .r-arr {
+  margin-left: auto;
+  color: var(--r-blue);
+  font-size: 16px;
+}
+
+/* ==============================================================================
+   4b. INFO PANEL
+   ============================================================================== */
+#storm-results-v2 .r-info {
+  padding: 24px 20px;
+}
+
+#storm-results-v2 .r-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+#storm-results-v2 .r-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+#storm-results-v2 .r-info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--r-bg);
+  color: var(--r-muted);
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+#storm-results-v2 .r-info-item dt {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--r-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 2px;
+}
+
+#storm-results-v2 .r-info-item dd {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--r-ink);
+  margin: 0;
+  word-break: break-all;
+}
+
+/* ==============================================================================
+   5. WORKSPACE CONTAINER & TAB NAVIGATION
+   ============================================================================== */
+#storm-results-v2 .r-workspace {
+  background: var(--r-white);
+  border: 1px solid var(--r-line);
+  border-radius: 10px;
+  min-width: 0;
+}
+
+#storm-results-v2 .r-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--r-line);
+  flex-wrap: wrap;
+}
+
+#storm-results-v2 .r-tabs-list {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+#storm-results-v2 .r-tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#storm-results-v2 .r-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s ease-in-out;
+  line-height: 1.4;
+}
+
+#storm-results-v2 .r-action-btn i {
+  font-size: 12px;
+}
+
+#storm-results-v2 .r-action-btn-primary {
+  background: var(--r-blue);
+  color: #ffffff;
+  border: 1px solid var(--r-blue);
+}
+
+#storm-results-v2 .r-action-btn-primary:hover {
+  background: #1d5687;
+  border-color: #1d5687;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+#storm-results-v2 .r-action-btn-secondary {
+  background: #ffffff;
+  color: var(--r-muted);
+  border: 1px solid var(--r-line);
+}
+
+#storm-results-v2 .r-action-btn-secondary:hover {
+  background: var(--r-soft);
+  color: var(--r-blue);
+  border-color: #b8cddf;
+  text-decoration: none;
+}
+
+#storm-results-v2 .r-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 16px 0;
+  color: var(--r-muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+#storm-results-v2 .r-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--r-bg);
+  color: var(--r-muted);
+}
+
+#storm-results-v2 .r-tab[aria-selected=true] {
+  color: var(--r-blue);
+  border-bottom-color: var(--r-blue);
+}
+
+#storm-results-v2 .r-tab[aria-selected=true] .r-count {
+  color: var(--r-blue);
+  background: var(--r-soft);
+}
+
+/* ==============================================================================
+   6. ACTION TOOLBAR & FILTERING CONTROLS
+   ============================================================================== */
+#storm-results-v2 .r-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 16px 20px 13px;
+  gap: 13px;
+  flex-wrap: wrap;
+}
+
+/* The map panel gets the same inset as the toolbar above the table, and it gets it
+   here rather than on .nm-tools: the inset belongs to the panel, not to the toolbar.
+   Padding on .nm-tools would move the mode buttons alone and leave the schematic
+   badge, the note about the scale, the sentence about the keys and the counter of
+   what could not be drawn standing at x = 0 - a ragged left edge instead of one
+   vertical line.  One rule on the panel puts every child of it on the line the tabs
+   (.r-tabs above) and this toolbar already stand on.
+
+   Deliberately outside @media (min-height: 520px): that block is about the panel
+   shrinking to fit the workspace, while the inset is about the panel's edge, and a
+   short viewport - a phone held sideways - has to get the margin too.  It also has
+   to stand *after* that block, because the shape of both rules is asserted in
+   test_map_panel_shrinks_to_fit_the_workspace, which reads the *first* rule in this
+   file whose selector is #storm-results-v2 #r-map-panel.  The canvas pays for the
+   inset: it is the flex item that gives height back (.nm-canvas, network-map.css). */
+#storm-results-v2 #r-map-panel {
+  padding: 16px 20px 13px;
+}
+
+#storm-results-v2 .r-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 13px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+#storm-results-v2 .r-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--r-muted);
+  min-width: 0;
+}
+
+#storm-results-v2 .r-search {
+  width: 210px;
+  max-width: 100%;
+}
+
+#storm-results-v2 .r-inputwrap {
+  position: relative;
+  color: var(--r-muted);
+}
+
+/* Icon inside search input - handles both SVG and Font Awesome <i> */
+#storm-results-v2 .r-inputwrap svg,
+#storm-results-v2 .r-inputwrap i {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  font-size: 13px;
+  line-height: 15px;
+  text-align: center;
+  pointer-events: none;
+  color: var(--r-muted);
+}
+
+#storm-results-v2 input[type=search] {
+  width: 100%;
+  border: 1px solid #a4b0be;
+  border-radius: 5px;
+  background: var(--r-white);
+  color: var(--r-ink);
+  height: 35px;
+  padding: 7px 9px 7px 32px;
+  font-size: 12px;
+  line-height: 1.35;
+  outline: none;
+}
+
+#storm-results-v2 input[type=search]:focus {
+  border-color: var(--r-blue);
+  box-shadow: 0 0 0 2px var(--r-soft);
+}
+
+#storm-results-v2 select {
+  min-width: 156px;
+  max-width: 100%;
+  border: 1px solid #a4b0be;
+  background: var(--r-white);
+  color: var(--r-ink);
+  border-radius: 5px;
+  height: 35px;
+  padding: 6px 25px 6px 9px;
+  font-size: 12px;
+  line-height: 1.35;
+  outline: none;
+}
+
+#storm-results-v2 select:focus {
+  border-color: var(--r-blue);
+  box-shadow: 0 0 0 2px var(--r-soft);
+}
+
+#storm-results-v2 .r-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--r-ink);
+  font-size: 12px;
+  min-height: 35px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#storm-results-v2 input[type=checkbox] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--r-blue);
+  flex-shrink: 0;
+}
+
+#storm-results-v2 .r-tools {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+#storm-results-v2 .r-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 35px;
+  padding: 7px 10px;
+  background: var(--r-white);
+  border: 1px solid #a4b0be;
+  border-radius: 5px;
+  color: var(--r-ink);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+#storm-results-v2 .r-button:hover {
+  background: var(--r-bg);
+}
+
+#storm-results-v2 .r-button[aria-expanded=true] {
+  background: var(--r-soft);
+  color: var(--r-blue);
+  border-color: var(--r-blue);
+}
+
+#storm-results-v2 .r-button small {
+  color: var(--r-muted);
+  font-size: 11px;
+}
+
+/* ==============================================================================
+   7. STATUS VIEWLINE & FILTER RESET
+   ============================================================================== */
+#storm-results-v2 .r-viewline {
+  padding: 0 20px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--r-muted);
+}
+
+#storm-results-v2 .r-reset {
+  border: 0;
+  background: transparent;
+  color: var(--r-blue);
+  font-size: 11px;
+  padding: 2px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* ==============================================================================
+   8. COLUMN VISIBILITY CHOOSER DRAWER & PRESETS
+   ============================================================================== */
+#storm-results-v2 .r-selection {
+  margin: 0 20px 15px;
+  border: 1px solid var(--r-line);
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 15px 16px;
+}
+
+#storm-results-v2 .r-selectionhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+#storm-results-v2 .r-selection h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--r-ink);
+}
+
+#storm-results-v2 .r-selection p {
+  margin: 4px 0 0;
+  color: var(--r-muted);
+  font-size: 11px;
+}
+
+#storm-results-v2 .r-presets {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+#storm-results-v2 .r-preset {
+  font-size: 11px;
+  padding: 5px 8px;
+  border: 1px solid #a4b0be;
+  border-radius: 4px;
+  background: var(--r-white);
+  color: var(--r-muted);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+#storm-results-v2 .r-preset[aria-pressed=true] {
+  border-color: var(--r-blue);
+  color: var(--r-blue);
+  background: var(--r-soft);
+}
+
+#storm-results-v2 .r-close {
+  font-size: 21px;
+  width: 31px;
+  height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--r-muted);
+  margin-left: 3px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#storm-results-v2 .r-groups {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+#storm-results-v2 fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/* Explicit reset overriding Bootstrap 5 legend { float: left; width: 100%; } */
+#storm-results-v2 legend {
+  float: none;
+  width: auto;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--r-muted);
+  padding: 0;
+  margin: 0 0 8px;
+  line-height: 1.2;
+  border: 0;
+}
+
+#storm-results-v2 .r-option {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  padding: 5px 0;
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 27px;
+  user-select: none;
+}
+
+#storm-results-v2 .r-option input {
+  margin-top: 1px;
+}
+
+#storm-results-v2 .r-option:has(input:disabled) {
+  color: var(--r-muted);
+  cursor: default;
+}
+
+/* ==============================================================================
+   9. TABLE FRAME, STICKY SCROLL AREA & OVERFLOW SHADOW
+   ============================================================================== */
+#storm-results-v2 .r-tableframe {
+  position: relative;
+  min-width: 0;
+}
+
+#storm-results-v2 .r-overflow {
+  overflow: auto;
+  min-height: 200px;
+  max-height: calc(100vh - 355px);
+  max-width: 100%;
+  scrollbar-color: #64748b #e2e8f0;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+/* WebKit custom scrollbar styling — distinct, visible, comfortable to drag with mouse */
+#storm-results-v2 .r-overflow::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#storm-results-v2 .r-overflow::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+#storm-results-v2 .r-overflow::-webkit-scrollbar-thumb {
+  background: #64748b;
+  border-radius: 4px;
+}
+
+#storm-results-v2 .r-overflow::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Right-edge shadow hint when unread columns exist to the right */
+#storm-results-v2 .r-tableframe:after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  background: linear-gradient(to right, transparent, rgba(32, 50, 71, 0.14));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 6;
+}
+
+#storm-results-v2 .r-tableframe[data-right=true]:after {
+  opacity: 1;
+}
+
+/* ==============================================================================
+   10. TABLE GEOMETRY, STICKY HEADERS & COLUMN SORTING
+   ============================================================================== */
+/* Overrides Bootstrap 5 table collapse to enable sticky headers and sticky pin columns */
+#storm-results-v2 table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+  margin: 0;
+  font-size: 13px;
+}
+
+#storm-results-v2 th {
+  position: sticky;
+  top: 0;
+  background: #f6f8fb;
+  border-top: 1px solid var(--r-line);
+  border-bottom: 1px solid #c9d4df;
+  border-left: 0;
+  border-right: 0;
+  color: var(--r-muted);
+  font-weight: 500;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  vertical-align: middle;
+  z-index: 3;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+#storm-results-v2 .r-sort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 11px 12px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#storm-results-v2 .r-unit {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--r-muted);
+  margin-top: 2px;
+}
+
+#storm-results-v2 .r-sortmark {
+  color: var(--r-muted);
+  opacity: 0;
+  font-size: 14px;
+  font-weight: 500;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+#storm-results-v2 .r-sort:hover .r-sortmark,
+#storm-results-v2 .r-sort:focus-visible .r-sortmark,
+#storm-results-v2 th[aria-sort=ascending] .r-sortmark,
+#storm-results-v2 th[aria-sort=descending] .r-sortmark {
+  opacity: 1;
+}
+
+#storm-results-v2 th[aria-sort=ascending] .r-sortmark,
+#storm-results-v2 th[aria-sort=descending] .r-sortmark {
+  color: var(--r-blue);
+}
+
+/* ==============================================================================
+   11. TABLE DATA ROWS, STICKY IDENTIFIER COLUMN & CELL ALIGNMENT
+   ============================================================================== */
+#storm-results-v2 td {
+  background: var(--r-white);
+  padding: var(--r-row) 12px;
+  border-top: 0;
+  border-bottom: 1px solid #e8edf2;
+  border-left: 0;
+  border-right: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+  height: 38px;
+  box-shadow: none;
+  transition: background-color 0.1s ease;
+}
+
+#storm-results-v2 .r-row:hover td {
+  background: #f1f6fb;
+}
+
+#storm-results-v2[data-stripe=true] .r-row:nth-child(even) td {
+  background: #f9fbfd;
+}
+
+/* ------------------------------------------------------------------------------
+   Row pointed at by the network map (stage 7).
+   The class is put back by applyHighlight() on every render, so the mark survives a
+   sort or a filter.  The selectors carry [data-stripe] and :hover of their own
+   because the striping rule is (1,3,1) and the hover rule (1,2,1): a plain
+   .r-row-hl td would be painted over by both on exactly the rows the reader is
+   most likely to be looking at.  The inset shadow is the mark that no background
+   rule can cover, and the bar on the pinned cell stays visible while the row is
+   scrolled sideways.
+   ------------------------------------------------------------------------------ */
+#storm-results-v2 tr.r-row-hl td,
+#storm-results-v2 tr.r-row-hl:hover td,
+#storm-results-v2[data-stripe=true] tr.r-row-hl:nth-child(even) td {
+  background: #fdf4dc;
+  box-shadow: inset 0 -1px 0 #e3b33a, inset 0 1px 0 #e3b33a;
+}
+
+#storm-results-v2 tr.r-row-hl td.r-pin,
+#storm-results-v2 tr.r-row-hl:hover td.r-pin,
+#storm-results-v2[data-stripe=true] tr.r-row-hl:nth-child(even) td.r-pin {
+  background: #fdf4dc;
+  box-shadow: inset 3px 0 0 #e3b33a, inset 0 -1px 0 #e3b33a, inset 0 1px 0 #e3b33a;
+}
+
+/* Right-aligned numeric data cells */
+#storm-results-v2 .r-num {
+  text-align: right;
+}
+
+/* Primary identifier sticky left column */
+#storm-results-v2 .r-pin {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  border-right: 1px solid var(--r-line);
+  min-width: 88px;
+}
+
+/* Header sticky left column intersection */
+#storm-results-v2 th.r-pin {
+  z-index: 5;
+}
+
+#storm-results-v2 .r-id {
+  font-weight: 600;
+  color: var(--r-blue);
+  padding: 3px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+#storm-results-v2 .r-id:hover {
+  text-decoration: underline;
+}
+
+/* Flooding mark & numbers */
+#storm-results-v2 .r-floodmark {
+  display: inline-flex;
+  color: var(--r-red);
+  font-size: 12px;
+  margin-left: 6px;
+  font-weight: 700;
+}
+
+#storm-results-v2 .r-floodnum {
+  color: var(--r-red);
+  font-weight: 500;
+}
+
+/* ==============================================================================
+   12. DYNAMIC FILLING METER PROGRESS BAR
+   ============================================================================== */
+#storm-results-v2 .r-fillcell {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+}
+
+#storm-results-v2 .r-meter {
+  width: 32px;
+  height: 4px;
+  background: var(--r-track);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#storm-results-v2 .r-meter span {
+  height: 100%;
+  display: block;
+  background: var(--r-fill);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#storm-results-v2 .r-fillcell.r-fillbad {
+  color: var(--r-warn);
+}
+
+#storm-results-v2 .r-fillbad .r-meter span {
+  background: var(--r-fillbad);
+}
+
+#storm-results-v2 .r-fillcell b {
+  font-weight: 500;
+  min-width: 40px;
+}
+
+/* ==============================================================================
+   13. TECHNICAL VALIDATION BADGES & ASSESSMENT INDICATORS
+   ============================================================================== */
+#storm-results-v2 .r-checkbutton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  border: 0;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: var(--r-goodbg);
+  color: var(--r-good);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+#storm-results-v2 .r-checkbutton.r-failed {
+  background: var(--r-warnbg);
+  color: var(--r-warn);
+}
+
+#storm-results-v2 .r-checkbutton:hover {
+  text-decoration: underline;
+}
+
+#storm-results-v2 .r-action {
+  font-size: 12px;
+  color: var(--r-ink);
+}
+
+#storm-results-v2 .r-action.r-valid {
+  color: var(--r-good);
+  font-weight: 500;
+}
+
+#storm-results-v2 .r-category {
+  font-size: 11px;
+}
+
+#storm-results-v2 .r-rule {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+}
+
+#storm-results-v2 .r-agreement {
+  font-weight: 600;
+  color: var(--r-good);
+}
+
+#storm-results-v2 .r-disagreement {
+  font-weight: 600;
+  color: var(--r-warn);
+}
+
+/* ==============================================================================
+   14. INLINE 7-CHECK TECHNICAL VALIDATION EXPANSION GRID
+   ============================================================================== */
+#storm-results-v2 .r-validationrow td {
+  padding: 0;
+  background: #f8fafc;
+  white-space: normal;
+  height: auto;
+}
+
+#storm-results-v2 .r-checkpanel {
+  position: sticky;
+  left: 0;
+  width: var(--r-viewport, 850px);
+  max-width: 100%;
+  padding: 15px 16px;
+  background: #f8fafc;
+  animation: r-fadein 0.2s ease-out;
+}
+
+#storm-results-v2 .r-checkpanelhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 12px;
+}
+
+#storm-results-v2 .r-checkpanel h3 {
+  font-size: 12px;
+  margin: 0;
+  font-weight: 600;
+  color: var(--r-ink);
+}
+
+#storm-results-v2 .r-checkgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 8px;
+}
+
+#storm-results-v2 .r-check {
+  font-size: 11px;
+  padding: 9px 10px;
+  background: var(--r-goodbg);
+  border-radius: 5px;
+  color: var(--r-ink);
+}
+
+#storm-results-v2 .r-check.r-failed {
+  background: var(--r-warnbg);
+}
+
+#storm-results-v2 .r-check strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--r-good);
+  margin-bottom: 5px;
+}
+
+#storm-results-v2 .r-check.r-failed strong {
+  color: var(--r-warn);
+}
+
+#storm-results-v2 .r-check small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--r-muted);
+}
+
+/* ==============================================================================
+   15. EMPTY STATE & TABLE FOOTER
+   ============================================================================== */
+#storm-results-v2 .r-empty {
+  padding: 42px 20px;
+  text-align: center;
+  white-space: normal;
+}
+
+#storm-results-v2 .r-empty strong {
+  display: block;
+  font-size: 14px;
+  color: var(--r-ink);
+}
+
+#storm-results-v2 .r-empty p {
+  color: var(--r-muted);
+  font-size: 12px;
+  margin: 6px 0 15px;
+}
+
+#storm-results-v2 .r-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  font-size: 11px;
+  color: var(--r-muted);
+  border-top: 1px solid var(--r-line);
+}
+
+#storm-results-v2 .r-scrollhint {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--r-blue);
+}
+
+#storm-results-v2 .r-scrollhint button {
+  background: transparent;
+  border: 0;
+  color: var(--r-blue);
+  padding: 0;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* ==============================================================================
+   16. DENSITY MODIFIERS & KEYFRAME ANIMATIONS
+   ============================================================================== */
+#storm-results-v2[data-density=comfortable] {
+  --r-row: 15px;
+}
+
+@keyframes r-fadein {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==============================================================================
+   17. RESPONSIVE MEDIA QUERIES
+   ============================================================================== */
+
+/* Tablet & Intermediate Desktop (<= 800px) */
+@media (max-width: 800px) {
+  #storm-results-v2 .r-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #storm-results-v2 .r-summary button {
+    padding: 13px 12px;
+    gap: 8px;
+  }
+
+  #storm-results-v2 .r-summary strong {
+    font-size: 23px;
+  }
+
+  #storm-results-v2 .r-summary .r-arr {
+    display: none;
+  }
+
+  #storm-results-v2 .r-tools {
+    margin-left: auto;
+  }
+
+}
+
+/* Mobile Devices & Narrow Viewports (<= 520px) */
+@media (max-width: 520px) {
+  #storm-results-v2 .r-topnav {
+    gap: 22px;
+  }
+
+  #storm-results-v2 .r-prototype {
+    display: none;
+  }
+
+  #storm-results-v2 h1 {
+    font-size: 25px;
+  }
+
+  #storm-results-v2 .r-example {
+    font-size: 11px;
+  }
+
+  #storm-results-v2 .r-pagehead {
+    gap: 10px;
+  }
+
+  #storm-results-v2 .r-summary {
+    margin-bottom: 15px;
+  }
+
+  #storm-results-v2 .r-summary button {
+    display: block;
+    padding: 12px 10px;
+  }
+
+  #storm-results-v2 .r-summary strong {
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  #storm-results-v2 .r-summary .r-caption {
+    font-size: 11px;
+  }
+
+  #storm-results-v2 .r-summary small {
+    font-size: 11px;
+  }
+
+  #storm-results-v2 .r-tabs {
+    gap: 18px;
+    padding: 0 14px;
+    flex-wrap: nowrap;
+  }
+
+  #storm-results-v2 .r-tab {
+    font-size: 12px;
+    gap: 5px;
+    padding: 15px 0;
+  }
+
+  #storm-results-v2 .r-count {
+    font-size: 11px;
+    padding: 1px 4px;
+  }
+
+  #storm-results-v2 .r-toolbar {
+    padding: 15px 14px 10px;
+    display: block;
+  }
+
+  /* Below 520 px the sides go to 10 px: D2 = (b), which is the decision's own default
+     branch, and the value the stage's "Zmiany" text writes out.  The overflow test D2
+     prescribes cannot move it to (a): .nm-mode is a flex item that compresses, so with
+     wrapping switched off the row never overflows at any inset - it answers "it fits"
+     everywhere - and what compressing costs shows up as the label breaking inside the
+     button (42 px tall against 26 px, measured).  The measurement that did decide is
+     the row's intrinsic width: 305.5 px against the 304 px .nm-tools is given at a
+     10 px inset, so the row wrapped to a second line and the canvas fell to 157 px on
+     390x844 - under the 180 px this plan keeps for the drawing.  Two measurements buy
+     that back and both are kept: the row itself, tightened at the end of
+     network-map.css (intrinsic width 289.5 px there, so it stands on one line again),
+     and the vertical inset, trimmed here from the 15/10 px of the stage's "Zmiany" text
+     to 10/8 px.  This is the value the height budget of point 11 was settled on for
+     both sessions: it costs the canvas 18 px, so the drawing measures 196 px on the `inp`
+     session (over the 180 px floor) and 114 px on the `auto` session, whose canvas
+     stood at 132 px - under that floor - before this stage existed and can therefore
+     only be asked to lose no more than the inset costs.  The sides stay at 10 px, so
+     parity with the tabs stays inside the one threshold the plan keeps,
+     |delta| <= 4 px: the tabs take 14 px in this block, so the distance is exactly
+     4.00 px, measured.  The gate prints all of these numbers. */
+  #storm-results-v2 #r-map-panel {
+    padding: 10px 10px 8px;
+  }
+
+  #storm-results-v2 .r-filters {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+
+  #storm-results-v2 .r-search {
+    width: 100%;
+  }
+
+  #storm-results-v2 .r-tools {
+    margin-top: 12px;
+    justify-content: flex-end;
+  }
+
+  #storm-results-v2 .r-field:has(select) {
+    width: 100%;
+  }
+
+  /* 16px font size prevents iOS Safari automatic viewport zooming on focus */
+  #storm-results-v2 select,
+  #storm-results-v2 input[type=search] {
+    font-size: 16px;
+    height: 39px;
+  }
+
+  #storm-results-v2 .r-checkbox {
+    min-height: 30px;
+    font-size: 12px;
+  }
+
+  #storm-results-v2 .r-viewline {
+    padding: 0 14px 11px;
+  }
+
+  #storm-results-v2 .r-selection {
+    margin: 0 10px 13px;
+    padding: 13px 11px;
+  }
+
+  #storm-results-v2 .r-selectionhead {
+    gap: 10px;
+  }
+
+  #storm-results-v2 .r-groups {
+    gap: 17px 12px;
+  }
+
+  #storm-results-v2 .r-option {
+    font-size: 11px;
+    gap: 6px;
+    padding: 6px 0;
+  }
+
+  #storm-results-v2 .r-presets {
+    width: 100%;
+  }
+
+  #storm-results-v2 .r-close {
+    margin-left: auto;
+  }
+
+  #storm-results-v2 .r-foot {
+    padding: 12px 14px;
+  }
+
+  #storm-results-v2 .r-overflow {
+    min-height: 180px;
+    max-height: calc(100vh - 380px);
+  }
+
+  #storm-results-v2 .r-checkgrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #storm-results-v2 .r-id {
+    min-height: 22px;
+  }
+}
+
+/* Touch Devices (Pointer: Coarse) — WCAG 2.5.5 Touch Target Sizing (>= 44px) */
+@media (pointer: coarse) {
+  #storm-results-v2 .r-button,
+  #storm-results-v2 .r-preset,
+  #storm-results-v2 .r-close {
+    min-height: 44px;
+  }
+
+  #storm-results-v2 .r-option {
+    min-height: 40px;
+    align-items: center;
+  }
+
+  #storm-results-v2 .r-option input {
+    width: 17px;
+    height: 17px;
+    margin: 0;
+  }
+
+  #storm-results-v2 .r-sort {
+    min-height: 48px;
+  }
+
+  #storm-results-v2 .r-checkbutton {
+    min-height: 32px;
+  }
+}
+
+/* Extra-Narrow Mobile Screens (<= 380px) */
+@media (max-width: 380px) {
+  #storm-results-v2 .r-tabs {
+    gap: 8px;
+    padding: 0 9px;
+  }
+
+  #storm-results-v2 .r-tab {
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    padding: 12px 0;
+  }
+
+  #storm-results-v2 .r-summary .r-caption,
+  #storm-results-v2 .r-summary small {
+    overflow-wrap: anywhere;
+  }
+
+  #storm-results-v2 .r-summary button {
+    padding: 12px 8px;
+  }
+}
+
+/* ================================================================
+   Reduced Motion — single block at the end, matching app.css convention.
+   ================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  #storm-results-v2 *,
+  #storm-results-v2 *::before,
+  #storm-results-v2 *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

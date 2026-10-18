@@ -1,0 +1,418 @@
+/**
+ * ==============================================================================
+ * Network Map — Scoped Component Stylesheet
+ * ------------------------------------------------------------------------------
+ * File: app/static/css/network-map.css
+ * Target Root: #storm-results-v2
+ *
+ * Every rule is scoped under #storm-results-v2 and every class is prefixed nm-,
+ * so the map borrows the Results V2 design tokens without leaking a single
+ * selector into Bootstrap or app.css. The stylesheet is deliberately flat: no
+ * media queries and no nesting, because the map sizes itself from its container.
+ *
+ * Stroke widths live here rather than in the SVG attributes, and all of them use
+ * vector-effect: non-scaling-stroke so that zooming changes what is shown, never
+ * how thick it is drawn.  vector-effect is not an inherited property, so the node
+ * symbol carries its own rule (.nm-node > *); on the group it would do nothing.
+ * ==============================================================================
+ */
+
+/* The height is the size the canvas asks for; flex: 0 1 auto with min-height: 0 lets it
+   give height back when #r-map-panel (a flex column, results-v2.css) has less room than
+   that - on a short or narrow viewport the alternative is a drawing cut off by the
+   workspace, with the schematic note pushed out of reach below it.  It never grows past
+   the asked height.
+
+   Since the panel took an inset of its own (results-v2.css, section 6) the clamp is no
+   longer what sets the height on a desktop either: the panel is 29 px shorter inside
+   than out, so the canvas is already shrinking and flex-shrink, not the clamp, decides
+   what it gets.  The clamp is kept as the *asked* height - the upper bound the drawing
+   never exceeds - and the offset inside it is deliberately not restated here, so that
+   one number does not end up spelled out in two stylesheets (D3). */
+#storm-results-v2 .nm-canvas { position: relative; width: 100%; height: clamp(320px, calc(100vh - 300px), 900px); flex: 0 1 auto; min-height: 0; overflow: hidden; background: var(--r-white); border-radius: 10px; touch-action: none; }
+#storm-results-v2 .nm-svg { display: block; width: 100%; height: 100%; }
+
+#storm-results-v2 .nm-poly { fill: var(--r-soft); fill-opacity: 0.55; stroke: var(--r-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+#storm-results-v2 .nm-link { fill: none; stroke: var(--nm-color, var(--r-muted)); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+/* The symbol inside the group inherits fill, stroke and stroke-width; vector-effect it
+   cannot inherit, and a <g> is not a graphics element anyway, so the property has to sit
+   on the symbol.  Without the second rule the node outline scales with the group's
+   transform: scale(radiusPx/pxPerUnit) and is drawn 2-3.5 px wide, not the contracted 1 px. */
+#storm-results-v2 .nm-node { fill: var(--r-white); stroke: var(--r-ink); stroke-width: 1; }
+#storm-results-v2 .nm-node > * { vector-effect: non-scaling-stroke; }
+#storm-results-v2 .nm-node[data-k="outfall"] { fill: var(--r-blue); stroke: var(--r-blue); }
+#storm-results-v2 .nm-node[data-k="storage"] { fill: var(--r-soft); stroke: var(--r-blue); }
+#storm-results-v2 .nm-node[data-k="other"] { fill: var(--r-warnbg); stroke: var(--r-warn); }
+
+/* ==============================================================================
+ * Stage 8 - an element the pipeline computed nothing for.
+ *
+ * Decided in JavaScript by the absence of a Results V2 row and never by the kind of
+ * the element.  The drawing says so twice: a broken line (a node symbol has no line
+ * to break, so it loses its ink instead) and, on the hit layer, the cursor that means
+ * "this will not open".  Pointer events stay: the tooltip is how the reader finds out
+ * why, and `pointer-events: none` would take it away together with the click.
+ *
+ * .nm-node.nm-na is (1,2,0) and ties with the [data-k] rules above, so it stands after
+ * them; the cursor rules name the element type to reach (1,2,1) and beat
+ * `path.nm-hit { cursor: pointer }` of stage 5 on specificity rather than with
+ * !important.
+ * ============================================================================== */
+#storm-results-v2 .nm-node.nm-na { fill: var(--r-white); stroke: var(--r-muted); }
+#storm-results-v2 .nm-link.nm-na { stroke-dasharray: 6 5; }
+#storm-results-v2 .nm-poly.nm-na { stroke-dasharray: 6 5; }
+#storm-results-v2 path.nm-hit.nm-na,
+#storm-results-v2 circle.nm-hit.nm-na,
+#storm-results-v2 .nm-poly.nm-na { cursor: not-allowed; }
+
+/* A flooded node (stage 6), from `is_flooded` of its results row and from nothing
+   else: the pipeline owns one definition of flooding and a second one here would
+   disagree with the table on a short overflow.  The rule ties with the [data-k] rules
+   on specificity (1,2,0) and stands after them, so it wins over the symbol's own
+   colours - and *before* .nm-node.nm-sel, which ties with it in turn and has to win,
+   or a selected flooded node would show no selection at all. */
+#storm-results-v2 .nm-node.nm-flooded { fill: var(--r-redbg); stroke: var(--r-red); stroke-width: 2; }
+
+/* No side padding: the side inset is the panel's now (results-v2.css, section 6) and
+   a second one here would simply add to it (D5). */
+#storm-results-v2 .nm-empty { margin: 0; padding: 32px 0; text-align: center; color: var(--r-muted); }
+
+/* Stage 8 - the map is one Tab stop, so it has to show where the focus is.  The offset
+   is negative because .nm-canvas clips (overflow: hidden) and a ring drawn outside the
+   <svg> would be cut off on all four sides. */
+#storm-results-v2 .nm-svg:focus-visible { outline: 2px solid var(--r-blue); outline-offset: -2px; }
+
+/* The sentence about the keys and the counter of what could not be drawn, both under
+   the drawing and both flex: none - #r-map-panel is a flex column and the canvas is the
+   element that gives height back when the viewport is short. */
+#storm-results-v2 .nm-help { flex: none; margin: 4px 0 0; color: var(--r-muted); font-size: 11px; line-height: 1.35; }
+#storm-results-v2 .nm-skipped { flex: none; margin: 4px 0 0; color: var(--r-muted); font-size: 11px; line-height: 1.35; }
+
+/* Schematic mark (stage 4, D3).  Both lines exist only when the payload says
+   layout === "auto", and they are built in JavaScript, never in the template: the
+   "inp" drawing must not carry them even hidden.  Amber on pale amber is the warning
+   pair of the Results V2 palette (--r-warn on --r-warnbg, 5.9:1), so the badge reads
+   as a caveat rather than as a heading. */
+#storm-results-v2 .nm-badge { flex: none; margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; background: var(--r-warnbg); color: var(--r-warn); font-size: 13px; font-weight: 600; }
+#storm-results-v2 .nm-legend-note { flex: none; margin: 8px 0 0; color: var(--r-muted); font-size: 12px; }
+
+/* ==============================================================================
+ * Stage 5 - interaction.
+ *
+ * The drawn shapes take no pointer at all: they are thin, they overlap and the
+ * reader would have to hit a 2.5 px line.  Every gesture lands on the hit layer
+ * instead - a transparent stroke over each link and a transparent circle beside
+ * each node symbol - and the three rules below are the whole contract.
+ *
+ * Each rule names what may catch the pointer, and the keyword `stroke` on the
+ * link target is load-bearing: the permissive keyword would make the *interior*
+ * of a polyline catchable too, and the interior of a bent [VERTICES] path is the
+ * area its chord closes off.  A click tens of pixels away from the pipe, on its
+ * concave side, would then hit the pipe and steal the click from the
+ * subcatchment lying underneath it.  The keywords here look at geometry, not at
+ * the colour of the paint, so `transparent` stays only as a belt-and-braces for
+ * a browser that resolves visiblePainted in the shadow of the cascade.
+ * ============================================================================== */
+#storm-results-v2 .nm-link, #storm-results-v2 .nm-node { pointer-events: none; }
+#storm-results-v2 path.nm-hit { pointer-events: stroke; cursor: pointer; }
+#storm-results-v2 circle.nm-hit { pointer-events: fill; cursor: pointer; }
+#storm-results-v2 .nm-poly { pointer-events: fill; cursor: pointer; }
+
+/* Selection: the drawn element, not the target, carries the mark.  Both rules come
+   after the base ones, so they win at equal specificity without !important. */
+#storm-results-v2 .nm-link.nm-sel { stroke: var(--r-blue); stroke-width: 4; }
+#storm-results-v2 .nm-node.nm-sel { stroke: var(--r-blue); stroke-width: 3; }
+#storm-results-v2 .nm-poly.nm-sel { stroke: var(--r-blue); stroke-width: 2; }
+
+/* The view controls, the hint and the tooltip float over the drawing: they are
+   positioned absolutely so that the <svg> keeps the whole container to itself and
+   the drawing is never pushed down by a sibling in the flow. */
+#storm-results-v2 .nm-ctrls { position: absolute; top: 10px; right: 10px; z-index: 2; display: flex; flex-direction: column; gap: 6px; }
+#storm-results-v2 .nm-ctrl { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--r-line); border-radius: 8px; background: var(--r-white); color: var(--r-ink); font-size: 14px; font-weight: 600; line-height: 1; cursor: pointer; }
+#storm-results-v2 .nm-ctrl:hover { background: var(--r-soft); }
+#storm-results-v2 .nm-ctrl:focus-visible { outline: 2px solid var(--r-blue); outline-offset: 1px; }
+/* The one control that carries a state (D19), painted exactly like a pressed mode
+   button so that "on" reads the same in both rows of this panel. */
+#storm-results-v2 .nm-ctrl-on { border-color: var(--r-blue); background: var(--r-soft); color: var(--r-blue); }
+
+#storm-results-v2 .nm-hint { position: absolute; top: 12px; left: 50%; z-index: 3; transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: var(--r-ink); color: var(--r-white); font-size: 12px; pointer-events: none; }
+
+/* The tooltip cannot catch a pointer and so cannot hold a button: whatever the
+   reader has to click lives on the selection card instead. */
+#storm-results-v2 .nm-tip { position: absolute; top: 0; left: 0; z-index: 3; max-width: 240px; padding: 4px 8px; border-radius: 6px; background: var(--r-ink); color: var(--r-white); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+
+#storm-results-v2 .nm-tip.nm-tip-na { white-space: normal; }
+
+/* The card is real DOM with real controls, one Tab stop after the map.
+
+   It is capped against the canvas it is positioned in, on both axes and at every
+   viewport.  Moving it - clampCardPos in network-map.js - can keep a card inside the
+   canvas but cannot make one smaller, and .nm-canvas clips with overflow: hidden, so a
+   card larger than its canvas simply lost the part that stuck out: measured 181 px of
+   card against 180 px of canvas for a node with three values and a long name, and
+   137.2 px against 107.4 px on 390x844, where the close button ended up 34.7 px above
+   the top edge and could not be clicked.  20px is twice the 10px the card is inset by,
+   so the cap holds before the first drag as well, while left: 10px / bottom: 10px are
+   still what places it.  What it costs is written here too: a card with more content
+   than room scrolls inside itself, and the buttons at its bottom - "Open details",
+   "Show in table" - are then reached by scrolling the card, with its own scrollbar as
+   the only sign that there is more.  The alternatives are worse: the overflow is
+   vertical, so a narrower card does not help, and giving the padding back undoes the
+   inset of stage E1. */
+#storm-results-v2 .nm-card { position: absolute; left: 10px; bottom: 10px; z-index: 4; max-width: min(260px, calc(100% - 20px)); max-height: calc(100% - 20px); overflow-y: auto; padding: 10px 30px 10px 12px; border: 1px solid var(--r-line); border-radius: 10px; background: var(--r-white); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12); pointer-events: auto; }
+#storm-results-v2 .nm-card-close { position: absolute; top: 4px; right: 6px; width: 22px; height: 22px; padding: 0; border: 0; background: none; color: var(--r-muted); font-size: 16px; line-height: 1; cursor: pointer; }
+/* The heading, and only the heading, is the handle the card is dragged by (D7).
+   The three declarations belong here and nowhere else: touch-action: none on .nm-card
+   would stop the finger from scrolling the very card the cap above tells it to scroll,
+   and user-select: none there would take away the copying of the values, which is the
+   one thing a reader does with them.  On a <p> that holds nothing but a name, both are
+   free. */
+#storm-results-v2 .nm-card-name { margin: 0 0 6px; color: var(--r-ink); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; cursor: grab; touch-action: none; user-select: none; }
+#storm-results-v2 .nm-card-name:active { cursor: grabbing; }
+#storm-results-v2 .nm-card-values { display: grid; grid-template-columns: auto auto; gap: 2px 12px; margin: 0 0 8px; color: var(--r-muted); font-size: 12px; }
+#storm-results-v2 .nm-card-values dt { margin: 0; }
+#storm-results-v2 .nm-card-values dd { margin: 0; color: var(--r-ink); text-align: right; }
+#storm-results-v2 .nm-card-none { margin: 0 0 8px; color: var(--r-muted); font-size: 12px; }
+#storm-results-v2 .nm-card-open { display: inline-block; margin: 0 10px 0 0; color: var(--r-blue); font-size: 12px; font-weight: 600; }
+#storm-results-v2 .nm-card-table { padding: 4px 10px; border: 1px solid var(--r-line); border-radius: 8px; background: var(--r-white); color: var(--r-ink); font-size: 12px; cursor: pointer; }
+
+/* ==============================================================================
+ * Stage 6 - colouring modes, legend and dimming.
+ *
+ * A colour class sets one custom property and paints nothing itself:
+ *
+ *     #storm-results-v2 .nm-c-valid { --nm-color: var(--nm-rec-valid); }
+ *     #storm-results-v2 .nm-link    { stroke: var(--nm-color, var(--r-muted)); }
+ *     #storm-results-v2 .nm-swatch  { background: var(--nm-color, var(--r-muted)); }
+ *
+ * so the pipe and the chip that stands for it in the legend read the same mapping,
+ * and the selection rule .nm-link.nm-sel (1,2,0) still beats the colour whatever the
+ * order of the file.  SVG inherits neither `color` nor `background-color`, which is
+ * why the mapping has to be written out instead of being borrowed from the text
+ * colour of the panel.
+ *
+ * The values are tokens of their own: the Results V2 palette carries five accents and
+ * the recommendation mode alone needs nine distinguishable ones.  They are declared on
+ * #storm-results-v2, next to everything else the map uses, and never on :root.
+ *
+ * Every one of them ends up as the stroke of a 2.5 px link on the white canvas, and
+ * colour is the only encoding a link carries - no width, no dash, no label says what
+ * the pipe is - so each token clears the 3:1 WCAG 1.4.11 asks of a meaningful
+ * graphical object, measured against --r-white.  That is a floor and not a look: the
+ * light end of a ramp is as dark as it has to be and the ramp is re-spaced around it,
+ * which is why the "light" blue of the filling mode is a mid blue.  The hues keep
+ * their meaning (blue = diameter, purple = slope, red -> green = checks passed) and
+ * the ratios are asserted, token by token, by
+ * ResultsV2NetworkMapContrastTests.test_link_colour_tokens_reach_3_to_1.
+ * ============================================================================== */
+#storm-results-v2 {
+  /* Recommendation (9 classes of ACTIONS).  Green = nothing to do; the blues are the
+     two diameter actions, the purples the two slope actions, and the warm colours the
+     works that cost a structure.  The "down" of a pair stays the lighter of the two,
+     one step above the contrast floor rather than below it. */
+  --nm-rec-valid: var(--r-good);
+  --nm-rec-dia-up: #1f5fa6;
+  --nm-rec-dia-down: #4391d4;
+  --nm-rec-slope-up: #6b3fa0;
+  --nm-rec-slope-down: #a579ce;
+  --nm-rec-depth-up: var(--r-warn);
+  --nm-rec-pump: var(--r-red);
+  --nm-rec-tank: #d08014;
+  --nm-rec-seepage: #0f7c7c;
+
+  /* Checks passed, 0..7: one ramp from the failing red to the passing green.  The
+     middle of it is a hue ramp and no longer a lightness one - a yellow light enough
+     to read as yellow is a 2.5:1 line - so the amber and the olive are darkened and
+     told apart by hue, which is what the ramp means anyway. */
+  --nm-val-0: #8c1d18;
+  --nm-val-1: #b4372d;
+  --nm-val-2: #cc6a2b;
+  --nm-val-3: #bc8222;
+  --nm-val-4: #9f8e1b;
+  --nm-val-5: #789828;
+  --nm-val-6: #4b8a3f;
+  --nm-val-7: var(--r-good);
+
+  /* Filling: four steps of water and one colour for a pipe running full, which is a
+     state and not the end of the ramp.  The shallow end is a cyan-leaning blue rather
+     than a pale one: at 0-25 % filling most of a healthy network is painted with it,
+     and the pale blue it replaces drew that majority at 1.6:1. */
+  --nm-fill-0: #2996bb;
+  --nm-fill-1: #2f7fbd;
+  --nm-fill-2: #24598f;
+  --nm-fill-3: var(--r-fill);
+  --nm-fill-4: var(--r-red);
+
+  --nm-none: var(--r-track);
+}
+
+#storm-results-v2 .nm-c-valid { --nm-color: var(--nm-rec-valid); }
+#storm-results-v2 .nm-c-diameter_increase { --nm-color: var(--nm-rec-dia-up); }
+#storm-results-v2 .nm-c-diameter_reduction { --nm-color: var(--nm-rec-dia-down); }
+#storm-results-v2 .nm-c-slope_increase { --nm-color: var(--nm-rec-slope-up); }
+#storm-results-v2 .nm-c-slope_reduction { --nm-color: var(--nm-rec-slope-down); }
+#storm-results-v2 .nm-c-depth_increase { --nm-color: var(--nm-rec-depth-up); }
+#storm-results-v2 .nm-c-pump { --nm-color: var(--nm-rec-pump); }
+#storm-results-v2 .nm-c-tank { --nm-color: var(--nm-rec-tank); }
+#storm-results-v2 .nm-c-seepage_boxes { --nm-color: var(--nm-rec-seepage); }
+
+#storm-results-v2 .nm-v-0 { --nm-color: var(--nm-val-0); }
+#storm-results-v2 .nm-v-1 { --nm-color: var(--nm-val-1); }
+#storm-results-v2 .nm-v-2 { --nm-color: var(--nm-val-2); }
+#storm-results-v2 .nm-v-3 { --nm-color: var(--nm-val-3); }
+#storm-results-v2 .nm-v-4 { --nm-color: var(--nm-val-4); }
+#storm-results-v2 .nm-v-5 { --nm-color: var(--nm-val-5); }
+#storm-results-v2 .nm-v-6 { --nm-color: var(--nm-val-6); }
+#storm-results-v2 .nm-v-7 { --nm-color: var(--nm-val-7); }
+
+#storm-results-v2 .nm-f-0 { --nm-color: var(--nm-fill-0); }
+#storm-results-v2 .nm-f-1 { --nm-color: var(--nm-fill-1); }
+#storm-results-v2 .nm-f-2 { --nm-color: var(--nm-fill-2); }
+#storm-results-v2 .nm-f-3 { --nm-color: var(--nm-fill-3); }
+#storm-results-v2 .nm-f-4 { --nm-color: var(--nm-fill-4); }
+
+#storm-results-v2 .nm-nodata { --nm-color: var(--nm-none); }
+
+/* The toolbar above the drawing.  flex: none, because #r-map-panel is a flex column
+   and the canvas is the element that gives height back when the viewport is short. */
+#storm-results-v2 .nm-tools { flex: none; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 14px; margin: 0 0 6px; }
+/* flex-wrap: wrap is a safety net, not a layout: without it the mode row either runs
+   past .nm-tools and is clipped by the panel's overflow: hidden (results-v2.css,
+   section 1), or the "Checks passed" label breaks inside its own <button> and the row
+   grows by about 16 px.  Wrapping turns both failures into one mild one, and the gate
+   asks for a single row on 1440x900 only. */
+#storm-results-v2 .nm-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+#storm-results-v2 .nm-mode { padding: 4px 10px; border: 1px solid var(--r-line); border-radius: 8px; background: var(--r-white); color: var(--r-muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+#storm-results-v2 .nm-mode:hover { background: var(--r-soft); }
+#storm-results-v2 .nm-mode:focus-visible { outline: 2px solid var(--r-blue); outline-offset: 1px; }
+#storm-results-v2 .nm-mode-on { border-color: var(--r-blue); background: var(--r-soft); color: var(--r-blue); }
+
+/* The legend wraps, but it never takes the drawing's room: past two rows it scrolls
+   inside itself.  On a phone the ten entries of the recommendation mode wrap into five
+   rows and, uncapped, they left the canvas with half the height it has without them -
+   which the browser gate measures as symbols that no longer reach their ceiling deep
+   into the zoom.  A cap plus overflow does on a narrow viewport what a media query
+   would, and keeps the stylesheet flat. */
+#storm-results-v2 .nm-legend { display: flex; flex-wrap: wrap; gap: 2px 10px; max-height: 44px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+#storm-results-v2 .nm-legend-item { display: flex; align-items: center; gap: 5px; padding: 2px 4px; border: 0; border-radius: 6px; background: none; color: var(--r-ink); font-size: 12px; cursor: pointer; }
+#storm-results-v2 .nm-legend-item:hover { background: var(--r-soft); }
+#storm-results-v2 .nm-legend-item:focus-visible { outline: 2px solid var(--r-blue); outline-offset: 1px; }
+#storm-results-v2 .nm-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--nm-color, var(--r-muted)); }
+
+/* An entry of a faded category is greyed and stays fully clickable: it is the control
+   that brings the category back, so pointer-events must not be taken from it.
+
+   The swatch carries the off state and the label never does: the label is the one
+   thing the reader has to read to bring the category back, and an opacity on the
+   entry composited --r-muted down to 2.3:1 on the white toolbar - well under the
+   4.5:1 of WCAG 1.4.3, on a live button that is not disabled, so no exemption
+   applies.  The chip is hollowed out instead: it says "off" at full contrast and
+   keeps the colour of the category visible in its outline. */
+#storm-results-v2 .nm-legend-off { color: var(--r-muted); }
+#storm-results-v2 .nm-legend-off .nm-swatch { background: transparent; box-shadow: inset 0 0 0 2px var(--nm-color, var(--r-muted)); }
+
+/* The line from a subcatchment to its outlet (plan24, position 2).
+
+   Dashed and thin: it is a hint about where the runoff goes, not a pipe, and it must
+   not read as one on a drawing that already carries 62 of them.  The stroke is the
+   existing --r-muted token; no new --nm-* token is introduced, because the link palette
+   is a closed set checked against its contrast floor.
+
+   `stroke-opacity`, deliberately NOT `opacity`: #storm-results-v2 .nm-dim { opacity }
+   below ties with this rule on specificity (1,1,0) and this rule stands *before* it, so
+   an `opacity` here would be overridden - but an `opacity` written after the dimming
+   block would win the tie by source order instead and the fading of the line would stop
+   working. The two properties compose, so neither order can break the other.
+
+   pointer-events is set in a rule of its own and not folded into the hit-layer rule of
+   stage 5: that selector is asserted literally by
+   test_results_v2_visual_interaction.py, and the line is not a hit element anyway - it
+   has no target, no title and no data attributes. */
+#storm-results-v2 .nm-outlet { fill: none; stroke: var(--r-muted); stroke-width: 1; stroke-dasharray: 4 4; stroke-opacity: 0.7; vector-effect: non-scaling-stroke; }
+#storm-results-v2 .nm-outlet { pointer-events: none; }
+
+/* Dimming, and the two classes that are deliberately not one.
+   `.nm-dim` fades a drawn element; on its own it would still catch every pointer, so
+   the hit elements lose pointer-events as well.  #storm-results-v2 .nm-dim is (1,1,0)
+   and loses to #storm-results-v2 path.nm-hit (1,1,1) of stage 5 - measured with
+   elementFromPoint, which kept answering with the faded pipe - so the rules below name
+   the element type too, reaching (1,2,1), and stand after the hit rules.  No
+   !important anywhere: the specificity is the argument. */
+#storm-results-v2 .nm-dim { opacity: 0.15; }
+#storm-results-v2 path.nm-hit.nm-dim,
+#storm-results-v2 circle.nm-hit.nm-dim,
+#storm-results-v2 .nm-poly.nm-dim { pointer-events: none; }
+
+/* ==============================================================================
+ * Position 4 - the names of the elements (E4b).
+ *
+ * The group is never a target: the names lie over the drawing, and a pointer that
+ * stopped on a name would stop reaching the pipe it belongs to.  It does not break
+ * the hit-layer contract, which asks for the paired .nm-link, .nm-node rule and
+ * forbids `pointer-events: all` - neither is touched here.
+ *
+ * No `dominant-baseline` on purpose (N01): `y` stays the baseline, which is what the
+ * placement writes, and the distance from the top of the reserved rectangle to that
+ * baseline is *measured* (actualBoundingBoxAscent) rather than left to a browser's
+ * reading of the font.  `fill` is explicit because a <text> here is a sibling of
+ * .nm-nodes and inherits nothing from it, and because .nm-label.nm-na assumes it.
+ * The halo is a 3 px stroke under the glyphs (paint-order: stroke), so it reaches
+ * 1.5 px outside them on every side - which is why LABEL_HALO_PX enters both the
+ * reserved rectangle and the insertion point.
+ *
+ * A subcatchment name is told apart by its *style* and not by a colour: --r-muted is
+ * the very token .nm-label.nm-na uses, so italic is what carries the difference
+ * (D26), and no new --nm-* token is introduced (that would break the contrast test).
+ *
+ * No z-index anywhere here: the controls, the card and the tooltip are HTML with
+ * z-index 2-4 over the <svg> in the same host, so they stand above the names by
+ * themselves.
+ * ============================================================================== */
+#storm-results-v2 .nm-labels { pointer-events: none; }
+#storm-results-v2 .nm-label { fill: var(--r-ink); font-size: 11px; paint-order: stroke; stroke: var(--r-white); stroke-width: 3; stroke-linejoin: round; }
+#storm-results-v2 .nm-label.nm-na { fill: var(--r-muted); }
+#storm-results-v2 .nm-label.nm-label-poly { fill: var(--r-muted); font-style: italic; }
+
+/* Below 520 px the mode row has to fit on one line, and at the panel inset
+   (results-v2.css, section 17) it did not: its intrinsic width is 305.5 px against the
+   304 px .nm-tools is given, so it wrapped to a second row and the canvas lost 57 px
+   instead of 25 - 157 px, under the 180 px the drawing needs.  Taking 2 px off each of
+   the two gaps and 2 px off each side of the three buttons gives the row back exactly
+   16 px (measured: 305.5 -> 289.5 px against 304 px of room), which is enough, and it is
+   the cheapest thing to spend: the buttons keep their font size, so nothing about them
+   gets harder to read or to hit.  The row back on one line gives the canvas 32 px; the
+   vertical inset trimmed to 10/8 px (results-v2.css, section 17) gives it the rest, and
+   together they leave 196 px on the `inp` session and 114 px on the `auto` one, whose
+   canvas stood at 132 px before this stage.
+   flex-wrap: wrap above stays the safety net for the viewport this does not foresee. */
+@media (max-width: 520px) {
+  #storm-results-v2 .nm-modes { gap: 4px; }
+  #storm-results-v2 .nm-mode { padding: 4px 8px; }
+  /* The four view controls fold into two columns of two here, and the reason is a
+     measurement: on 390x844 the auto session draws a canvas of 304x114.4 px, while four
+     32 px buttons with three 6 px gaps are a 146 px column.  That column ran out of the
+     bottom edge - the third button ended 3.5 px past it and the fourth, the names toggle
+     D19 added, 41.5 px past it - and .nm-canvas clips with overflow: hidden, so two of
+     the four simply could not be pressed.  Folded, the group is 70x70 px and sits whole
+     in the top-right corner the base rule pins it to: measured 267..337 px against a
+     canvas of 43..347 and bottom 657.9 against 692.4.
+
+     [!] One row of four (146x32) also fits and was tried first; the gate rejected it.
+     Laid across the canvas it covered the middle of a conduit that the reader has to be
+     able to click - elementFromPoint at the mid-point of a link answered 'nm-ctrl'
+     instead of 'nm-hit' (shots_map.py, check_colouring) - and it shared 2821.5 px2 with
+     the selection card against the 852.0 px2 of this shape.  A square in the corner is
+     the smaller intrusion on both counts.  It does not remove the second one: a card is
+     226-260 px wide and up to calc(100% - 20px) = 94 px tall, so on this canvas it
+     reaches the left column of the group as it reaches nearly everything else there
+     (see the cap above).  The card is painted over the controls (z-index 4 against 2)
+     and is dragged aside by its heading, which is what stage E2 is for. */
+  #storm-results-v2 .nm-ctrls { display: grid; grid-template-columns: repeat(2, 32px); }
+  /* The cap on the selection card, which stage E1 added here, now stands in the
+     unconditional .nm-card rule above: the same measurement was taken on a desktop
+     canvas (181 px of card against 180 px of canvas) and a cap that only applied below
+     520 px left that one uncapped.  Nothing about this viewport is special enough for
+     a rule of its own any more. */
+}

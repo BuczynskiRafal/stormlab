@@ -1,0 +1,511 @@
+/*
+ * docs.css - arkusz strony dokumentacji (/about/).
+ * Ładowany przez {% block extra_css %} w about.html, więc TYLKO na tej stronie
+ * i zawsze PO app.css. Korzysta wyłącznie z tokenów warstwy "papier + woda"
+ * zadeklarowanych w app.css - własnego :root tu nie ma.
+ *
+ * Kotwice: offset nagłówka jest zmienną --docs-anchor-offset, którą docs.js
+ * ustawia ze zmierzonej wysokości .site-header. Token --header-h opisuje tylko
+ * desktop (na 390 px pasek ma ~160 px), a wartość w var() jest fallbackiem dla
+ * przeglądarki bez JS.
+ */
+
+/* ============================================================
+   KOTWICE
+   ============================================================
+
+   `scroll-behavior` na <html> jest globalne i mieszka w app.css - tu zostaje
+   tylko to, co dotyczy sekcji tej strony. */
+
+section.docs-section[id],
+.docs-section [id] {
+    scroll-margin-top: var(--docs-anchor-offset, calc(var(--header-h) + 1rem));
+}
+
+/* ============================================================
+   UKŁAD
+   ============================================================ */
+
+.docs-container {
+    /* 220 px spisu treści + 3 rem odstępu + 764 px treści: kolumna tekstu jest
+       dokładnie tak szeroka jak jej pole siatki, więc blok jest wyśrodkowany. */
+    max-width: 1032px;
+    margin: 0 auto;
+    padding: 0.5rem 0 1rem;
+}
+
+.docs-grid {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+}
+
+/* Zapas na dole: bez niego dokument kończy się tuż pod ostatnią sekcją i dwóch
+   ostatnich pozycji spisu treści nie da się przewinąć na linię nagłówka - ani
+   kotwicą, ani kliknięciem. */
+.docs-content {
+    display: block;
+    min-width: 0;
+    padding-bottom: 50vh;
+}
+
+/* ============================================================
+   SPIS TREŚCI
+   ============================================================ */
+
+.docs-sidebar {
+    position: sticky;
+    top: calc(var(--header-h) + 1rem);
+    height: fit-content;
+}
+
+.docs-nav-heading {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.7rem;
+}
+
+.docs-nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 1px solid var(--rule-soft);
+}
+
+/* Ramka 2 px jest w stanie spoczynku przezroczysta, żeby zaznaczenie aktywnej
+   pozycji podczas przewijania nie przesuwało tekstu o 2 px. */
+.docs-nav-link {
+    display: block;
+    margin-left: -1px;
+    padding: 0.3rem 0 0.3rem 0.9rem;
+    border-left: 2px solid transparent;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    transition: color 150ms ease, border-color 150ms ease;
+}
+
+.docs-nav-link:hover,
+.docs-nav-link:focus-visible {
+    color: var(--water-700);
+}
+
+.docs-nav-link.active {
+    border-left-color: var(--water-600);
+    color: var(--water-700);
+    font-weight: 600;
+}
+
+.docs-nav-link.indent {
+    padding-left: 1.7rem;
+    font-size: 0.82rem;
+}
+
+/* ============================================================
+   NAGŁÓWEK STRONY (zwykły blok, nie sticky - RC-1)
+   ============================================================ */
+
+.docs-header {
+    margin-bottom: 2.75rem;
+    padding-bottom: 1.75rem;
+    border-bottom: 1px solid var(--rule-soft);
+}
+
+.docs-header h1 {
+    /* app.css centruje gołe h1 - na stronie dokumentacji tytuł jest do lewej. */
+    text-align: left;
+    margin: 0 0 0.75rem;
+    font-family: var(--font-display);
+    font-size: 2.35rem;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+}
+
+.docs-lead {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 1.12rem;
+    line-height: 1.65;
+    color: var(--muted);
+}
+
+.docs-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 1.6rem 0 0;
+    padding: 0;
+}
+
+.docs-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.28rem 0.75rem;
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius-pill);
+    background-color: var(--surface-1);
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.docs-chip::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--water-300);
+}
+
+/* ============================================================
+   SEKCJE I TEKST
+   ============================================================ */
+
+.docs-section {
+    margin-bottom: 3.25rem;
+}
+
+.docs-section:last-child {
+    margin-bottom: 1rem;
+}
+
+.docs-section h2 {
+    margin: 0 0 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--rule-soft);
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.docs-section h3 {
+    margin: 2.5rem 0 0.75rem;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+/* Podnagłówki mają ten sam "szyld" co nagłówki tabel w app.css - jeden system. */
+.docs-section h4 {
+    margin: 1.75rem 0 0.6rem;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+}
+
+.docs-section p {
+    margin: 0 0 1rem;
+    max-width: 72ch;
+    line-height: 1.7;
+    color: var(--text);
+}
+
+.docs-section ul {
+    margin: 0.75rem 0 1.5rem;
+    padding-left: 1.15rem;
+    color: var(--text);
+}
+
+.docs-section li {
+    margin-bottom: 0.45rem;
+    line-height: 1.65;
+}
+
+.docs-section li::marker {
+    color: var(--water-300);
+}
+
+.docs-section strong {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+/* Panel z wyliczeniem prozą (kategorie zlewni) */
+.docs-list-compact {
+    margin: 0.75rem 0 1.5rem;
+    padding: 0.85rem 1.1rem;
+    border-left: 3px solid var(--water-300);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background-color: var(--surface-1);
+    color: var(--text);
+    font-size: 0.94rem;
+    line-height: 1.7;
+}
+
+/* ============================================================
+   LISTA DEFINICJI (parametry, architektura sieci)
+   ============================================================ */
+
+.docs-dl {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    column-gap: 2rem;
+    row-gap: 0.6rem;
+    margin: 0.75rem 0 1.75rem;
+    align-items: baseline;
+}
+
+.docs-dl dt {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.docs-dl dd {
+    margin: 0;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+/* Bez podkładki i paddingu: wartość bywa dopełniona przecinkiem ("32 neurons,
+   ReLU activation"), a boczny padding chipa odsuwałby go od liczby. */
+.docs-value {
+    display: inline;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    /* Wartości bywają długie ("0.7 - 5.0 m/s (PN-EN 752:2008)") - muszą się łamać. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   LICZBY WYNIKÓW JAKO CHIPY Z ETYKIETĄ
+   ============================================================ */
+
+.docs-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    list-style: none;
+    margin: 0.9rem 0 1.75rem;
+    padding: 0;
+}
+
+.docs-stat {
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    max-width: 100%;
+    padding: 0.38rem 0.95rem;
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius-pill);
+    background-color: var(--surface-0);
+    box-shadow: var(--shadow-1);
+}
+
+.docs-stat-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+.docs-stat-value {
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+/* ============================================================
+   TABELE
+   ============================================================ */
+
+.docs-table-wrapper {
+    margin: 0.9rem 0 1.75rem;
+    overflow-x: auto;
+}
+
+.docs-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--slate-500);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Komórki: app.css ma gołe `table td, table th { white-space: nowrap }`, przez co
+   opisy w tabelach uciekały w poziomy scroll. Tu tekst ma się zawijać. */
+.docs-table th,
+.docs-table td {
+    padding: 0.7rem 1rem;
+    text-align: left;
+    vertical-align: top;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* Tło i kolor nagłówka narzuca w app.css reguła `thead th` (z flagą ważności, żeby
+   nagłówek tabeli wyglądał tak samo w całej aplikacji) - dlatego nie deklarujemy ich
+   tutaj; ustawiamy tylko krój i rytm. */
+.docs-table th {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--slate-300);
+}
+
+/* Ta sama włosowa kreska między komórkami nagłówka co w tabelach aplikacji. */
+.docs-table th:not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.docs-table td {
+    border-bottom: 1px solid var(--rule-soft);
+    color: var(--text);
+}
+
+.docs-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Zebra nieparzystych wierszy przychodzi z app.css (`tbody tr:nth-child(odd)`). */
+.docs-table tbody tr:hover {
+    background-color: var(--water-050);
+}
+
+.docs-table td strong {
+    color: var(--ink);
+}
+
+/* ============================================================
+   MOBILE: SPIS TREŚCI JAKO POZIOMY PASEK CHIPÓW
+   ============================================================ */
+
+@media (max-width: 768px) {
+    .docs-container {
+        padding: 0 0 1rem;
+    }
+
+    .docs-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.75rem;
+    }
+
+    .docs-sidebar {
+        position: static;
+        top: auto;
+    }
+
+    .docs-nav-heading {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Przewijanie w poziomie należy do listy, nigdy do <body>. */
+    .docs-nav-list {
+        display: flex;
+        gap: 0.5rem;
+        border-left: none;
+        padding-bottom: 0.6rem;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .docs-nav-link {
+        flex: 0 0 auto;
+        margin-left: 0;
+        padding: 0.35rem 0.8rem;
+        border: 1px solid var(--rule-soft);
+        border-radius: var(--radius-pill);
+        background-color: var(--surface-1);
+        white-space: nowrap;
+    }
+
+    .docs-nav-link.indent {
+        padding-left: 0.8rem;
+        font-size: 0.82rem;
+    }
+
+    .docs-nav-link.active {
+        border-color: var(--water-300);
+        background-color: var(--water-100);
+        color: var(--water-700);
+    }
+
+    .docs-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1.25rem;
+    }
+
+    .docs-header h1 {
+        font-size: 1.8rem;
+    }
+
+    .docs-lead {
+        font-size: 1.02rem;
+    }
+
+    .docs-section {
+        margin-bottom: 2.5rem;
+    }
+
+    .docs-section h2 {
+        font-size: 1.35rem;
+    }
+
+    .docs-dl {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 0.15rem;
+    }
+
+    .docs-dl dd {
+        margin-bottom: 0.85rem;
+    }
+}
+
+/* ============================================================
+   DRUK
+   ============================================================ */
+
+@media print {
+    .docs-sidebar {
+        display: none;
+    }
+
+    /* Zapas na kotwice liczy się w vh - na wydruku dałby pół pustej strony. */
+    .docs-content {
+        padding-bottom: 0;
+    }
+
+    .docs-grid {
+        display: block;
+    }
+
+    .docs-container {
+        max-width: 100%;
+        padding: 0;
+    }
+
+    .docs-table {
+        box-shadow: none;
+    }
+}

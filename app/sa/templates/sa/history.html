@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% load sa_query %}
+
+{% block title %} History {% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="container-fluid history-page">
+    <h2 class="page-title mb-3">Analysis History</h2>
+
+    {% if sessions or filters_active %}
+        <!-- One GET form for search, status, sorting and page size: the selects submit it
+             from main.js, the text field from Enter or its own button. -->
+        <form method="get" id="historyFilters" class="history-filters">
+            <div class="history-filters-search input-group">
+                <span class="input-group-text" aria-hidden="true"><i class="fas fa-magnifying-glass"></i></span>
+                <label class="visually-hidden" for="searchInput">Search by model file</label>
+                <input type="search" class="form-control" id="searchInput" name="q"
+                       value="{{ current_q }}" placeholder="Search by model file...">
+                <button type="submit" class="btn btn-outline-primary">Search</button>
+            </div>
+            <div class="history-filters-controls">
+                <label class="visually-hidden" for="statusFilter">Status</label>
+                <select class="form-select" id="statusFilter" name="status">
+                    <option value="" {% if not current_status %}selected{% endif %}>All statuses</option>
+                    <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="processing" {% if current_status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="failed" {% if current_status == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+                <label class="visually-hidden" for="sortOrder">Sort order</label>
+                <select class="form-select" id="sortOrder" name="sort">
+                    <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest first</option>
+                    <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>Oldest first</option>
+                    <option value="name" {% if current_sort == 'name' %}selected{% endif %}>Model file</option>
+                </select>
+                <label for="perPageSelect" class="form-label mb-0 text-muted history-filters-label">Per page</label>
+                <select class="form-select" id="perPageSelect" name="per_page">
+                    {% for option in page_size_options %}
+                        <option value="{{ option }}" {% if option == current_per_page %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+                <a href="{% url 'sa:analysis' %}" class="btn btn-primary ms-auto">
+                    <i class="fas fa-plus me-1" aria-hidden="true"></i>New analysis
+                </a>
+            </div>
+        </form>
+    {% endif %}
+
+    {% if sessions %}
+        <!-- Bulk Action Bar -->
+        <div id="bulkActionBar" class="bulk-action-bar" style="display: none;">
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="bulk-count">
+                            <strong id="selectedCount">0</strong> selected
+                        </span>
+                        <button type="button" class="btn btn-sm btn-link text-decoration-none" id="selectAllVisible">
+                            Select all visible
+                        </button>
+                        <button type="button" class="btn btn-sm btn-link text-decoration-none" id="clearSelection">
+                            Clear selection
+                        </button>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn">
+                            <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive history-table-wrapper">
+            <table class="table table-hover history-table" id="sessionsTable">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell">
+                            <input type="checkbox" class="session-checkbox" id="selectAllCheckbox" title="Select all">
+                        </th>
+                        <th>Date &amp; Time</th>
+                        <th>Model File</th>
+                        <th>Frost Zone</th>
+                        <th>Status</th>
+                        <th class="count-col">Conduits</th>
+                        <th class="count-col">Nodes</th>
+                        <th class="count-col">Subcatchments</th>
+                        <th class="actions-col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in sessions %}
+                    <tr data-session-id="{{ session.id }}">
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="session-checkbox row-checkbox" data-session-id="{{ session.id }}">
+                        </td>
+                        <td class="history-date">
+                            <span class="history-date-day">{{ session.created_at|date:"Y-m-d" }}</span>
+                            <span class="history-date-time">{{ session.created_at|date:"H:i" }}</span>
+                        </td>
+                        <td>
+                            <span class="history-file" title="{{ session.swmm_model.file.name }}">{{ session.swmm_model.file.name|truncatechars:34 }}</span>
+                        </td>
+                        <td class="history-zone">{{ session.swmm_model.get_zone_display_name }}</td>
+                        <td>
+                            {% if session.status == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                            {% elif session.status == 'processing' %}
+                                <span class="badge bg-warning">Processing</span>
+                            {% elif session.status == 'failed' %}
+                                <span class="badge bg-danger">Failed</span>
+                            {% endif %}
+                        </td>
+                        <td class="count-col"><span class="count-chip">{{ session.n_conduits }}</span></td>
+                        <td class="count-col"><span class="count-chip">{{ session.n_nodes }}</span></td>
+                        <td class="count-col"><span class="count-chip">{{ session.n_subcatchments }}</span></td>
+                        <td class="actions-col">
+                            <div class="history-actions">
+                                {% if session.status == 'completed' %}
+                                    <a href="{% url 'sa:analysis_results' session.id %}" class="btn btn-sm btn-outline-primary">
+                                        View results
+                                    </a>
+                                {% elif session.status == 'processing' %}
+                                    <button type="button" class="btn btn-sm btn-outline-warning" disabled>
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        Processing...
+                                    </button>
+                                {% elif session.status == 'failed' and session.error_message %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            data-bs-toggle="tooltip"
+                                            title="{{ session.error_message|truncatechars:100 }}">
+                                        View error
+                                    </button>
+                                {% endif %}
+
+                                <!-- Delete button for all sessions -->
+                                <button type="button" class="btn btn-icon delete-btn"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteModal"
+                                        data-session-id="{{ session.id }}"
+                                        data-session-name="Session {{ session.id }}"
+                                        title="{% if session.status == 'processing' %}Cancel processing{% else %}Delete session{% endif %}">
+                                    {% if session.status == 'processing' %}
+                                        <i class="fas fa-ban" aria-hidden="true"></i>
+                                    {% else %}
+                                        <i class="fas fa-trash" aria-hidden="true"></i>
+                                    {% endif %}
+                                    <span class="visually-hidden">{% if session.status == 'processing' %}Cancel processing{% else %}Delete session{% endif %}</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <div class="d-flex justify-content-center align-items-center gap-3">
+                <ul class="pagination mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="{% querystring page=1 %}" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="{% querystring page=page_obj.previous_page_number %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&laquo;&laquo;</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">&laquo;</span>
+                    </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="{% querystring page=num %}">{{ num }}</a></li>
+                    {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                        <li class="page-item"><a class="page-link" href="{% querystring page=num %}">{{ num }}</a></li>
+                    {% elif num == page_obj.number|add:'-3' or num == page_obj.number|add:'3' %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{% querystring page=page_obj.next_page_number %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="{% querystring page=page_obj.paginator.num_pages %}" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&raquo;</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">&raquo;&raquo;</span>
+                    </li>
+                {% endif %}
+                </ul>
+            </div>
+        </nav>
+        {% endif %}
+
+        <p class="history-range">
+            Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} sessions
+        </p>
+    {% elif filters_active %}
+        <div class="history-empty">
+            <span class="history-empty-icon" aria-hidden="true"><i class="fas fa-filter-circle-xmark"></i></span>
+            <h4>No sessions match these filters</h4>
+            <p class="text-muted">Try a different phrase or status - nothing here fits the current selection.</p>
+            <a href="{% url 'sa:history' %}" class="btn btn-outline-primary">Clear filters</a>
+        </div>
+    {% else %}
+        <div class="history-empty">
+            <span class="history-empty-icon" aria-hidden="true"><i class="fas fa-water"></i></span>
+            <h4>No analysis history</h4>
+            <p class="text-muted">You haven't performed any analyses yet.</p>
+            <a href="{% url 'sa:analysis' %}" class="btn btn-primary">Start your first analysis</a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="sessionToDelete"></strong>?</p>
+                <p class="text-muted" id="deleteDescription">This action cannot be undone. All related data (conduits, nodes, subcatchments) will be permanently deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-danger" id="confirmDelete">
+                    <span class="delete-text">
+                        <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete Session
+                    </span>
+                    <span class="delete-loading d-none">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Deleting...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Confirmation Modal -->
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-labelledby="bulkDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkDeleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Bulk Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>You are about to delete <strong id="bulkDeleteCount" class="text-danger">0</strong> session(s).</p>
+                <p class="text-muted">This action cannot be undone. All related data (conduits, nodes, subcatchments) will be permanently deleted for all selected sessions.</p>
+                <div class="alert d-flex align-items-center" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <div>This operation may take a moment depending on the amount of data.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkDelete">
+                    <span class="bulk-delete-text">
+                        <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete All Selected
+                    </span>
+                    <span class="bulk-delete-loading d-none">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Deleting...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

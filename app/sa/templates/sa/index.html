@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Stormwater Analysis System{% endblock %}
+
+{% block content %}
+<div class="index-page">
+    <div class="index-container">
+        <div class="hero-section">
+            <h1 class="hero-title">Stormwater Analysis System</h1>
+            <p class="hero-subtitle">
+                Professional hydraulic modeling platform integrating machine learning
+                for storm sewer network design and optimization
+            </p>
+            <div class="hero-actions">
+                <a href="{% url 'sa:analysis' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-upload me-2"></i>Start Analysis
+                </a>
+                <a href="{% url 'sa:about' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-info-circle me-2"></i>Learn More
+                </a>
+            </div>
+        </div>
+
+        <div class="features-section">
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-water"></i>
+                    </div>
+                    <h3 class="feature-title">Hydraulic Validation</h3>
+                    <p class="feature-description">
+                        Comprehensive validation of SWMM models against Polish and European standards
+                        including velocity, slope, depth, and frost zone requirements.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3 class="feature-title">Graph Neural Network Analysis</h3>
+                    <p class="feature-description">
+                        2-hop upstream GraphSAGE (C3c, 66 physical features) and MLP catchment
+                        classification for hydraulic engineering recommendations.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="feature-title">Technical Diagrams</h3>
+                    <p class="feature-description">
+                        Interactive SVG visualizations of conduit profiles with detailed
+                        technical specifications and validation results.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

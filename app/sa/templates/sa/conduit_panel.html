@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% load static %}
+{% load sa_static %}
+{% load confidence_filters %}
+
+{% block title %}Conduit {{ conduit.conduit_name }} - Session {{ session.id }}{% endblock %}
+
+{% block content %}
+{% comment %}
+The whole page carries its own skin (CSS block "conduit-panel", tokens --cp-*): flat
+surfaces on a grey ground, no card chrome, no serif, no icon font (the pager chevrons
+are inline SVG). Everything below is scoped by .conduit-page, so no other page changes.
+{% endcomment %}
+{% url 'sa:analysis_results' session.id as results_url %}
+<div class="conduit-page">
+    <div class="panel-layout">
+        <section class="panel-surface panel-profile-card">
+            {% comment %}
+            The page opens on the drawing: this head is the page heading (the only h1), so
+            there is no breadcrumb, subtitle or metric bar above it. The creation date lives
+            on the results page, the frost zone in the Cover card.
+            {% endcomment %}
+            <div class="panelhead">
+                <div>
+                    <h1 class="panelhead-title panel-page-title">Conduit {{ conduit.conduit_name }}</h1>
+                    <p class="panelhead-sub">Longitudinal profile</p>
+                </div>
+                {% comment %}
+                Previous / next conduit (session order, NavigationService) as one segmented
+                control next to Back; main.js binds the left/right arrow keys to its rel="prev"
+                and rel="next" links. At the first or last conduit the missing half stays as a
+                muted span with a dash in the name slot; the slot has a minimum width, so for
+                the usual short names (K1..K999) the group keeps its size and position.
+                {% endcomment %}
+                <div class="panelhead-actions">
+                    <nav class="conduit-pager" aria-label="Conduit navigation">
+                        {% if navigation.previous.url %}
+                        <a href="{{ navigation.previous.url }}" class="conduit-pager-link" rel="prev" aria-label="Previous conduit: {{ navigation.previous.name }}" title="Previous conduit {{ navigation.previous.name }} (&larr;)">
+                            <svg class="conduit-pager-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>
+                            <span class="conduit-pager-name">{{ navigation.previous.name }}</span>
+                        </a>
+                        {% else %}
+                        <span class="conduit-pager-link is-disabled" aria-disabled="true" title="No previous conduit">
+                            <svg class="conduit-pager-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>
+                            <span class="visually-hidden">No previous conduit</span>
+                            <span class="conduit-pager-name" aria-hidden="true">&mdash;</span>
+                        </span>
+                        {% endif %}
+                        {% if navigation.next.url %}
+                        <a href="{{ navigation.next.url }}" class="conduit-pager-link" rel="next" aria-label="Next conduit: {{ navigation.next.name }}" title="Next conduit {{ navigation.next.name }} (&rarr;)">
+                            <span class="conduit-pager-name">{{ navigation.next.name }}</span>
+                            <svg class="conduit-pager-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3.5 10.5 8 6 12.5"/></svg>
+                        </a>
+                        {% else %}
+                        <span class="conduit-pager-link is-disabled" aria-disabled="true" title="No next conduit">
+                            <span class="visually-hidden">No next conduit</span>
+                            <span class="conduit-pager-name" aria-hidden="true">&mdash;</span>
+                            <svg class="conduit-pager-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3.5 10.5 8 6 12.5"/></svg>
+                        </span>
+                        {% endif %}
+                    </nav>
+                    <a href="{{ results_url }}" class="panel-back"><span aria-hidden="true">&larr;</span>Back to Results</a>
+                </div>
+            </div>
+            <div id="conduit-diagram">
+                <div class="conduit-profile-scroll" role="group" tabindex="0" aria-label="Longitudinal profile, scrolls sideways on narrow screens">
+                    <svg class="conduit-profile" viewBox="0 0 580 256" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Longitudinal profile of conduit {{ conduit.conduit_name }}"></svg>
+                </div>
+            </div>
+            {% comment %}
+            Filled in by conduit-panel.js: what the two water levels are (they are different
+            SWMM maxima, so they may not meet at the wall) and the vertical exaggeration.
+            Stays hidden when there is nothing drawn.
+            {% endcomment %}
+            <p id="conduit-profile-note" class="profile-caption" hidden></p>
+            {% comment %}
+            The node cards are the only content under the drawing and they already name both
+            nodes; diameter, length and slope live in the criteria cards and the Geometry tab.
+            Open by default, foldable, and the anchors #node-inlet / #node-outlet land here.
+            {% endcomment %}
+            <details class="chain-details" open>
+                <summary>Inlet and outlet nodes</summary>
+                <div class="chain-details-grid">
+                    {% include "sa/_node_card.html" with card=panel.inlet %}
+                    {% include "sa/_node_card.html" with card=panel.outlet %}
+                </div>
+            </details>
+        </section>
+
+        <section class="panel-surface predictions-card">
+            <div class="panelhead">
+                <h2 class="panelhead-title">Model prediction</h2>
+            </div>
+            <div class="prediction">
+                <div class="recommend">
+                    <span class="panel-eyebrow">Recommended action</span>
+                    {% if panel.prediction_selected %}{% with pct=panel.prediction_selected.value|to_percent %}
+                    <div class="selected-value">{{ panel.prediction_selected.label }}</div>
+                    <div class="prob">
+                        <span>Model score for this class</span>
+                        <strong>{{ pct }}%</strong>
+                    </div>
+                    <div class="track">
+                        <span style="width: {{ pct }}%;"></span>
+                    </div>
+                    {% endwith %}{% else %}
+                    <div class="selected-value">{{ conduit.recommendation|title }}</div>
+                    {% endif %}
+                </div>
+
+                <p class="prediction-others-title">Other classes</p>
+                {% for row in panel.prediction_others|slice:":2" %}
+                {% include "sa/_prediction_row.html" %}
+                {% endfor %}
+                {% with rest=panel.prediction_others|slice:"2:" %}
+                {% if rest %}
+                {% comment %}
+                Open by default: the remaining classes are part of the answer, not an
+                aside. The summary stays so a reader can fold them away, which is why it
+                names the classes instead of an action that reads wrong while open.
+                {% endcomment %}
+                <details class="prediction-rest" open>
+                    <summary>Remaining {{ rest|length }} classes</summary>
+                    {% for row in rest %}
+                    {% include "sa/_prediction_row.html" %}
+                    {% endfor %}
+                </details>
+                {% endif %}
+                {% endwith %}
+
+                {% comment %}
+                Design rules: the rule-based counterpart of the prediction above, reduced to
+                the changes it asks for. The service reads the stored action flags, never a
+                fresh comparison (see ConduitPanelService._design_rules).
+                {% endcomment %}
+                <div class="design-rules">
+                    <p class="design-rules-title">Design rules</p>
+                    {% for rule in panel.design_rules %}
+                    <div class="design-rule"><span>{{ rule.label }}</span><b>{{ rule.change }}</b></div>
+                    {% empty %}
+                    <p class="design-rule-none">No change required by the design rules</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </div>
+
+    {% comment %}
+    One card per quantity: the value the run produced, the criterion the pipeline checked
+    it against and the stored verdict (ConduitPanelService._criteria). The count in the head
+    is over the seven stored flags, the same count the results page shows.
+    {% endcomment %}
+    <section class="panel-surface criteria-card" id="criteria" aria-labelledby="criteria-title">
+        <div class="criteria-head">
+            <h2 class="panelhead-title" id="criteria-title">Results and design criteria</h2>
+            {% if panel.checks_failed %}
+            <span class="criteria-count is-warning">{{ panel.checks_failed }} of {{ panel.checks_total }} checks failed</span>
+            {% else %}
+            <span class="criteria-count">All {{ panel.checks_total }} checks passed</span>
+            {% endif %}
+        </div>
+        <ul class="criteria-grid">
+            {% for card in panel.criteria %}
+            <li class="criterion{% if card.passed is False %} is-failed{% elif card.passed %} is-passed{% endif %}" data-criterion="{{ card.key }}">
+                <span class="criterion-label">{{ card.label }}</span>
+                <span class="criterion-value">{{ card.value }}<small>{{ card.unit }}</small></span>
+                <span class="criterion-limit">{{ card.criterion }}</span>
+                {% if card.passed is not None %}
+                <span class="criterion-status">{% if card.passed %}<span aria-hidden="true">&#10003;</span> {% endif %}{{ card.status }}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <div class="card panel-details" id="conduit-details">
+        <div class="panel-tabs" role="tablist" aria-label="Conduit details">
+            <button type="button" class="panel-tab" role="tab" id="tab-geometry" aria-controls="tabpanel-geometry" aria-selected="true">Geometry</button>
+            <button type="button" class="panel-tab" role="tab" id="tab-hydraulics" aria-controls="tabpanel-hydraulics" aria-selected="false">Hydraulics</button>
+            <button type="button" class="panel-tab" role="tab" id="tab-catchments" aria-controls="tabpanel-catchments" aria-selected="false">Catchments</button>
+        </div>
+
+        <div class="panel-tabpanel" role="tabpanel" id="tabpanel-geometry" aria-labelledby="tab-geometry" tabindex="0">
+            <!-- Order matters: the grid fills row by row, so each inlet/outlet pair has to
+                 be adjacent to land side by side; in one column it still reads inlet first. -->
+            <div class="propertygrid">
+                <div class="property"><span>Name</span><b>{{ conduit.conduit_name }}</b></div>
+                <div class="property"><span>Diameter</span><b class="prop-num">{{ conduit.geom1|floatformat:2 }} m</b></div>
+                <div class="property"><span>Inlet Node</span><b>{{ conduit.inlet_node }}</b></div>
+                <div class="property"><span>Outlet Node</span><b>{{ conduit.outlet_node }}</b></div>
+                <div class="property"><span>Inlet Ground Elevation</span><b class="prop-num">{{ conduit.inlet_ground_elevation|floatformat:2 }} m</b></div>
+                <div class="property"><span>Outlet Ground Elevation</span><b class="prop-num">{{ conduit.outlet_ground_elevation|floatformat:2 }} m</b></div>
+                <div class="property"><span>Inlet Ground Cover</span><b class="prop-num">{{ conduit.inlet_ground_cover|floatformat:2 }} m</b></div>
+                <div class="property"><span>Outlet Ground Cover</span><b class="prop-num">{{ conduit.outlet_ground_cover|floatformat:2 }} m</b></div>
+                <div class="property"><span>Length</span><b class="prop-num">{{ conduit.length|floatformat:2 }} m</b></div>
+            </div>
+        </div>
+
+        <div class="panel-tabpanel" role="tabpanel" id="tabpanel-hydraulics" aria-labelledby="tab-hydraulics" tabindex="0">
+            <div class="propertygrid">
+                <div class="property"><span>Max Velocity</span><b class="prop-num">{{ conduit.max_v|floatformat:2 }} m/s</b></div>
+                <div class="property"><span>Max Flow</span><b class="prop-num">{{ conduit.max_q|floatformat:3 }} m³/s</b></div>
+                <div class="property"><span>Filling</span><b class="prop-num">{{ conduit.filling|floatformat:2 }} m</b></div>
+                <div class="property"><span>Slope</span><b class="prop-num">{{ conduit.slope_per_mile|floatformat:4 }}‰</b></div>
+                <div class="property"><span>Min Required Slope</span><b class="prop-num">{{ conduit.min_required_slope|floatformat:4 }}‰</b></div>
+                <div class="property"><span>Max Allowable Slope</span><b class="prop-num">{{ conduit.max_allowable_slope|floatformat:4 }}‰</b></div>
+            </div>
+            <div class="propertygroup">
+                <h6 class="propertygroup-title">Model</h6>
+                <div class="propertygrid">
+                    <div class="property"><span>Subcatchment (model)</span><b>{{ conduit.subcatchment }}</b></div>
+                    <div class="property"><span>Subcatchment Category</span><b>{{ conduit.sbc_category }}</b></div>
+                    <div class="property"><span>Recommendation</span><b>{{ conduit.recommendation }}</b></div>
+                    {% if rule_label and rule_label != "-" %}
+                    <div class="property"><span>Rule Label (Ground Truth)</span><b>{{ rule_label }}</b></div>
+                    {% endif %}
+                    <div class="property"><span>Model Artifact</span><b>{{ panel.model_metadata.model_id|default:"gnn_c3c_winner_v1" }} ({{ panel.model_metadata.feature_contract|default:"v4_physical" }})</b></div>
+                    {% if panel.confidence_margin is not None %}
+                    <div class="property"><span>Top-2 Margin (&Delta;p)</span><b>{{ panel.confidence_margin|floatformat:1 }} pp</b></div>
+                    {% endif %}
+                    <div class="property"><span>Simple Rule (&sect;3.4.3)</span><b>{% if panel.simple_rule_passed %}Within band (0.2&ndash;0.7 D, 0.8&ndash;3.0 m/s){% else %}Outside band{% endif %}</b></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-tabpanel catchment-section" role="tabpanel" id="tabpanel-catchments" aria-labelledby="tab-catchments" tabindex="0">
+            <h6 class="catchment-title">Catchments connected directly to inlet node {{ panel.inlet.name }}</h6>
+            {% if panel.direct_catchments %}
+            <div class="table-responsive">
+                <table class="table catchment-table">
+                    <thead>
+                        <tr>
+                            <th>Catchment</th>
+                            <th>Area [ha]</th>
+                            <th>Imperv. [%]</th>
+                            <th>Slope [%]</th>
+                            <th>Category</th>
+                            <th>Total runoff [10⁶ l]</th>
+                            <th>Peak runoff [m³/s]</th>
+                            <th>Runoff coeff.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in panel.direct_catchments %}{% with s=row.subcatchment %}
+                        <tr id="{{ row.anchor_id }}">
+                            <td><strong>{{ s.subcatchment_name }}</strong></td>
+                            <td class="num">{{ s.area|floatformat:3 }}</td>
+                            <td class="num">{{ s.perc_imperv|floatformat:1 }}</td>
+                            <td class="num">{{ s.perc_slope|floatformat:2 }}</td>
+                            <td>{{ s.category }}</td>
+                            <td class="num">{{ s.total_runoff_mg|floatformat:3|default:"—" }}</td>
+                            <td class="num">{{ s.peak_runoff|floatformat:3|default:"—" }}</td>
+                            <td class="num">{{ s.runoff_coeff|floatformat:3|default:"—" }}</td>
+                        </tr>
+                        {% endwith %}{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="panel-empty">no catchment connected</p>
+            {% endif %}
+            {% if panel.model_catchment_name %}
+            <p class="panel-note">Model feature (Subcatchment (model)): <strong>{{ panel.model_catchment_name }}</strong>{% if panel.model_catchment_differs %} &mdash; {% if panel.model_catchment_is_direct %}the pipeline kept only this one of the direct catchments above{% else %}differs from the direct catchments above{% endif %}{% endif %}</p>
+            {% endif %}
+            <p class="panel-footnote">Values as reported by SWMM; the app accepts FLOW_UNITS CMS only.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Conduit data for the longitudinal profile -->
+{{ panel.diagram_data|json_script:"conduit-data" }}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% versioned_static 'js/conduit-panel.js' %}"></script>
+{% endblock %}

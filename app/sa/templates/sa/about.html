@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %} About the project {% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/docs.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="docs-container">
+    <div class="docs-grid">
+        <!-- Sidebar Navigation -->
+        <aside class="docs-sidebar">
+            <nav class="docs-nav" aria-label="On this page">
+                <div class="docs-nav-heading" id="docs-nav-heading">Contents</div>
+                <ul class="docs-nav-list" aria-labelledby="docs-nav-heading">
+                    <li><a class="docs-nav-link" href="#overview">Overview</a></li>
+                    <li><a class="docs-nav-link" href="#methodology">Methodology</a></li>
+                    <li><a class="docs-nav-link indent" href="#hydraulic-validation">Hydraulic Validation</a></li>
+                    <li><a class="docs-nav-link indent" href="#neural-networks">Neural Networks</a></li>
+                    <li><a class="docs-nav-link indent" href="#recommendations">Recommendations</a></li>
+                    <li><a class="docs-nav-link" href="#performance">Performance</a></li>
+                    <li><a class="docs-nav-link" href="#standards">Standards</a></li>
+                    <li><a class="docs-nav-link" href="#technology">Technology</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <article class="docs-content">
+            <header class="docs-header">
+                <h1>Stormwater Analysis System</h1>
+                <p class="docs-lead">
+                    An integrated platform for hydraulic modeling and machine learning-based
+                    classification of storm sewer networks.
+                </p>
+                <ul class="docs-meta">
+                    <li class="docs-chip">SWMM 5.2</li>
+                    <li class="docs-chip">PN-EN 752:2008</li>
+                    <li class="docs-chip">12 catchment types</li>
+                    <li class="docs-chip">C3c GraphSAGE (66 features)</li>
+                </ul>
+            </header>
+
+            <!-- Overview -->
+            <section id="overview" class="docs-section">
+                <h2>Overview</h2>
+                <p>
+                    This system processes SWMM (Storm Water Management Model) files through a pipeline
+                    that validates hydraulic parameters, classifies catchments (via explicit SWMM
+                    <code>[TAGS]</code> or a 12-class neural classifier fallback), and generates
+                    conduit-level engineering recommendations using a 2-hop upstream GraphSAGE
+                    network (<code>C3c</code>) trained on 66 physical features (<code>v4_physical</code>).
+                </p>
+                <p>
+                    The methodology integrates Polish and European hydraulic design standards with
+                    graph-based deep learning and multi-source soft-label supervision
+                    (<code>primary_action_v3</code>) to evaluate both local conduit capacity and
+                    upstream network context.
+                </p>
+            </section>
+
+            <!-- Methodology -->
+            <section id="methodology" class="docs-section">
+                <h2>Scientific Methodology</h2>
+
+                <h3 id="hydraulic-validation">1. Hydraulic Model Validation</h3>
+                <p>
+                    The validation process examines hydraulic models for gravity sewer systems,
+                    verifying compliance with Polish and European standards as well as the
+                    engineering sanity rule (§3.4.3).
+                </p>
+
+                <h4>Key Parameters</h4>
+                <dl class="docs-dl">
+                    <dt>Flow velocity</dt>
+                    <dd><span class="docs-value">0.7 - 5.0 m/s</span> (PN-EN 752:2008)</dd>
+
+                    <dt>Minimum slope</dt>
+                    <dd><span class="docs-value">τ = 1.5 Pa</span> shear stress self-cleansing criterion</dd>
+
+                    <dt>Maximum burial depth</dt>
+                    <dd><span class="docs-value">8 m</span> (WTP 1964)</dd>
+
+                    <dt>Pipe filling</dt>
+                    <dd><span class="docs-value">max 82.7%</span> for circular pipe capacity</dd>
+
+                    <dt>Simple-band rule (§3.4.3)</dt>
+                    <dd><span class="docs-value">0.2 ≤ h/D ≤ 0.7</span> and <span class="docs-value">0.8 ≤ v ≤ 3.0 m/s</span></dd>
+
+                    <dt>Minimum cover</dt>
+                    <dd>based on frost zone classification (PN-81/B-03020)</dd>
+                </dl>
+
+                <h4>Frost Zone Classification (PN-81/B-03020)</h4>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
+                            <tr>
+                                <th>Zone</th>
+                                <th>Frost Depth (m)</th>
+                                <th>Min Cover (m)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>I</td><td>0.8</td><td>1.0</td></tr>
+                            <tr><td>II</td><td>1.0</td><td>1.2</td></tr>
+                            <tr><td>III</td><td>1.2</td><td>1.4</td></tr>
+                            <tr><td>IV</td><td>1.4</td><td>1.6</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 id="neural-networks">2. Subcatchment Classification</h3>
+                <p>
+                    When subcatchment categories are not explicitly supplied in the SWMM
+                    <code>[TAGS]</code> section, the system falls back to a feed-forward neural
+                    network trained on 12 hydrological features (`full_12` contract) across
+                    12 land-use and terrain classes.
+                </p>
+
+                <h4>Classifier Architecture</h4>
+                <dl class="docs-dl">
+                    <dt>Input layer</dt>
+                    <dd><span class="docs-value">12 neurons</span> (hydrological and runoff features)</dd>
+
+                    <dt>Hidden layers</dt>
+                    <dd><span class="docs-value">32 / 16 neurons</span>, ReLU activation with dropout</dd>
+
+                    <dt>Output layer</dt>
+                    <dd><span class="docs-value">12 neurons</span>, softmax (alphabetical class order)</dd>
+                </dl>
+
+                <h4>Catchment Categories (12 classes)</h4>
+                <div class="docs-list-compact">
+                    arable, forests, marshes, meadows, mountains_rocky, mountains_vegetated,
+                    rural, suburban_highly_impervious, suburban_weakly_impervious,
+                    urban_highly_impervious, urban_moderately_impervious, urban_weakly_impervious
+                </div>
+
+                <h4>Rainfall Scenarios</h4>
+                <p>Synthetic and real-world evaluation pools incorporate standard hyetographs:</p>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
+                            <tr>
+                                <th>Distribution</th>
+                                <th>Characteristics</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Euler Type II</td>
+                                <td>Asymmetric, peak at 30% duration (ATV A-118:2006) including EulerPlateau135 (52.33 mm)</td>
+                                <td>60-240 min</td>
+                            </tr>
+                            <tr>
+                                <td>Chicago</td>
+                                <td>Symmetric, peak at 50% duration</td>
+                                <td>60-120 min</td>
+                            </tr>
+                            <tr>
+                                <td>Uniform</td>
+                                <td>Constant intensity (Błaszczyk formula)</td>
+                                <td>15-30 min</td>
+                            </tr>
+                            <tr>
+                                <td>PANDa Atlas</td>
+                                <td>IMGW-PIB probabilistic data for Wrocław (Rakowiec)</td>
+                                <td>5-240 min</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 id="recommendations">3. Graph Neural Network Recommendation System (C3c)</h3>
+                <p>
+                    The primary serving model (<code>gnn_c3c_winner_v1.weights.h5</code>) is a
+                    2-hop upstream GraphSAGE architecture (<code>gnn_up_k2__f2_l2</code>) operating
+                    on the 66-column physical feature contract (<code>v4_physical</code>) with
+                    training-fold mean imputation (<code>c3c_imputation_plan.json</code>), trained on
+                    5,056 synthetic DYNWAVE networks under soft multi-source supervision
+                    (<code>primary_action_v3</code>). A 33-feature tabular MLP
+                    (<code>recomendations.keras</code>) is retained as a fallback when
+                    <code>GNN_ENABLED=false</code>.
+                </p>
+
+                <h4>Recommendation Classes (9 actions)</h4>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>pump</td><td>Install pumping station</td></tr>
+                            <tr><td>tank</td><td>Install retention tank</td></tr>
+                            <tr><td>seepage_boxes</td><td>Install infiltration boxes</td></tr>
+                            <tr><td>diameter_increase</td><td>Increase pipe diameter</td></tr>
+                            <tr><td>diameter_reduction</td><td>Reduce pipe diameter</td></tr>
+                            <tr><td>slope_increase</td><td>Increase longitudinal slope</td></tr>
+                            <tr><td>slope_reduction</td><td>Decrease longitudinal slope</td></tr>
+                            <tr><td>depth_increase</td><td>Increase pipe depth</td></tr>
+                            <tr><td>valid</td><td>No modifications required</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Performance -->
+            <section id="performance" class="docs-section">
+                <h2>Model Architecture & Evaluation</h2>
+
+                <h3>Catchment Classifier (Plan 19 / K1)</h3>
+                <ul class="docs-stats">
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Test accuracy (K1)</span>
+                        <span class="docs-stat-value">85.7% (Bayes ceiling 86.7%)</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Rakowiec holdout (v3 tags)</span>
+                        <span class="docs-stat-value">34 / 37 (91.9%)</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Feature set</span>
+                        <span class="docs-stat-value">full_12 (INP + SWMM RPT)</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Classes</span>
+                        <span class="docs-stat-value">12 land-use / terrain types</span>
+                    </li>
+                </ul>
+
+                <h3>Recommendation Model (C3c GraphSAGE)</h3>
+                <ul class="docs-stats">
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Architecture</span>
+                        <span class="docs-stat-value">2-hop upstream GraphSAGE</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Feature contract</span>
+                        <span class="docs-stat-value">v4_physical (66 features)</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Training pool (C3c)</span>
+                        <span class="docs-stat-value">5,056 DYNWAVE networks</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Wrocław strict holdout</span>
+                        <span class="docs-stat-value">54 / 62 admissible (87.1%)</span>
+                    </li>
+                </ul>
+
+                <h3>Serving Models & Baselines</h3>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
+                            <tr>
+                                <th>Model / Variant</th>
+                                <th>Features & Topology</th>
+                                <th>Supervision & Split</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>C3c GraphSAGE (Primary)</strong></td>
+                                <td>66 physical features (<code>v4_physical</code>), 2-hop upstream</td>
+                                <td><code>primary_action_v3</code> soft labels, <code>family_v3</code> split</td>
+                            </tr>
+                            <tr>
+                                <td><strong>B4 GraphSAGE (Historical)</strong></td>
+                                <td>33 engineered features (<code>v1</code>), 3-hop downstream</td>
+                                <td>L0 rule cascade, <code>group_v2</code> split</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Tabular MLP (Fallback)</strong></td>
+                                <td>33 engineered features (<code>v1</code>), local conduit only</td>
+                                <td>L0 rule cascade (<code>recomendations.keras</code>)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Standards -->
+            <section id="standards" class="docs-section">
+                <h2>Standards & Compliance</h2>
+                <ul>
+                    <li><strong>PN-EN 752:2008</strong> — European standard for drain and sewer systems</li>
+                    <li><strong>PN-81/B-03020</strong> — Polish frost zone classification</li>
+                    <li><strong>WTP 1964/1965</strong> — Municipal sewer design guidelines</li>
+                    <li><strong>ATV A-118:2006</strong> — German rainfall distribution standards</li>
+                </ul>
+            </section>
+
+            <!-- Technology -->
+            <section id="technology" class="docs-section">
+                <h2>Technology Stack</h2>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <tbody>
+                            <tr>
+                                <td><strong>Core Processing</strong></td>
+                                <td>PySWMM 2.1 (EPA SWMM 5.2.4), swmmio 0.8, Python 3.12</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Machine Learning</strong></td>
+                                <td>TensorFlow 2.20, Keras 3, Scikit-learn, XGBoost</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Data Processing</strong></td>
+                                <td>Pandas, NumPy, SciPy, PyArrow</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Web Framework</strong></td>
+                                <td>Django 5.1, Bootstrap 5, Interactive SVG Map & Profile</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </article>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/docs.js' %}" defer></script>
+{% endblock %}

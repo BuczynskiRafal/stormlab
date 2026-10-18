@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %} User Profile {% endblock %}
+
+{% block content %}
+<div class="container bootstrap snippet">
+    <div class="row">
+        <div class="col-sm-4"><!--left col-->
+            <div class="text-center">
+                <h1>{{ user.email }}</h1>
+                <img src="{{ user.get_avatar_url }}" class="profile-image" alt="avatar">
+                <h6>Profile photo</h6>
+            </div>
+        </div><!--/col-3-->
+        <div class="col-sm-8">
+            <div class="tab-content">
+                <div class="tab-pane active" id="home">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label>First Name:</label>
+                            <p>{{ user.first_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label>Last Name:</label>
+                            <p>{{ user.last_name }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label>Email:</label>
+                            <p>{{ user.email }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label>Phone:</label>
+                            <p>{{ user.phone }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label>Website:</label>
+                            <p>{{ user.website_url }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label>Bio:</label>
+                            <p>{{ user.bio }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

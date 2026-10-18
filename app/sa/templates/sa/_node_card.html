@@ -1,0 +1,30 @@
+{# One end node of the conduit, under the longitudinal profile. Context: card (NodeCard), session. #}
+<div class="node-card{% if card.is_flooded %} is-flooded{% endif %}" id="{{ card.anchor_id }}">
+    <div class="node-card-role">{{ card.role }} node{% if card.is_flooded %}<span class="node-card-flood-status">Flooded</span>{% endif %}</div>
+    <h6 class="node-card-name">{{ card.name }}</h6>
+    {% if card.node %}
+    <dl class="node-card-facts">
+        <dt>Node invert</dt>
+        <dd>{% if card.invert_elevation is not None %}{{ card.invert_elevation|floatformat:2 }} m{% else %}—{% endif %}</dd>
+        <dt>Manhole depth</dt>
+        <dd>{% if card.max_depth is not None %}{{ card.max_depth|floatformat:2 }} m{% else %}—{% endif %}</dd>
+        <dt>Max water depth</dt>
+        <dd>{% if card.max_water_depth is not None %}{{ card.max_water_depth|floatformat:2 }} m{% else %}—{% endif %}</dd>
+        <dt>Flooding</dt>
+        {# SWMM rounds the hours to two decimals, so a flood may be reported as 0.00 h with a volume. #}
+        <dd>{% if card.is_flooded %}{% if card.hours_flooded is None %}—{% elif card.hours_flooded < 0.005 %}&lt; 0.01 h{% else %}{{ card.hours_flooded|floatformat:2 }} h{% endif %} · {% if card.flood_volume is not None %}{{ card.flood_volume|floatformat:3 }} × 10⁶ l{% else %}—{% endif %}{% elif card.hours_flooded is None %}—{% else %}none{% endif %}</dd>
+        <dt>Ground elevation</dt>
+        <dd>{% if card.ground_elevation is not None %}{{ card.ground_elevation|floatformat:2 }} m{% else %}—{% endif %}</dd>
+    </dl>
+    {% else %}
+    <p class="node-card-missing">node not in session data</p>
+    {% endif %}
+    <dl class="node-card-links">
+        <dt>Incoming conduits</dt>
+        <dd>{% for c in card.incoming %}<a href="{% url 'sa:conduit_detail' session.id c.conduit_name %}" class="chain-link">{{ c.conduit_name }}</a>{% empty %}none{% endfor %}</dd>
+        <dt>Outgoing conduits</dt>
+        <dd>{% for c in card.outgoing %}<a href="{% url 'sa:conduit_detail' session.id c.conduit_name %}" class="chain-link">{{ c.conduit_name }}</a>{% empty %}none{% endfor %}</dd>
+        <dt>Catchments</dt>
+        <dd>{% for row in card.catchments %}{{ row.subcatchment.subcatchment_name }}{% if not forloop.last %}, {% endif %}{% empty %}no catchment connected{% endfor %}</dd>
+    </dl>
+</div>

@@ -1,0 +1,11 @@
+{# One alternative recommendation class: label, model score and the score as a bar. Context: row (PredictionRow). #}
+{% load confidence_filters %}
+{% with pct=row.value|to_percent %}
+<div class="alternative">
+    <span class="prediction-name">{{ row.label }}</span>
+    <span class="prediction-percent">{{ pct }}%</span>
+    <div class="track">
+        <span style="width: {{ pct }}%;"></span>
+    </div>
+</div>
+{% endwith %}
