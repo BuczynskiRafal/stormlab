@@ -1,0 +1,22 @@
+[JUNCTIONS]
+J1   10.0  2.0  0  0  0
+
+[OUTFALLS]
+O1   8.0   FREE  NO
+
+[STORAGE]
+ST1  7.0   0  10  FUNCTIONAL  1000  0  0
+
+[DIVIDERS]
+DV1  6.0   C1  CUTOFF  1.0  0  0  0
+
+[CONDUITS]
+C1   J1   ST1  50  0.01  0  0  0
+C2   ST1  O1   50  0.01  0  0  0
+C3   DV1  O1   50  0.01  0  0  0
+
+[COORDINATES]
+J1   0.0    100.0
+ST1  50.0   100.0
+DV1  50.0   50.0
+O1   100.0  50.0

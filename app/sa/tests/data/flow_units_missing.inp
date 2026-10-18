@@ -1,0 +1,10 @@
+[TITLE]
+;;Project Title/Notes
+
+[OPTIONS]
+;;Option             Value
+INFILTRATION         MODIFIED_GREEN_AMPT
+FLOW_ROUTING         KINWAVE
+
+[EVAPORATION]
+CONSTANT         0.0

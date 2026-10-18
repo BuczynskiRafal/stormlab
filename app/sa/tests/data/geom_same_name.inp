@@ -1,0 +1,12 @@
+[JUNCTIONS]
+X    10.0  2.0  0  0  0
+
+[OUTFALLS]
+O1   8.0   FREE  NO
+
+[CONDUITS]
+X    X   O1  50  0.01  0  0  0
+
+[COORDINATES]
+X    0.0    100.0
+O1   100.0  50.0

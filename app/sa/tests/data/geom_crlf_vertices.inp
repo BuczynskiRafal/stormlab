@@ -1,0 +1,27 @@
+[JUNCTIONS]
+J1   10.0  2.0  0  0  0
+J2   9.0   2.0  0  0  0
+
+[OUTFALLS]
+O1   8.0   FREE  NO
+
+[CONDUITS]
+C1   J1  J2  50  0.01  0  0  0
+C/2  J2  O1  50  0.01  0  0  0
+
+[PUMPS]
+PU1  J1  J2  CURVE1  ON  0  0
+
+[COORDINATES]
+J1   0.0    100.0
+J2   50.0   100.0
+O1   100.0  50.0
+
+[VERTICES]
+C/2  60.0   90.0
+C/2  80.0   70.0
+
+[Polygons]
+"S 1"  0.0    100.0
+"S 1"  50.0   100.0
+"S 1"  50.0   50.0

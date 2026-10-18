@@ -1,0 +1,291 @@
+[TITLE]
+;;Project Title/Notes
+
+[OPTIONS]
+;;Option             Value
+FLOW_UNITS           CMS
+INFILTRATION         MODIFIED_GREEN_AMPT
+FLOW_ROUTING         KINWAVE
+LINK_OFFSETS         DEPTH
+MIN_SLOPE            0
+ALLOW_PONDING        NO
+SKIP_STEADY_STATE    NO
+
+START_DATE           06/17/2022
+START_TIME           00:00:00
+REPORT_START_DATE    06/17/2022
+REPORT_START_TIME    00:00:00
+END_DATE             06/17/2022
+END_TIME             12:00:00
+SWEEP_START          01/01
+SWEEP_END            12/31
+DRY_DAYS             0
+REPORT_STEP          00:15:00
+WET_STEP             00:05:00
+DRY_STEP             01:00:00
+ROUTING_STEP         0:01:00
+RULE_STEP            00:00:00
+
+INERTIAL_DAMPING     PARTIAL
+NORMAL_FLOW_LIMITED  BOTH
+FORCE_MAIN_EQUATION  H-W
+VARIABLE_STEP        0.75
+LENGTHENING_STEP     0
+MIN_SURFAREA         1.167
+MAX_TRIALS           8
+HEAD_TOLERANCE       0.0015
+SYS_FLOW_TOL         5
+LAT_FLOW_TOL         5
+MINIMUM_STEP         0.5
+THREADS              1
+
+[EVAPORATION]
+;;Data Source    Parameters
+;;-------------- ----------------
+CONSTANT         0.0
+DRY_ONLY         NO
+
+[RAINGAGES]
+;;Name           Format    Interval SCF      Source
+;;-------------- --------- ------ ------ ----------
+Raingage2        INTENSITY 0:01     1.0      TIMESERIES test_series
+
+[SUBCATCHMENTS]
+;;Name           Rain Gage        Outlet           Area     %Imperv  Width    %Slope   CurbLen  SnowPack
+;;-------------- ---------------- ---------------- -------- -------- -------- -------- -------- ----------------
+S1               Raingage2        J0               82       15.0     2000.0   10.0     0
+S2               Raingage2        J9               17       10.0     412.31   5.08   0
+S3               Raingage2        J7               12       15.0     346.41   5.08   0
+S4               Raingage2        J2               8        10.0     282.84   5.0884   0
+S5               Raingage2        J2               32       25.0     565.68   5.0884   0
+21               Raingage2        C11              5        25       500      0.5      0
+22               Raingage2        C6               5        25       500      0.5      0
+
+[SUBAREAS]
+;;Subcatchment   N-Imperv   N-Perv     S-Imperv   S-Perv     PctZero    RouteTo    PctRouted
+;;-------------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+S1               0.15       0.41       1.27       5.08       70         OUTLET
+S2               0.15       0.41       1.27       5.08       10         OUTLET
+S3               0.4        0.8        1.27       7.62       5          OUTLET
+S4               0.15       0.41       1.27       5.08       10         OUTLET
+S5               0.013      0.24       1.27       5.08       80         OUTLET
+21               0.01       0.1        0.05       0.05       25         OUTLET
+22               0.01       0.1        0.05       0.05       25         OUTLET
+
+[INFILTRATION]
+;;Subcatchment   Param1     Param2     Param3     Param4     Param5
+;;-------------- ---------- ---------- ---------- ---------- ----------
+S1               3.5        0.5        0.25       7          0
+S2               3.5        0.5        0.25       7          0
+S3               3.5        0.5        0.25       7          0
+S4               3.5        0.5        0.25       7          0
+S5               3.5        0.5        0.25       7          0
+21               3.5        0.5        0.25       7          0
+22               3.5        0.5        0.25       7          0
+
+[JUNCTIONS]
+;;Name           Elevation  MaxDepth   InitDepth  SurDepth   Aponded
+;;-------------- ---------- ---------- ---------- ---------- ----------
+J2               146.61     2.71       0          0          0
+J3               146.52     2.4        0          0          0
+J1               146.80     2.5        0          0          0
+J0               147.0      2.3        0          0          0
+J4               146.70     2.5        0          0          0
+J5               147        2.3        0          0          0
+J8               146.9      2.3        0          0          0
+J6               147.2      2.1        0          0          0
+J9               147.1      2.1        0          0          0
+J7               147.4      1.9        0          0          0
+C7               147.2      2.8        0          0          0
+C8               147.4      2.6        0          0          0
+C9               147.6      2.4        0          0          0
+C10              147.8      2.2        0          0          0
+C11              148        2          0          0          0
+C1               147        3          0          0          0
+C2               147.2      2.8        0          0          0
+C3               147.4      2.6        0          0          0
+C4               147.6      2.4        0          0          0
+C5               147.8      2.2        0          0          0
+C6               148        2          0          0          0
+
+[OUTFALLS]
+;;Name           Elevation  Type       Stage Data       Gated    Route To
+;;-------------- ---------- ---------- ---------------- -------- ----------------
+O1               146.20     FREE                        NO
+O2               146.5      FREE                        NO
+
+[CONDUITS]
+;;Name           From Node        To Node          Length     Roughness  InOffset   OutOffset  InitFlow   MaxFlow
+;;-------------- ---------------- ---------------- ---------- ---------- ---------- ---------- ---------- ----------
+C3               J2               J3               50         0.01       0          0          0          0
+C4               J3               O1               50         0.015      0          0          0          0
+C2               J1               J2               400        0.01       0          0          0          0
+C1               J0               J1               400        0.01       0          0          0          0
+3                J4               J3               400        0.01       0          0          0          0
+5                J7               J6               400        0.01       0          0          0          0
+6                J8               J4               400        0.01       0          0          0          0
+7                J9               J8               400        0.01       0          0          0          0
+8                J5               J4               400        0.01       0          0          0          0
+9                J6               J5               400        0.01       0          0          0          0
+11               C6               C5               400        0.01       0          0          0          0
+12               C5               C4               400        0.01       0          0          0          0
+13               C4               C3               400        0.01       0          0          0          0
+14               C3               C2               400        0.01       0          0          0          0
+15               C2               C1               400        0.01       0          0          0          0
+16               C1               O2               400        0.01       0          0          0          0
+17               C11              C10              400        0.01       0          0          0          0
+18               C10              C9               400        0.01       0          0          0          0
+19               C9               C8               400        0.01       0          0          0          0
+20               C8               C7               400        0.01       0          0          0          0
+21               C7               C1               400        0.01       0          0          0          0
+
+[XSECTIONS]
+;;Link           Shape        Geom1            Geom2      Geom3      Geom4      Barrels    Culvert
+;;-------------- ------------ ---------------- ---------- ---------- ---------- ---------- ----------
+C3               CIRCULAR     0.9              0          0          0          1
+C4               CIRCULAR     1                0          0          0          1
+C2               CIRCULAR     1                0          0          0          1
+C1               CIRCULAR     1                0          0          0          1
+3                CIRCULAR     1                0          0          0          1
+5                CIRCULAR     1                0          0          0          1
+6                CIRCULAR     1                0          0          0          1
+7                CIRCULAR     1                0          0          0          1
+8                CIRCULAR     1                0          0          0          1
+9                CIRCULAR     1                0          0          0          1
+11               CIRCULAR     1                0          0          0          1
+12               CIRCULAR     1                0          0          0          1
+13               CIRCULAR     1                0          0          0          1
+14               CIRCULAR     1                0          0          0          1
+15               CIRCULAR     1                0          0          0          1
+16               CIRCULAR     1                0          0          0          1
+17               CIRCULAR     1                0          0          0          1
+18               CIRCULAR     1                0          0          0          1
+19               CIRCULAR     1                0          0          0          1
+20               CIRCULAR     1                0          0          0          1
+21               CIRCULAR     1                0          0          0          1
+
+[TIMESERIES]
+;;Name           Date       Time       Value
+;;-------------- ---------- ---------- ----------
+test_series                 0:01       25.25
+test_series                 0:02       25.25
+test_series                 0:03       25.25
+test_series                 0:04       25.25
+test_series                 0:05       25.25
+test_series                 0:06       25.25
+test_series                 0:07       25.25
+test_series                 0:08       25.25
+test_series                 0:09       25.25
+test_series                 0:10       25.25
+test_series                 0:11       25.25
+test_series                 0:12       25.25
+test_series                 0:13       25.25
+test_series                 0:14       25.25
+test_series                 0:15       25.25
+test_series                 0:16       25.25
+test_series                 0:17       25.25
+test_series                 0:18       25.25
+test_series                 0:19       25.25
+test_series                 0:20       25.25
+test_series                 0:21       25.25
+test_series                 0:22       25.25
+test_series                 0:23       25.25
+test_series                 0:24       25.25
+
+[REPORT]
+;;Reporting Options
+SUBCATCHMENTS ALL
+NODES ALL
+LINKS ALL
+
+[TAGS]
+Node       J2               #P
+Node       J3               #E
+Link       C3               #P
+Link       C4               #E
+Link       7                #E
+
+[MAP]
+DIMENSIONS 777170.879 592553.184 777244.390 592609.929
+Units      Meters
+
+[COORDINATES]
+;;Node           X-Coord            Y-Coord
+;;-------------- ------------------ ------------------
+J2               777189.014         592583.674
+J3               777197.506         592564.623
+J1               777186.085         592592.266
+J0               777184.180         592603.551
+J4               777202.206         592568.475
+J5               777209.485         592575.900
+J8               777197.370         592584.303
+J6               777217.497         592586.648
+J9               777194.145         592595.637
+J7               777215.543         592595.686
+C7               777226.490         592566.534
+C8               777229.041         592573.239
+C9               777229.456         592579.053
+C10              777228.685         592586.885
+C11              777227.736         592591.513
+C1               777224.472         592567.009
+C2               777222.158         592572.883
+C3               777221.624         592579.172
+C4               777221.624         592584.512
+C5               777220.972         592591.276
+C6               777220.200         592595.251
+O1               777203.002         592557.210
+O2               777225.718         592561.431
+
+[VERTICES]
+;;Link           X-Coord            Y-Coord
+;;-------------- ------------------ ------------------
+
+[Polygons]
+;;Subcatchment   X-Coord            Y-Coord
+;;-------------- ------------------ ------------------
+S1               777180.000         592590.000
+S1               777180.000         592585.000
+S1               777175.000         592585.000
+S1               777175.000         592590.000
+S2               777175.000         592585.000
+S2               777175.000         592580.000
+S2               777180.000         592580.000
+S2               777180.000         592585.000
+S3               777180.000         592580.000
+S3               777180.000         592575.000
+S3               777175.000         592575.000
+S3               777175.000         592580.000
+S4               777175.000         592575.000
+S4               777175.000         592570.000
+S4               777180.000         592570.000
+S4               777180.000         592575.000
+S5               777180.000         592570.000
+S5               777180.000         592565.000
+S5               777175.000         592565.000
+S5               777175.000         592570.000
+21               777228.626         592606.406
+21               777239.899         592605.872
+21               777241.086         592601.363
+21               777235.568         592597.565
+21               777228.863         592602.075
+22               777224.947         592607.415
+22               777224.888         592605.160
+22               777215.276         592601.659
+22               777213.733         592607.237
+
+[SYMBOLS]
+;;Gage           X-Coord            Y-Coord
+;;-------------- ------------------ ------------------
+Raingage2        777181.540         592591.318
+
+
+[PROFILES]
+;;Name           Links
+;;-------------- ----------
+"profile_1       " C1 C2 C3 C4
+"profile_2       " 7 6 3 C4
+"profile_3       " 5 9 8 3 C4
+"profile_4       " 11 12 13 14 15
+"profile_4       " 16
+"profile_5       " 17 18 19 20 21
+"profile_5       " 16
