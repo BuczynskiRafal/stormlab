@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: "StormLab: Hydraulic Analysis, Validation, and Recommendation Platform for Gravity Storm Sewer Networks"
+message: "If you use this software in academic or engineering work, please cite it using the metadata below."
+type: software
+authors:
+  - given-names: "Rafał"
+    family-names: "Buczyński"
+repository-code: "https://github.com/BuczynskiRafal/stormlab"
+license: Apache-2.0
+keywords:
+  - stormwater
+  - urban drainage
+  - EPA SWMM
+  - hydraulic modeling
+  - graph neural networks
+  - sewer network analysis
