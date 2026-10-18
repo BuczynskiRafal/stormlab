@@ -1,0 +1,40 @@
+"""GNN feature contract (33 features) for serving."""
+
+
+def get_default_feature_columns():
+    """Get default feature columns for SWMM conduits."""
+    return [
+        "ValMaxFill",
+        "ValMaxV",
+        "ValMinV",
+        "ValMaxSlope",
+        "ValMinSlope",
+        "ValDepth",
+        "ValCoverage",
+        "isMinDiameter",
+        "IncreaseDia",
+        "ReduceDia",
+        "IncreaseSlope",
+        "ReduceSlope",
+        "NRoughness",
+        "NMaxV",
+        "NInletDepth",
+        "NOutletDepth",
+        "NFilling",
+        "NMaxQ",
+        "NInletGroundCover",
+        "NOutletGroundCover",
+        "NSlope",
+        "marshes",
+        "suburban_highly_impervious",
+        "suburban_weakly_impervious",
+        "arable",
+        "meadows",
+        "forests",
+        "rural",
+        "urban_weakly_impervious",
+        "urban_moderately_impervious",
+        "urban_highly_impervious",
+        "mountains_rocky",
+        "mountains_vegetated",
+    ]
