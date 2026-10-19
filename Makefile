@@ -1,7 +1,7 @@
 PYTHON ?= ./venv/bin/python
 MANAGE = $(PYTHON) app/manage.py
 
-.PHONY: install migrate run test test-core test-django lint typecheck
+.PHONY: install migrate run test test-core test-stormlab test-django lint typecheck
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt -r app/requirements.txt
@@ -15,14 +15,17 @@ run:
 test-core:
 	$(PYTHON) -m pytest app/sa/core/tests -p no:cacheprovider
 
+test-stormlab:
+	$(PYTHON) -m pytest stormlab/tests -p no:cacheprovider
+
 test-django:
 	DJANGO_ENV=testing $(MANAGE) test accounts sa
 
-test: test-core test-django
+test: test-core test-stormlab test-django
 
 lint:
 	ruff check .
-	ruff format --check app/sa/core/ conftest.py
+	ruff format --check app/sa/core/ stormlab/ conftest.py
 
 typecheck:
 	$(PYTHON) -m pyright
