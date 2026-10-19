@@ -150,6 +150,8 @@ class TestRealTopologyReconstructionParity:
     """
 
     def test_build_adjacency_reproduces_training_raw_adjacency(self):
+        if not os.path.exists(FIXTURE_PATH):
+            pytest.skip("GNN golden fixture not available")
         fixture = np.load(FIXTURE_PATH, allow_pickle=True)
 
         dfc = pd.DataFrame(
