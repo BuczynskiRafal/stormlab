@@ -1,0 +1,231 @@
+[TITLE]
+;;Project Title/Notes
+StormLab Demo Network (Schematic Topological Layout — No Node Coordinates)
+
+[OPTIONS]
+;;Option             Value
+FLOW_UNITS           CMS
+INFILTRATION         MODIFIED_GREEN_AMPT
+FLOW_ROUTING         KINWAVE
+LINK_OFFSETS         DEPTH
+MIN_SLOPE            0
+ALLOW_PONDING        NO
+SKIP_STEADY_STATE    NO
+
+START_DATE           06/17/2022
+START_TIME           00:00:00
+REPORT_START_DATE    06/17/2022
+REPORT_START_TIME    00:00:00
+END_DATE             06/17/2022
+END_TIME             12:00:00
+SWEEP_START          01/01
+SWEEP_END            12/31
+DRY_DAYS             0
+REPORT_STEP          00:15:00
+WET_STEP             00:05:00
+DRY_STEP             01:00:00
+ROUTING_STEP         0:01:00
+RULE_STEP            00:00:00
+
+INERTIAL_DAMPING     PARTIAL
+NORMAL_FLOW_LIMITED  BOTH
+FORCE_MAIN_EQUATION  H-W
+VARIABLE_STEP        0.75
+LENGTHENING_STEP     0
+MIN_SURFAREA         1.167
+MAX_TRIALS           8
+HEAD_TOLERANCE       0.0015
+SYS_FLOW_TOL         5
+LAT_FLOW_TOL         5
+MINIMUM_STEP         0.5
+THREADS              1
+
+[EVAPORATION]
+;;Data Source    Parameters
+;;-------------- ----------------
+CONSTANT         0.0
+DRY_ONLY         NO
+
+[RAINGAGES]
+;;Name           Format    Interval SCF      Source
+;;-------------- --------- ------ ------ ----------
+Raingage2        INTENSITY 0:01     1.0      TIMESERIES test_series
+
+[SUBCATCHMENTS]
+;;Name           Rain Gage        Outlet           Area     %Imperv  Width    %Slope   CurbLen  SnowPack
+;;-------------- ---------------- ---------------- -------- -------- -------- -------- -------- ----------------
+S1               Raingage2        J0               8.2      45.0     280.0    2.5      0
+S2               Raingage2        J9               4.5      35.0     210.0    2.0      0
+S3               Raingage2        J7               3.8      30.0     190.0    1.8      0
+S4               Raingage2        J2               2.5      55.0     160.0    1.5      0
+S5               Raingage2        J5               5.0      60.0     220.0    1.6      0
+S6               Raingage2        C11              3.2      40.0     180.0    1.2      0
+S7               Raingage2        C6               3.5      45.0     185.0    1.4      0
+
+[SUBAREAS]
+;;Subcatchment   N-Imperv   N-Perv     S-Imperv   S-Perv     PctZero    RouteTo    PctRouted
+;;-------------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+S1               0.015      0.24       1.50       4.50       25         OUTLET
+S2               0.015      0.24       1.50       4.50       25         OUTLET
+S3               0.015      0.24       1.50       4.50       25         OUTLET
+S4               0.015      0.24       1.50       4.50       25         OUTLET
+S5               0.015      0.24       1.50       4.50       25         OUTLET
+S6               0.015      0.24       1.50       4.50       25         OUTLET
+S7               0.015      0.24       1.50       4.50       25         OUTLET
+
+[INFILTRATION]
+;;Subcatchment   Param1     Param2     Param3     Param4     Param5
+;;-------------- ---------- ---------- ---------- ---------- ----------
+S1               3.5        0.5        0.25       7          0
+S2               3.5        0.5        0.25       7          0
+S3               3.5        0.5        0.25       7          0
+S4               3.5        0.5        0.25       7          0
+S5               3.5        0.5        0.25       7          0
+S6               3.5        0.5        0.25       7          0
+S7               3.5        0.5        0.25       7          0
+
+[JUNCTIONS]
+;;Name           Elevation  MaxDepth   InitDepth  SurDepth   Aponded
+;;-------------- ---------- ---------- ---------- ---------- ----------
+J0               148.20     2.10       0          0          0
+J1               147.60     2.30       0          0          0
+J2               147.50     1.40       0          0          0
+J3               146.30     2.80       0          0          0
+J4               146.70     2.50       0          0          0
+J5               147.30     2.30       0          0          0
+J6               147.90     2.10       0          0          0
+J7               148.05     1.50       0          0          0
+J8               147.20     2.30       0          0          0
+J9               147.80     2.10       0          0          0
+C6               148.40     2.00       0          0          0
+C5               148.00     2.20       0          0          0
+C4               147.60     2.40       0          0          0
+C3               147.20     2.60       0          0          0
+C2               147.12     1.50       0          0          0
+C1               146.40     3.00       0          0          0
+C11              148.30     2.00       0          0          0
+C10              147.90     2.20       0          0          0
+C9               147.50     2.40       0          0          0
+C8               147.10     2.60       0          0          0
+C7               146.70     2.80       0          0          0
+
+[OUTFALLS]
+;;Name           Elevation  Type       Stage Data       Gated    Route To
+;;-------------- ---------- ---------- ---------------- -------- ----------------
+O1               145.90     FREE                        NO
+O2               145.95     FREE                        NO
+
+[CONDUITS]
+;;Name           From Node        To Node          Length     Roughness  InOffset   OutOffset  InitFlow   MaxFlow
+;;-------------- ---------------- ---------------- ---------- ---------- ---------- ---------- ---------- ----------
+K1               J0               J1               120        0.013      0          0          0          0
+K2               J1               J2               140        0.013      0          0          0          0
+K3               J2               J3               110        0.013      0          0          0          0
+K4               J3               O1               85         0.013      0          0          0          0
+K5               J7               J6               180        0.013      0          0          0          0
+K6               J6               J5               120        0.013      0          0          0          0
+K7               J5               J4               125        0.013      0          0          0          0
+K8               J9               J8               110        0.013      0          0          0          0
+K9               J8               J4               115        0.013      0          0          0          0
+K10              J4               J3               95         0.013      0          0          0          0
+K11              C6               C5               100        0.013      0          0          0          0
+K12              C5               C4               105        0.013      0          0          0          0
+K13              C4               C3               110        0.013      0          0          0          0
+K14              C3               C2               160        0.013      0          0          0          0
+K15              C2               C1               115        0.013      0          0          0          0
+K16              C1               O2               90         0.013      0          0          0          0
+K17              C11              C10              100        0.013      0          0          0          0
+K18              C10              C9               105        0.013      0          0          0          0
+K19              C9               C8               110        0.013      0          0          0          0
+K20              C8               C7               110        0.013      0          0          0          0
+K21              C7               C1               95         0.013      0          0          0          0
+
+[XSECTIONS]
+;;Link           Shape        Geom1            Geom2      Geom3      Geom4      Barrels    Culvert
+;;-------------- ------------ ---------------- ---------- ---------- ---------- ---------- ----------
+K1               CIRCULAR     0.3              0          0          0          1
+K2               CIRCULAR     0.3              0          0          0          1
+K3               CIRCULAR     0.5              0          0          0          1
+K4               CIRCULAR     0.6              0          0          0          1
+K5               CIRCULAR     0.3              0          0          0          1
+K6               CIRCULAR     0.4              0          0          0          1
+K7               CIRCULAR     0.4              0          0          0          1
+K8               CIRCULAR     0.3              0          0          0          1
+K9               CIRCULAR     0.4              0          0          0          1
+K10              CIRCULAR     0.5              0          0          0          1
+K11              CIRCULAR     0.3              0          0          0          1
+K12              CIRCULAR     0.4              0          0          0          1
+K13              CIRCULAR     0.4              0          0          0          1
+K14              CIRCULAR     0.3              0          0          0          1
+K15              CIRCULAR     0.5              0          0          0          1
+K16              CIRCULAR     0.6              0          0          0          1
+K17              CIRCULAR     0.3              0          0          0          1
+K18              CIRCULAR     0.4              0          0          0          1
+K19              CIRCULAR     0.4              0          0          0          1
+K20              CIRCULAR     0.5              0          0          0          1
+K21              CIRCULAR     0.5              0          0          0          1
+
+[TIMESERIES]
+;;Name           Date       Time       Value
+;;-------------- ---------- ---------- ----------
+test_series                 0:01       18.0
+test_series                 0:05       32.0
+test_series                 0:10       55.0
+test_series                 0:15       42.0
+test_series                 0:20       24.0
+test_series                 0:25       12.0
+test_series                 0:30       5.0
+
+[REPORT]
+;;Reporting Options
+SUBCATCHMENTS ALL
+NODES ALL
+LINKS ALL
+
+[TAGS]
+Subcatch  S1               urban_moderately_impervious
+Subcatch  S2               urban_weakly_impervious
+Subcatch  S3               urban_weakly_impervious
+Subcatch  S4               urban_moderately_impervious
+Subcatch  S5               urban_moderately_impervious
+Subcatch  S6               urban_weakly_impervious
+Subcatch  S7               urban_moderately_impervious
+
+[COORDINATES]
+;;Node           X-Coord            Y-Coord
+;;-------------- ------------------ ------------------
+J0               nan                nan
+J1               nan                nan
+J2               nan                nan
+J3               nan                nan
+J4               nan                nan
+J5               nan                nan
+J6               nan                nan
+J7               nan                nan
+J8               nan                nan
+J9               nan                nan
+C6               nan                nan
+C5               nan                nan
+C4               nan                nan
+C3               nan                nan
+C2               nan                nan
+C1               nan                nan
+C11              nan                nan
+C10              nan                nan
+C9               nan                nan
+C8               nan                nan
+C7               nan                nan
+O1               nan                nan
+O2               nan                nan
+
+[VERTICES]
+;;Link           X-Coord            Y-Coord
+;;-------------- ------------------ ------------------
+
+[Polygons]
+;;Subcatchment   X-Coord            Y-Coord
+;;-------------- ------------------ ------------------
+S1               777176.000         592607.000
+S1               777188.000         592607.000
+S1               777188.000         592597.000
+S1               777176.000         592597.000
