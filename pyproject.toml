@@ -3,11 +3,12 @@ line-length = 130
 target-version = ['py310']
 
 [tool.pytest.ini_options]
-testpaths = ["app/sa/core/tests"]
+testpaths = ["app/sa/core/tests", "stormlab/tests"]
 addopts = [
     "-vvv",
     "--tb=short",
     "--cov=app/sa/core",
+    "--cov=stormlab",
     "--cov-report=term-missing",
     "-m",
     "not parity",
@@ -36,7 +37,7 @@ ignore = ["E501", "W291"]
 [tool.pyright]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"
-include = ["app/sa"]
+include = ["app/sa", "stormlab"]
 exclude = ["**/tests/**", "**/migrations/**"]
 
 reportMissingImports = false
@@ -51,7 +52,7 @@ reportUndefinedVariable = true
 reportArgumentType = false
 
 [tool.coverage.run]
-source = ["app/sa/core"]
+source = ["app/sa/core", "stormlab"]
 omit = ["*/tests/*", "*/migrations/*"]
 
 [tool.coverage.report]
