@@ -26,11 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 _PRIMARY_TEST_FILE = REPO_ROOT / "models" / "recomendations" / "gnn" / "wroclaw" / "wroclaw_pipes.inp"
 _FALLBACK_TEST_FILE = REPO_ROOT / "models" / "recomendations" / "wroclaw_pipes.inp"
 _PUBLIC_DEMO_FILE = REPO_ROOT / "examples" / "demo_network_coordinates.inp"
-TEST_FILE = str(
-    _PRIMARY_TEST_FILE
-    if _PRIMARY_TEST_FILE.is_file()
-    else (_FALLBACK_TEST_FILE if _FALLBACK_TEST_FILE.is_file() else _PUBLIC_DEMO_FILE)
-)
+TEST_FILE = str(next((p for p in (_PRIMARY_TEST_FILE, _FALLBACK_TEST_FILE) if p.is_file()), _PUBLIC_DEMO_FILE))
 
 logger = logging.getLogger(__name__)
 
