@@ -8,6 +8,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .envvars import env_bool, env_int, env_path
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # BASE_DIR points to the 'app' directory
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -55,6 +57,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "storm_analysis.context_processors.registration",
             ],
         },
     },
@@ -66,7 +69,7 @@ WSGI_APPLICATION = "storm_analysis.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": env_path("SQLITE_PATH", BASE_DIR / "db.sqlite3"),
     }
 }
 
@@ -92,6 +95,9 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
 
+# Self-registration; when false the sign-up page answers 404 and its links are hidden.
+REGISTRATION_OPEN = env_bool("REGISTRATION_OPEN", True)
+
 # Crispy Forms
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 
@@ -106,7 +112,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Media files
 MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = str(env_path("MEDIA_ROOT", os.path.join(BASE_DIR, "media")))
+
+# Largest accepted .inp upload, in bytes.
+MAX_INP_BYTES = env_int("MAX_INP_BYTES", 50 * 1024 * 1024, minimum=1)
 
 # Upload limits (50 MB max .inp model + request overhead; stream files > 5 MB via temporary file)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52 * 1024 * 1024
@@ -114,8 +123,11 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 # Static files (CSS, JavaScript, Images)
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATIC_ROOT = str(env_path("STATIC_ROOT", os.path.join(BASE_DIR, "staticfiles")))
 STATIC_URL = "/static/"
+
+# The health check must answer over plain HTTP; this only matters when SECURE_SSL_REDIRECT is on.
+SECURE_REDIRECT_EXEMPT = [r"^healthz/$"]
 
 # Logging configuration
 LOGGING = {
