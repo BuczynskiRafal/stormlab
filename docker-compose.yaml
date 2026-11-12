@@ -1,0 +1,46 @@
+# Production: docker compose up -d (settings come from .env next to this file).
+services:
+  web:
+    build: .
+    image: stormlab-web
+    env_file: .env
+    environment:
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-${DOMAIN:?set DOMAIN in .env}}
+    restart: unless-stopped
+    expose:
+      - "8000"
+    volumes:
+      - db:/data/db
+      - media:/data/media
+    tmpfs:
+      - /tmp:size=512m
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  proxy:
+    image: caddy:2.10
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      ADMIN_IPS: ${ADMIN_IPS:-127.0.0.1/32}
+      MAX_REQUEST_BODY: ${MAX_REQUEST_BODY:-55MB}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - media:/srv/media:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  db:
+  media:
+  caddy_data:
+  caddy_config:

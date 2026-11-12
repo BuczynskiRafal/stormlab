@@ -1,7 +1,7 @@
 PYTHON ?= ./venv/bin/python
 MANAGE = $(PYTHON) app/manage.py
 
-.PHONY: install migrate run test test-core test-stormlab test-django lint typecheck
+.PHONY: install migrate run test test-core test-stormlab test-django lint typecheck check-deploy collectstatic docker-build docker-up
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt -r app/requirements.txt
@@ -29,3 +29,16 @@ lint:
 
 typecheck:
 	$(PYTHON) -m pyright
+
+# Production checks; SECRET_KEY and ALLOWED_HOSTS must be set in the environment or app/.env.
+check-deploy:
+	DJANGO_ENV=production $(MANAGE) check --deploy --fail-level WARNING
+
+collectstatic:
+	DJANGO_ENV=production $(MANAGE) collectstatic --noinput
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up -d

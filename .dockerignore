@@ -1,0 +1,15 @@
+# Only what the image needs; everything else stays out of the build context.
+*
+!app/
+!stormlab/
+!examples/
+!docker/
+
+**/__pycache__/
+**/*.py[cod]
+**/.DS_Store
+**/.env
+**/tests/
+app/db.sqlite3*
+app/media/
+app/staticfiles/
