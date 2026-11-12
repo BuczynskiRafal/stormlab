@@ -42,7 +42,7 @@ invalid code signatures and the system refuses to load it otherwise.
 
 ## Tour
 
-1. Go to **Analysis**, pick a frost zone and choose **Use test file**. It loads the
+1. Go to **Analysis**, pick a frost zone and choose **Try with Demo Data**. It loads the
    storm sewer network of the Rakowiec estate in Wrocław (62 conduits).
 2. On the **Map** tab, switch between recommendations, passed checks and filling.
 3. Browse the conduit, node and subcatchment tables, or export them to CSV.

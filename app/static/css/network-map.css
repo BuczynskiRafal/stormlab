@@ -363,8 +363,8 @@
  * reserved rectangle and the insertion point.
  *
  * A subcatchment name is told apart by its *style* and not by a colour: --r-muted is
- * the very token .nm-label.nm-na uses, so italic is what carries the difference
- *, and no new --nm-* token is introduced (that would break the contrast test).
+ * the very token .nm-label.nm-na uses, so italic is what carries the difference,
+ * and no new --nm-* token is introduced (that would break the contrast test).
  *
  * No z-index anywhere here: the controls, the card and the tooltip are HTML with
  * z-index 2-4 over the <svg> in the same host, so they stand above the names by

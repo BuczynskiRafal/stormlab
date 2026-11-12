@@ -18,10 +18,21 @@ catchment_classifier_path = os.path.join(current_directory, "catchment_classifie
 recommendations_classifier_path = os.path.join(current_directory, "recommendations", "recomendations.keras")
 # The GNN is served as the mean of the class probabilities of five training runs.
 # GNN_WEIGHTS may name other members as a comma-separated list of file names.
-_DEFAULT_GNN_WEIGHTS = ",".join(f"gnn_recommender.run{run}.weights.h5" for run in range(1, 6))
+_DEFAULT_GNN_WEIGHTS = tuple(f"gnn_recommender.run{run}.weights.h5" for run in range(1, 6))
+
+
+def _gnn_weight_names(raw: Optional[str]) -> tuple[str, ...]:
+    """The member file names GNN_WEIGHTS lists; unset or blank means the default ensemble.
+
+    An empty list would disable serving without failing any check, so it is never returned.
+    """
+    names = tuple(name.strip() for name in (raw or "").split(",") if name.strip())
+    return names or _DEFAULT_GNN_WEIGHTS
+
+
 GNN_CONFIG = {
     "model_id": os.environ.get("GNN_MODEL_ID", "gnn_recommender_v1"),
-    "weights": tuple(name.strip() for name in os.environ.get("GNN_WEIGHTS", _DEFAULT_GNN_WEIGHTS).split(",") if name.strip()),
+    "weights": _gnn_weight_names(os.environ.get("GNN_WEIGHTS")),
     "spec": os.environ.get("GNN_SPEC", "gnn_recommender.spec.json"),
     "imputation": os.environ.get("GNN_IMPUTATION", "gnn_recommender.imputation.json"),
     "max_hops": int(os.environ.get("GNN_MAX_HOPS", "2")),
