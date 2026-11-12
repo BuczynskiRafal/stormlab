@@ -1183,4 +1183,3 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertEqual(ExportSessionCsvView._sanitize_csv_cell("-"), "-")
         self.assertEqual(ExportSessionCsvView._sanitize_csv_cell("-3.14"), "-3.14")
         self.assertEqual(ExportSessionCsvView._sanitize_csv_cell("C1"), "C1")
-

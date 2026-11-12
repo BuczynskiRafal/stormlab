@@ -15,4 +15,3 @@ os.environ.setdefault("DJANGO_ENV", "production")
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "storm_analysis.settings")
 
 application = get_wsgi_application()
-

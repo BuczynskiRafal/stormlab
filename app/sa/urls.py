@@ -26,4 +26,3 @@ urlpatterns = [
     path("analysis/results/<int:session_id>/conduit/<path:conduit_name>/", ConduitDetailView.as_view(), name="conduit_detail"),
     path("history/", HistoryView.as_view(), name="history"),
 ]
-

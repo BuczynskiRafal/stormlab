@@ -36,7 +36,6 @@ class UserAvatarForm(forms.ModelForm):
         return avatar
 
 
-
 class CustomUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = get_user_model()

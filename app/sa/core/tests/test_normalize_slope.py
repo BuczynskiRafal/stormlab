@@ -266,4 +266,3 @@ def test_normalize_slope_surcharged_filling_clamped(create_test_df):
     assert "NSlope" in service.dfc.columns
     assert "IncreaseSlope" in service.dfc.columns
     assert service.dfc["MinRequiredSlope"].iloc[0] == pytest.approx(min_slope(0.5, 0.5), rel=1e-6)
-
