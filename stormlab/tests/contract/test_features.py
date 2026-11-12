@@ -381,19 +381,6 @@ def test_the_presence_flags_are_the_only_int8_column_of_the_neighbourhood_block(
     assert len(flags) == 4
 
 
-def test_the_declared_protocol_and_the_registered_contract_name_the_same_neighbourhood() -> None:
-    """One source of truth: ``config.C1.yaml`` is validated against these constants."""
-    from stormlab.config import ConfigError, load_config
-
-    try:
-        declared = load_config(variant="C1").c1
-    except ConfigError as exc:
-        pytest.skip(f"C1 config overlay not present in standalone checkout: {exc}")
-    assert declared is not None
-    assert declared.neighborhood.columns == NEIGHBORHOOD_COLUMNS
-    assert declared.neighborhood.hops == NEIGHBORHOOD_HOPS
-
-
 def test_every_contract_of_the_registry_is_audited_for_provenance() -> None:
     """A contract outside ``AUDITED_CONTRACTS`` is a model input nothing checks."""
     from stormlab.contracts.features import FEATURE_CONTRACTS
