@@ -86,7 +86,7 @@ def resolve_required_cover(frost_zone: float, required_cover: float | None) -> f
     what the historical code did with a single value serving as both the climate
     parameter and the design rule -- and it has to stay a rule rather than a
     repeated literal, because the frost zone reaches the extraction as two
-    different configured values (``frost_zone_dataset`` when the pool is built,
+    different configured values (``frost_zone_depth`` when the pool is built,
     ``frost_zone_serving`` when Wroclaw is scored) and one number in the file
     could only mirror one of them (plan16 §2 P0 point 5).
 

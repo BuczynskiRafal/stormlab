@@ -776,7 +776,7 @@ class RecommendationService:
                     order = self.conduit_order or canonical_order(self.dfc, "inp")
 
                     if self.inp_path and self.rpt_path and os.path.isfile(self.inp_path) and os.path.isfile(self.rpt_path):
-                        config = load_config(variant="C3", check_inputs=False)
+                        config = load_config(check_inputs=False)
                         phys_df = extract_physical_features(self.inp_path, self.rpt_path, config=config, file_id="app_serving")
                         phys_indexed = phys_df.set_index("conduit").loc[:, list(FEATURE_CONTRACT_V4_PHYSICAL.columns)].copy()
                     else:
@@ -817,7 +817,7 @@ class RecommendationService:
                     proba = pd.DataFrame(preds, index=list(order), columns=[f"p_{c}" for c in class_order])
                     self._assign_aligned_probabilities(proba)
 
-                    logger.info(f"{self.model_name} (C3c v4_physical) recommendations generated for {len(self.dfc)} conduits")
+                    logger.info(f"{self.model_name} (v4_physical) recommendations generated for {len(self.dfc)} conduits")
                     return self.dfc
 
                 from stormlab.features.conduits import conduit_feature_matrix
@@ -835,7 +835,7 @@ class RecommendationService:
                 proba = predict_gnn(self.model, model_input, self.adjacency, order, contract=contract)
                 self._assign_aligned_probabilities(proba)
 
-                logger.info(f"{self.model_name} (B4) recommendations generated for {len(self.dfc)} conduits")
+                logger.info(f"{self.model_name} recommendations generated for {len(self.dfc)} conduits")
                 return self.dfc
 
             input_data = self.dfc.reindex(columns=FEATURE_COLUMNS, fill_value=0)

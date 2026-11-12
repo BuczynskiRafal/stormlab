@@ -80,7 +80,7 @@ SPEC_GRAPH_DIRECTIONS: tuple[str, ...] = (
 FROST_ZONE_RANGE = (0.8, 1.6)
 """Admissible frost zone depth [m]."""
 
-_TOP_LEVEL_KEYS = frozenset({"variant", "frost_zone_dataset", "required_cover", "max_depth", "max_filling_ratio", "hydraulics"})
+_TOP_LEVEL_KEYS = frozenset({"variant", "frost_zone_depth", "required_cover", "max_depth", "max_filling_ratio", "hydraulics"})
 _HYDRAULICS_KEYS: tuple[str, ...] = ("theta", "g", "manning_coefficient", "v_min")
 
 
@@ -91,27 +91,6 @@ class ConfigError(ValueError):
 def repo_root() -> Path:
     """Absolute path of the repository root (the parent of the ``stormlab`` package)."""
     return Path(__file__).resolve().parent.parent
-
-
-@dataclass(frozen=True)
-class Seeds:
-    """Random seeds, one per stochastic library or step (:func:`stormlab.determinism.configure_determinism`)."""
-
-    python: int
-    numpy: int
-    tf: int
-    split: int
-    bootstrap: int
-
-    def as_dict(self) -> dict[str, int]:
-        """Seeds as a plain mapping."""
-        return {
-            "python": self.python,
-            "numpy": self.numpy,
-            "tf": self.tf,
-            "split": self.split,
-            "bootstrap": self.bootstrap,
-        }
 
 
 @dataclass(frozen=True)
@@ -140,7 +119,7 @@ class Config:
     root: Path
     variant: str
     """Name the configuration declares; :func:`load_config` refuses a request for another."""
-    frost_zone_dataset: float
+    frost_zone_depth: float
     """Frost zone depth the physical feature extraction uses [m]."""
     required_cover: float | None
     """Soil cover a conduit must carry above its crown [m]; ``None`` means the frost zone."""
@@ -207,10 +186,10 @@ def _build(raw: Mapping[str, Any], *, source: Path, base: Path) -> Config:
     if not isinstance(variant, str) or not VARIANT_NAME_PATTERN.match(variant):
         raise ConfigError(f"variant must match {VARIANT_NAME_PATTERN.pattern}, got {variant!r} (config {source})")
 
-    frost_zone = _as_float(raw, "frost_zone_dataset", source)
+    frost_zone = _as_float(raw, "frost_zone_depth", source)
     low, high = FROST_ZONE_RANGE
     if not low <= frost_zone <= high:
-        raise ConfigError(f"frost_zone_dataset must be within [{low}, {high}] m, got {frost_zone} (config {source})")
+        raise ConfigError(f"frost_zone_depth must be within [{low}, {high}] m, got {frost_zone} (config {source})")
 
     max_depth = _as_float(raw, "max_depth", source)
     if max_depth <= 0.0:
@@ -232,7 +211,7 @@ def _build(raw: Mapping[str, Any], *, source: Path, base: Path) -> Config:
         source=source,
         root=base,
         variant=variant,
-        frost_zone_dataset=frost_zone,
+        frost_zone_depth=frost_zone,
         required_cover=required_cover,
         max_depth=max_depth,
         max_filling_ratio=max_filling_ratio,

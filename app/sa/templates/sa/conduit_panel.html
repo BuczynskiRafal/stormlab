@@ -211,7 +211,7 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                     <div class="property"><span>Subcatchment (model)</span><b>{{ conduit.subcatchment }}</b></div>
                     <div class="property"><span>Subcatchment Category</span><b>{{ conduit.sbc_category }}</b></div>
                     <div class="property"><span>Recommendation</span><b>{{ conduit.recommendation }}</b></div>
-                    <div class="property"><span>Model Artifact</span><b>{{ panel.model_metadata.model_id|default:"gnn_c3c_winner_v1" }} ({{ panel.model_metadata.feature_contract|default:"v4_physical" }})</b></div>
+                    <div class="property"><span>Model Artifact</span><b>{{ panel.model_metadata.model_id|default:"gnn_recommender_v1" }} ({{ panel.model_metadata.feature_contract|default:"v4_physical" }})</b></div>
                     {% if panel.confidence_margin is not None %}
                     <div class="property"><span>Top-2 Margin (&Delta;p)</span><b>{{ panel.confidence_margin|floatformat:1 }} pp</b></div>
                     {% endif %}

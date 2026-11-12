@@ -585,7 +585,7 @@ def _add_context(
     steps = ConduitFeatureSteps(
         geometry.loc[:, ["InletNode", "OutletNode"]].copy(),
         with_subcatchments.copy(),
-        config.frost_zone_dataset,
+        config.frost_zone_depth,
     )
     steps.conduits_subcatchment_info()
     steps.propagate_subcatchment_info()
@@ -622,8 +622,8 @@ def _add_requirements(frame: pd.DataFrame, *, config: Config) -> None:
     one that applies: this view is a dataset artifact, and the serving frost zone
     belongs to the historical scoring path in ``experiments/e_wroclaw.py``.
     """
-    frame["required_cover_m"] = resolve_required_cover(config.frost_zone_dataset, config.required_cover)
-    frame["frost_zone_m"] = config.frost_zone_dataset
+    frame["required_cover_m"] = resolve_required_cover(config.frost_zone_depth, config.required_cover)
+    frame["frost_zone_m"] = config.frost_zone_depth
     frame["max_depth_m"] = config.max_depth
     frame["max_filling_ratio"] = config.max_filling_ratio
     frame["v_min_mps"] = config.hydraulics.v_min
