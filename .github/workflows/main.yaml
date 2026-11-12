@@ -75,3 +75,25 @@ jobs:
 
       - name: Build the production image
         run: docker build --tag stormlab-web:ci .
+
+      - name: Start the image and wait until it is healthy
+        run: |
+          docker run --detach --name web --read-only --tmpfs /tmp \
+            --volume db:/data/db --volume media:/data/media \
+            --env SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')" \
+            --env ALLOWED_HOSTS=example.com stormlab-web:ci
+          for attempt in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' web)"
+            [ "$status" = healthy ] && break
+            sleep 2
+          done
+          docker logs web
+          [ "$status" = healthy ]
+
+      - name: Validate the Compose file and the proxy configuration
+        run: |
+          printf 'DOMAIN=example.com\nSECRET_KEY=unused\n' > .env
+          docker compose config --quiet
+          docker run --rm --env DOMAIN=example.com \
+            --volume "$PWD/docker/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10 caddy validate --config /etc/caddy/Caddyfile
