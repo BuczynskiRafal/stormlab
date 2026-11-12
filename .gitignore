@@ -167,10 +167,11 @@ word/Doktorat_Zotero.md
 word/
 
 # ==============================================================================
-# Model weights and specs: ignored except the shipped recommendation model
+# Model weights and specs: ignored except the shipped models
 # ==============================================================================
 *.keras
 *.weights.h5
 app/sa/core/recommendations/*.spec.json
 !app/sa/core/recommendations/gnn_recommender.run[1-5].weights.h5
 !app/sa/core/recommendations/gnn_recommender.spec.json
+!app/sa/core/catchment_classifier/model.keras
