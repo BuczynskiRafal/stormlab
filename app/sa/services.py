@@ -67,7 +67,7 @@ def fill_percent(filling: Any, diameter: Any) -> float | None:
 
 
 def simple_band_rule_passed(filling: Any, diameter: Any, velocity: Any) -> bool:
-    """Simple operational band rule (§3.4.3): 0.2 <= fill/D <= 0.7 and 0.8 <= v <= 3.0 m/s."""
+    """Simple operational band rule: 0.2 <= fill/D <= 0.7 and 0.8 <= v <= 3.0 m/s."""
     try:
         fill_f = float(filling)
         dia_f = float(diameter)
@@ -1079,10 +1079,10 @@ class CriterionCard:
 
 @dataclass(frozen=True)
 class DesignRule:
-    """One change the rule-based design check asks for (``increase_dia`` & co.)."""
+    """One change the design-rule check asks for (``increase_dia`` & co.)."""
 
     key: str
-    label: str
+    parameter: str
     change: str
 
 

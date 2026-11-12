@@ -35,10 +35,10 @@ from stormlab.models.gnn_spec import (
     OPERATOR_SUPPORT_MAX,
     OPERATOR_SUPPORT_POOL,
     GnnSpec,
-    GnnSpecC1,
+    GnnContractSpec,
 )
 
-GraphModelSpec = GnnSpec | GnnSpecC1
+GraphModelSpec = GnnSpec | GnnContractSpec
 """What :func:`build_graph_model_for_weights` accepts."""
 
 N_CLASSES = len(RecommendationCategory)
