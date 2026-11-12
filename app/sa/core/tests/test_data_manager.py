@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from sa.core.data import DataManager
+from sa.core.data import DataManager, RecommendationModelUnavailable
 from sa.core.enums import RecommendationCategory
 from sa.core.tests import TEST_FILE
 
@@ -473,8 +473,8 @@ class TestRecommendationsMethod:
         data_manager.recommendations()
         data_manager.recommendation_service.recommendations.assert_called_once()
 
-    def test_recommendations_populates_empty_columns_when_model_is_none(self, data_manager: DataManager):
-        """Test recommendations populates '-' and 0.0 confidence columns when no ML model is loaded."""
+    @staticmethod
+    def _without_model(data_manager: DataManager) -> None:
         from sa.core.conduits import RecommendationService
         from sa.core.predictor import _LazyModelProxy
 
@@ -484,10 +484,32 @@ class TestRecommendationsMethod:
             model=_LazyModelProxy(lambda: None),
             model_name="MLP",
         )
-        data_manager.recommendations()
+
+    def test_recommendations_populates_empty_columns_when_gnn_is_disabled(self, data_manager: DataManager):
+        """With the GNN switched off and no fallback model, conduits get '-' and 0.0 confidences."""
+        self._without_model(data_manager)
+        with patch("sa.core.data.gnn_enabled", return_value=False):
+            data_manager.recommendations()
 
         assert list(data_manager.dfc["recommendation"]) == ["-", "-"]
         for category in RecommendationCategory:
             col = f"confidence_{category.value}"
             assert col in data_manager.dfc.columns
             assert (data_manager.dfc[col] == 0.0).all()
+
+    def test_recommendations_raise_when_gnn_is_enabled_and_no_model_is_usable(
+        self, data_manager: DataManager, caplog: pytest.LogCaptureFixture
+    ):
+        """With the GNN switched on, a missing model fails the run and logs the cause, not the user message."""
+        self._without_model(data_manager)
+        data_manager.fallback_reason = "GNN model unavailable"
+        with (
+            patch("sa.core.data.gnn_enabled", return_value=True),
+            caplog.at_level(logging.ERROR, logger="sa.core.data"),
+            pytest.raises(RecommendationModelUnavailable) as excinfo,
+        ):
+            data_manager.recommendations()
+
+        assert str(excinfo.value) == "The recommendation model could not be used"
+        assert "GNN model unavailable" in caplog.text
+        assert "recommendation" not in data_manager.dfc.columns

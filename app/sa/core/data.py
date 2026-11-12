@@ -35,6 +35,10 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+class RecommendationModelUnavailable(RuntimeError):
+    """The GNN is enabled, but neither it nor a fallback model could produce recommendations."""
+
+
 class DataManager(sw.Model):
     """
     Main class that combines various services/classes responsible for different areas
@@ -361,12 +365,18 @@ class DataManager(sw.Model):
 
     def recommendations(self) -> None:
         """
-        Generates recommendations using the 'recommendation' model.
+        Generates recommendations using the selected model.
+
+        With the GNN switched off, conduits get no recommendation. With it switched on,
+        a missing model is an error, so the analysis fails instead of storing empty results.
         """
         model = getattr(self.recommendation_service, "model", "unset")
         if isinstance(model, _LazyModelProxy):
             model = model._getter()
         if model is None:
+            if gnn_enabled():
+                logger.error("No recommendation model could be used: %s", self.fallback_reason or "no model selected")
+                raise RecommendationModelUnavailable("The recommendation model could not be used")
             logger.warning("No recommendation model loaded; populating empty recommendation columns.")
             if self.dfc is not None:
                 self.dfc["recommendation"] = "-"
