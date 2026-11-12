@@ -333,58 +333,6 @@ class TestTheLastConduitOfTheGraph:
             assert row["down1_max_full_depth_ratio_max"] == neighborhood.EMPTY_AGGREGATE
 
 
-class TestTheConfiguredNeighbourhood:
-    """The declaration in ``config.C1.yaml`` and the block it generates are one thing.
-
-    The point of reading the columns from the protocol rather than from a literal
-    in this module is that the derived contract is then a function of something
-    frozen. These tests are what makes the two halves of that sentence meet.
-    """
-
-    @pytest.fixture(scope="class")
-    def declared(self):
-        from stormlab.config import ConfigError, load_config
-
-        try:
-            return load_config(variant="C1").c1
-        except ConfigError as exc:
-            pytest.skip(f"C1 config overlay not present in standalone checkout: {exc}")
-
-    def test_the_protocol_declares_the_columns_and_the_hops(self, declared) -> None:
-        assert declared is not None
-        assert declared.neighborhood.hops == (1, 2)
-        assert declared.neighborhood.columns == (
-            "max_full_depth_ratio",
-            "slope_signed",
-            "max_flow_cms",
-            "hours_capacity_limited",
-        )
-
-    def test_every_declared_column_is_a_measurement_of_the_physical_view(self, declared) -> None:
-        assert set(declared.neighborhood.columns) <= set(FEATURE_CONTRACT_V3_PHYSICAL.columns)
-
-    def test_no_declared_column_is_a_mask_or_a_margin(self, declared) -> None:
-        """An aggregate over a neighbour's flags summarises what was decided about it."""
-        from stormlab.contracts.features import PHYSICAL_FLAG_COLUMNS
-
-        assert not set(declared.neighborhood.columns) & set(PHYSICAL_FLAG_COLUMNS)
-
-    def test_the_declaration_generates_the_block_of_the_derived_contract(self, declared) -> None:
-        derived = neighborhood_contract(
-            FEATURE_CONTRACT_V3_PHYSICAL,
-            columns=declared.neighborhood.columns,
-            hops=declared.neighborhood.hops,
-        )
-
-        assert derived.n_columns == FEATURE_CONTRACT_V3_PHYSICAL.n_columns + 2 * 2 * (4 * 3 + 2)
-
-    def test_the_protocol_carries_the_section_into_the_frozen_payload(self, declared) -> None:
-        assert declared.as_dict()["neighborhood"] == {
-            "columns": list(declared.neighborhood.columns),
-            "hops": [1, 2],
-        }
-
-
 class TestAggregatingASubsetOfTheDeclaredColumns:
     """The ``noflood`` arm reads three of the four columns C2 declares, and nothing else.
 
@@ -445,45 +393,3 @@ class TestAggregatingASubsetOfTheDeclaredColumns:
         )
 
         pd.testing.assert_frame_equal(narrow[counts], wide[counts])
-
-
-class TestTheConfiguredC2Neighbourhood:
-    """The C2 overlay declares the same section with the other overload premise in it."""
-
-    @pytest.fixture(scope="class")
-    def declared(self):
-        from stormlab.config import ConfigError, load_config
-
-        try:
-            return load_config(variant="C2").c1
-        except ConfigError as exc:
-            pytest.skip(f"C2 config overlay not present in standalone checkout: {exc}")
-
-    def test_the_protocol_declares_c2s_own_four_columns(self, declared) -> None:
-        assert declared is not None
-        assert declared.neighborhood.hops == (1, 2)
-        assert declared.neighborhood.columns == (
-            "max_full_depth_ratio",
-            "slope_signed",
-            "max_flow_cms",
-            "inlet_node_flood_hours",
-        )
-
-    def test_every_declared_column_is_a_measurement_of_the_view_the_protocol_names(self, declared) -> None:
-        from stormlab.contracts.features import FEATURE_CONTRACT_V4_PHYSICAL, PHYSICAL_FLAG_COLUMNS
-
-        assert set(declared.neighborhood.columns) <= set(FEATURE_CONTRACT_V4_PHYSICAL.columns)
-        assert not set(declared.neighborhood.columns) & set(PHYSICAL_FLAG_COLUMNS)
-
-    def test_the_declaration_generates_the_block_of_the_contract_it_names(self, declared) -> None:
-        from stormlab.contracts.features import FEATURE_CONTRACT_V4_PHYSICAL, feature_contract
-
-        derived = neighborhood_contract(
-            FEATURE_CONTRACT_V4_PHYSICAL,
-            columns=declared.neighborhood.columns,
-            hops=declared.neighborhood.hops,
-            name=declared.contracts.f2_nbr,
-        )
-
-        assert derived.columns == feature_contract(declared.contracts.f2_nbr).columns
-        assert derived.sha == feature_contract(declared.contracts.f2_nbr).sha

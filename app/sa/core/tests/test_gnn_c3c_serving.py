@@ -1,8 +1,9 @@
-"""Integration tests for C3c GNN serving in the Django app.
+"""Integration tests for serving the shipped GNN recommendation model in the Django app.
 
-Verifies that the winning C3c model (gnn_up_k2__f2_l2) loads correctly,
-binds to the v4_physical contract (66 physical features), uses the imputation plan,
-and generates expected recommendations across the Wrocław test network.
+Verifies that the model loads, binds to the v4_physical contract (66 physical
+features), carries its imputation plan, and generates recommendations on the
+Wrocław test network. The weights ship with the repository, so a missing file
+fails these tests instead of skipping them.
 """
 
 import os
@@ -12,18 +13,13 @@ import pytest
 from sa.core.data import DataManager
 from sa.core.enums import RecommendationCategory
 from sa.core.graph_constructor import load_gnn_model_weights
-from sa.core.predictor import gnn_model_path
 
 
-WROCLAW_INP = os.path.abspath("models/recomendations/gnn/wroclaw/wroclaw_pipes.inp")
-WROCLAW_RPT = os.path.abspath("models/recomendations/gnn/wroclaw/wroclaw_pipes.rpt")
-C3C_WEIGHTS_AVAILABLE = os.path.isfile(gnn_model_path)
-requires_c3c_weights = pytest.mark.skipif(not C3C_WEIGHTS_AVAILABLE, reason="C3c GNN model weights not available")
+WROCLAW_INP = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "examples", "wroclaw_rakowiec.inp")
 
 
-@requires_c3c_weights
 def test_c3c_model_loads_with_physical_contract():
-    """Verify load_gnn_model_weights loads the C3c GNN model with v4_physical contract."""
+    """Verify load_gnn_model_weights loads the shipped GNN model with the v4_physical contract."""
     model = load_gnn_model_weights()
     assert model is not None
     assert hasattr(model, "spec")
@@ -59,13 +55,9 @@ def gnn_enabled_env():
     predictor_module._gnn_recommendation = original_gnn_recommendation
 
 
-@requires_c3c_weights
 def test_data_manager_c3c_gnn_recommendations_on_wroclaw(gnn_enabled_env, tmp_path):
-    """Verify DataManager produces recommendations with C3c GNN model on Wrocław network."""
-    if not os.path.isfile(WROCLAW_INP):
-        pytest.skip(f"Wrocław test file not found: {WROCLAW_INP}")
-
-    tmp_inp = tmp_path / "wroclaw_pipes.inp"
+    """Verify DataManager produces recommendations with the shipped GNN model on the Wrocław network."""
+    tmp_inp = tmp_path / "wroclaw_rakowiec.inp"
     shutil.copy2(WROCLAW_INP, tmp_inp)
 
     dm = DataManager(str(tmp_inp), zone=0.8)
@@ -95,13 +87,13 @@ def test_data_manager_c3c_gnn_recommendations_on_wroclaw(gnn_enabled_env, tmp_pa
 
 
 def test_get_model_metadata_respects_gnn_enabled_env(monkeypatch):
-    """Verify get_model_metadata() returns C3c GNN metadata when enabled and MLP metadata when disabled."""
+    """Verify get_model_metadata() returns GNN metadata when enabled and MLP metadata when disabled."""
     from sa.core.predictor import get_model_metadata
 
     monkeypatch.setenv("GNN_ENABLED", "true")
     meta_gnn = get_model_metadata()
     assert meta_gnn["model_kind"] == "gnn"
-    assert meta_gnn["model_id"] == "gnn_c3c_winner_v1"
+    assert meta_gnn["model_id"] == "gnn_recommender_v1"
     assert meta_gnn["feature_contract"] == "v4_physical"
 
     monkeypatch.setenv("GNN_ENABLED", "false")
