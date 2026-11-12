@@ -1,13 +1,11 @@
 import io
 
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from .core.inp_options import read_flow_units
 from .models import SWMMModel
-
-MAX_INP_BYTES = 50 * 1024 * 1024
-"""Upper bound for an uploaded model; the Wrocław network is 60 kB."""
 
 MAX_SCANNED_BYTES = 1024 * 1024
 """How much of the file the FLOW_UNITS gate reads; [OPTIONS] is always at the top."""
@@ -37,11 +35,12 @@ class SWMMModelForm(forms.ModelForm):
         uploaded = self.cleaned_data.get("file")
         if not uploaded:
             return uploaded
-        if uploaded.size > MAX_INP_BYTES:
+        limit = settings.MAX_INP_BYTES
+        if uploaded.size > limit:
             raise ValidationError(
                 "SWMM file is too large (%(size)d bytes; the limit is %(limit)d).",
                 code="too_large",
-                params={"size": uploaded.size, "limit": MAX_INP_BYTES},
+                params={"size": uploaded.size, "limit": limit},
             )
         wrapper = io.TextIOWrapper(uploaded.file, encoding="utf-8", errors="replace")
         try:

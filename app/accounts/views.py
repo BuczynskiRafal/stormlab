@@ -1,7 +1,9 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
+from django.http import Http404
 from django.shortcuts import redirect, render
 
 from accounts.forms import CustomUserCreationForm, UserAvatarForm, UserForm, UserProfileForm
@@ -10,6 +12,8 @@ User = get_user_model()
 
 
 def register(request):
+    if not settings.REGISTRATION_OPEN:
+        raise Http404("Registration is closed.")
     if request.method == "POST":
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():

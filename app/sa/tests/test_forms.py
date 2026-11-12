@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import os
 
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile, TemporaryUploadedFile
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from sa.forms import SWMMModelForm
 
@@ -101,15 +102,21 @@ class FormFlowUnitsGateTests(SimpleTestCase):
 
 
 class FormSizeLimitTests(SimpleTestCase):
-    def test_oversized_file_is_rejected_before_it_is_read(self):
-        from sa.forms import MAX_INP_BYTES
-
+    def _form(self, size: int):
         uploaded = SimpleUploadedFile("huge.inp", b"[OPTIONS]\nFLOW_UNITS CMS\n", content_type="application/octet-stream")
-        uploaded.size = MAX_INP_BYTES + 1
-        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        uploaded.size = size
+        return SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+
+    def test_oversized_file_is_rejected_before_it_is_read(self):
+        form = self._form(settings.MAX_INP_BYTES + 1)
 
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors["file"].as_data()[0].code, "too_large")
+
+    @override_settings(MAX_INP_BYTES=100)
+    def test_limit_follows_the_setting(self):
+        self.assertEqual(self._form(101).errors["file"].as_data()[0].code, "too_large")
+        self.assertTrue(self._form(100).is_valid())
 
 
 class FormHostileContentTests(SimpleTestCase):

@@ -63,7 +63,7 @@
                         </a>
                     {% else %}
                         <a class="btn btn-outline-primary btn-sm" href="{% url 'accounts:login' %}">Login</a>
-                        <a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">Sign-up</a>
+                        {% if registration_open %}<a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">Sign-up</a>{% endif %}
                     {% endif %}
                 </div>
             </div>
