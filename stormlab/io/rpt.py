@@ -4,9 +4,9 @@
 physical view needs: ``get_rpt_sections_details`` gives *Conduit Surcharge
 Summary* no column list at all (it comes back as ``blob``), and the
 "section printed as a sentence instead of a table" case is special-cased for
-node flooding only. Both are load-bearing here -- plan16 §2 P1 asks for the
-surcharge hours by name, and asks that an absent table read as ``0``, not as
-missing data -- so the four tables are parsed here instead.
+node flooding only. Both are load-bearing here -- the surcharge hours are needed by
+name, and an absent table has to read as ``0``, not as missing data -- so the four
+tables are parsed here instead.
 
 The layout SWMM writes is fixed and simple: a banner of asterisks around the
 heading, then a dashed rule, the column headings, a second dashed rule, and the
@@ -25,7 +25,7 @@ Two absences with different meanings, kept in separate code paths on purpose:
   link that is not there was not measured, and the caller has to see the
   difference, so those two never invent a row.
 
-Kinematic wave semantics (plan16 §2 P1): the surcharge hours mean the flow
+Kinematic wave semantics: the surcharge hours mean the flow
 exceeded the normal-flow capacity of the conduit, not that the pipe was under
 pressure, and node flooding means inflow exceeded the outflow capacity of the
 node. The numbers are read as reported; naming them is the caller's job.
@@ -49,10 +49,8 @@ NO_CONDUITS_SURCHARGED = "No conduits were surcharged."
 NO_NODES_FLOODED = "No nodes were flooded."
 """The sentences SWMM prints in place of an empty table.
 
-Verbatim from reports produced by the engine this study runs -- for example
-``models/recomendations/dataset-backup/proba/generated/
-01_recomendation_template_D1000_EulerRain60_S6_0_rural.rpt`` -- rather than from
-the manual, because the parser has to recognise the exact string.
+Verbatim from reports produced by the engine rather than from the manual,
+because the parser has to recognise the exact string.
 """
 
 CONDUIT_LINK_TYPE = "CONDUIT"
@@ -66,12 +64,7 @@ _ANALYSIS_END_MARKER = "Analysis begun on"
 _MIN_RULE_LENGTH = 10
 
 _CONTINUITY = re.compile(r"Continuity Error \(%\)\s*\.*\s*(-?\d+(?:\.\d+)?)")
-"""Duplicated from :mod:`stormlab.datasets.eval_sets`, which may not be edited here.
-
-The two readings are the same number under the same pattern; when the build path
-of plan16 §2 P2 takes over the continuity gate, ``eval_sets`` is the caller that
-should come to this module rather than keep its own copy.
-"""
+"""Pattern of the continuity error lines of the report."""
 
 
 class RptParseError(RuntimeError):

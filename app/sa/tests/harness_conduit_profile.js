@@ -134,7 +134,7 @@ function base(overrides) {
   }, overrides);
 }
 
-// Synthetic inputs modelled on the four conduits of the acceptance shots.
+// Inputs modelled on four representative conduits.
 const CASES = {
   // 9 m, flat, widest shafts (W = 32), inlet flooded, water in both shafts.
   flatWide: base({

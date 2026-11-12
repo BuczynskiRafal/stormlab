@@ -427,8 +427,8 @@ class ConduitFeatureEngineeringService:
         if self.dfc is None:
             return
 
-        # Calculate theoretical max flow capacity for each pipe (frozen v1 feature contract for
-        # legacy 2025 MLP weights; GNN v4_physical uses manning_v2 in stormlab with D^(8/3) and m/m slope)
+        # Calculate theoretical max flow capacity for each pipe (fixed v1 feature contract for
+        # the legacy MLP weights; GNN v4_physical uses manning_v2 in stormlab with D^(8/3) and m/m slope)
         theoretical_max_q = CIRCULAR_PIPE_FLOW_CONSTANT * (self.dfc["Geom1"] ** 2.5) * (self.dfc["SlopePerMile"] ** 0.5)
 
         # Normalize actual MaxQ by theoretical max flow
@@ -688,7 +688,7 @@ class ConduitFeatureEngineeringService:
         """One-hot encodes the SbcCategory column for use in machine learning models.
 
         Creates columns for all possible subcatchment categories, not just those present in the data,
-        ensuring consistent feature sets across different datasets.
+        ensuring consistent feature sets across different networks.
 
         This method adds one-hot encoded columns directly to the conduits dataframe (self.dfc).
         Each column is named 'SbcCategory_{category}' and contains integer values (0 or 1).
@@ -763,7 +763,7 @@ class RecommendationService:
 
         if self.model_name == "GNN":
             if self.adjacency is None:
-                raise ValueError("GNN model requires adjacency matrix; refusing to serve GNN without graph (K1)")
+                raise ValueError("GNN model requires adjacency matrix; refusing to serve GNN without graph")
 
             if spec is not None:
                 contract = getattr(self.model, "feature_contract", None)

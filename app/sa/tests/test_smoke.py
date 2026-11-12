@@ -1,4 +1,4 @@
-"""Smoke tests for every view the plan15 restyling touches.
+"""Smoke tests for every view the stylesheet contract touches.
 
 They are deliberately shallow - status code plus a couple of markers of the
 stylesheet contract - because their job is to be the regression gate for the CSS

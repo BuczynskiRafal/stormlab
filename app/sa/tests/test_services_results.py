@@ -23,7 +23,7 @@ class ResultsTableKeysTests(TestCase):
         conduit_keys = list(data["Conduits Data"][0].keys())
 
         # The pipeline picks one catchment per conduit for the model feature (outlet
-        # node first, see api_map §43); the header says so instead of implying inflow.
+        # node first); the header says so instead of implying inflow.
         self.assertIn("Subcatchment (model)", conduit_keys)
         self.assertNotIn("Subcatchment", conduit_keys)
 

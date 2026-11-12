@@ -1,6 +1,6 @@
 """Shared fixtures and marker handling for the stormlab suite.
 
-Parity tests run SWMM against a frozen golden file and are meant to run only when
+Parity tests run SWMM against a frozen reference file and are meant to run only when
 asked for. ``addopts`` deselects them with ``-m 'not parity'``; ``--run-parity``
 removes exactly that conjunct again. Because pytest's ``-m`` is single-valued, a
 command line that passes its own ``-m`` (for example ``-m 'not slow'``) replaces

@@ -15,7 +15,7 @@ addopts = [
 ]
 markers = [
     "slow: end-to-end tests that run a full SWMM simulation (deselect with -m 'not slow')",
-    "parity: compares the new extraction against the frozen golden one (opt in with --run-parity)",
+    "parity: compares an extraction against frozen reference outputs (opt in with --run-parity)",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

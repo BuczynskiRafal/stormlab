@@ -1,7 +1,7 @@
 """Circular pipe geometry and the slope envelope of a standard sewer diameter.
 
 Ported verbatim from ``app/sa/core/round.py``: every formula, branch and unit is
-kept as it was, because the recommendation models were trained on the numbers
+kept as it was, because the recommendation models expect the numbers
 these functions produce. The only additions are explicit ``theta``/``g``
 parameters on the slope functions (defaulting to the values that were hard-coded
 before), :data:`MANNING_FULL_PIPE_COEFFICIENT`, and type annotations.
@@ -59,13 +59,12 @@ MIN_VELOCITY = 0.7
 MAX_DEPTH = 8.0
 """Maximum admissible installation depth of a sewer pipe [m].
 
-A **default**, not the value in force. Since plan16 §2 P0 point 5 the depth
-ceiling is ``config.max_depth``, forwarded to
-:func:`stormlab.features.conduits.extract_conduit_features` and to the leakage
-audit's tolerances, because it is a design rule that a variant may move rather
-than a constant of the physics — and it moves ``ValDepth``, the depth
-normalisation and the cover normalisation together. This value is what the
-configuration ships and what a caller with no configuration gets.
+A **default**, not the value in force. The depth ceiling is ``config.max_depth``,
+forwarded to :func:`stormlab.features.conduits.extract_conduit_features`, because
+it is a design rule that a configuration may move rather than a constant of the
+physics — and it moves ``ValDepth``, the depth normalisation and the cover
+normalisation together. This value is what the configuration ships and what a
+caller with no configuration gets.
 """
 
 

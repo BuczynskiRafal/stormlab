@@ -1,7 +1,7 @@
-"""Physical state of a conduit, measured and undecided: the F2 and F3 views.
+"""Physical state of a conduit, measured and undecided: the physical and margin views.
 
-plan16 §2 P1 puts a seam between *what the network is* and *what should be done
-about it*. The historical :mod:`stormlab.features.conduits` has no such seam: one
+This module keeps a seam between *what the network is* and *what should be done
+about it*. The legacy :mod:`stormlab.features.conduits` has no such seam: one
 pass sizes a replacement diameter, raises validity flags and squeezes every
 quantity onto ``[0, 1]``, so a violation twice as large reads the same as one at
 the threshold. This module is the other side of the seam and does none of that.
@@ -15,31 +15,31 @@ What it reads:
 * from the RPT -- Link Flow Summary, Conduit Surcharge Summary, Node Depth
   Summary and Node Flooding Summary, through :mod:`stormlab.io.rpt`.
 
-What it deliberately does not read: the binary ``.out``. No source of the C1
-series asks for a time series, and a reader for one would be an unused
-dependency on a much larger file per case.
+What it deliberately does not read: the binary ``.out``. No feature asks for a
+time series, and a reader for one would be an unused dependency on a much larger
+file per case.
 
-The catchment of a conduit is everything **above** it (author's decision of
-2026-09-07). ``subcatchment_*`` used to describe only the catchments wired to the
-conduit's own inlet node, which made 31 % of the C1 training conduits catchment-less
-even though every one of them carries water off some terrain -- and it disagreed with
-the historical view, which propagates the land cover class down the network. The
-columns now describe the **cumulative inflowing catchment**: every catchment attached
-to the inlet node and to every node upstream of it in the conduit graph, area summed
-and the intensive parameters area-weighted over that sum. The mask is set only where
-nothing upstream states an area.
+The catchment of a conduit is everything **above** it. Describing only the
+catchments wired to the conduit's own inlet node would leave conduits
+catchment-less even though every one of them carries water off some terrain, and it
+would disagree with the legacy view, which propagates the land cover class down the
+network. The ``subcatchment_*`` columns therefore describe the **cumulative
+inflowing catchment**: every catchment attached to the inlet node and to every node
+upstream of it in the conduit graph, area summed and the intensive parameters
+area-weighted over that sum. The mask is set only where nothing upstream states an
+area.
 
-Two facts about the geometry the historical path does not carry:
+Two facts about the geometry the legacy path does not carry:
 
 * the invert of the **pipe** is the invert of the node plus the offset, and is
-  not the invert of the manhole. With the zero offsets of the B4 pool the two
-  coincide, which is why the difference is verified by the DEPTH/ELEVATION
-  equivalence test rather than by the data;
+  not the invert of the manhole. Where the offsets are zero the two coincide,
+  which is why the difference is verified by the DEPTH/ELEVATION equivalence
+  test rather than by the data;
 * the slope keeps its sign. A flat or adverse conduit gets no capacity at all
   (``full_flow_cms`` is missing, ``slope_nonpositive`` is 1) instead of a
   fictitious one.
 
-Kinematic wave semantics (plan16 §2 P1). Node flooding is inflow in excess of
+Kinematic wave semantics. Node flooding is inflow in excess of
 what the node can pass on, and the surcharge hours count time above the *normal
 flow* capacity of the conduit -- not backwater, not pressurised flow, neither of
 which this routing scheme models. The columns are named after what the report
@@ -48,14 +48,14 @@ measures, and the report is read the same way for both.
 The reading does not change under a dynamic wave, but what it *means* does: there
 the head at a node is computed rather than assumed, so ``{inlet,outlet}_node_max_hgl_m``
 and the freeboard derived from it describe a real water level and node flooding is a
-surcharge that reached the ground. This module states the measurement either way; it
-is the protocol that decides which routing scheme produced the report.
+surcharge that reached the ground. This module states the measurement either way; the routing scheme that
+produced the report is the caller's choice.
 
 Missing versus zero, kept apart on purpose. The surcharge and flooding tables are
 lists of exceptions, so a conduit absent from them has genuinely zero hours; the
 node and link tables report everything, so an element absent from them was not
 measured and its columns are missing, with the matching mask set. That is the
-one asymmetry the whole "brak pomiaru nie jest pomiarem zerowym" test rests on.
+one asymmetry the whole "no measurement is not a zero measurement" rule rests on.
 """
 
 from __future__ import annotations
@@ -106,18 +106,16 @@ PHYSICAL_IDENTITY_COLUMNS: tuple[str, ...] = (
 )
 """Which case each row is, next to the contract columns.
 
-``sample_id`` is **not** here: it is the dataset layer's identifier
-(``datasets/schema.sample_id``), which this layer may not import and which
-``datasets/build.py`` already attaches to the historical feature frame after the
-extraction returns. The node names are spelled as ``topology.parquet`` spells
-them, because that is the frame the graph layer joins these rows against.
+``sample_id`` is **not** here: it belongs to the caller, which attaches it after
+the extraction returns. The node names are spelled as the graph layer spells them,
+because that is what these rows are joined against.
 """
 
 RAINFALL_INTENSITY_FORMAT = "INTENSITY"
 RAINFALL_TIMESERIES_SOURCE = "TIMESERIES"
 """The only rainfall description this extraction converts into scenario columns.
 
-Both are what every generated file and every Wroclaw file declare. A gage given
+Both are what the supported networks declare. A gage given
 as a volume, a cumulative depth or an external file describes the same storm in
 units this code would have to convert differently, so it is refused rather than
 summed as if it were an intensity.
@@ -186,20 +184,19 @@ def extract_physical_features(inp_path: Path | str, rpt_path: Path | str, *, con
 
     Args:
         inp_path: the INP the case was simulated from. Read, never simulated:
-            running SWMM is :mod:`stormlab.io.swmm`'s business and happens on a
-            working copy before this is called.
+            SWMM runs on a working copy before this is called.
         rpt_path: the report of that simulation.
         config: the run's configuration; every requirement (cover, frost zone,
             maximum depth, filling ratio, self-cleansing velocity, the slope
             constants) is read from it rather than from a literal here.
-        file_id: the identifier the dataset layer knows this file by.
+        file_id: the identifier the caller knows this file by.
 
     Returns:
         A frame indexed 0..n-1 carrying :data:`PHYSICAL_IDENTITY_COLUMNS`
         followed by the columns of ``v4_margins``, which contains ``v3_physical``
         and ``v4_physical`` as prefixes and every other physical contract as a
-        subset -- so one extraction serves a C1 run and a C2 one, and a caller
-        picks its generation with :func:`physical_contract_frame`. Values are not
+        subset -- so one extraction serves every physical contract, and a caller
+        picks its layout with :func:`physical_contract_frame`. Values are not
         clipped and not repaired.
 
     Raises:
@@ -380,14 +377,13 @@ def _add_geometry(frame: pd.DataFrame, geometry: pd.DataFrame, nodes: pd.DataFra
     outlet_ground_missing = np.isnan(outlet_manhole)
 
     # An outfall has no manhole depth, so it has no ground elevation. The
-    # historical path (`ConduitFeatureSteps.calculate_max_depth`) invents one as
+    # legacy path (`ConduitFeatureSteps.calculate_max_depth`) invents one as
     # inlet depth *minus* the pipe fall, which on a steep, long conduit comes out
-    # metres below the invert (author's finding of 2026-09-17: cover of -23 m on
-    # 1154 conduits of the C3b pool). The physical view does not repeat that: the
+    # metres below the invert. The physical view does not repeat that: the
     # four outlet-end quantities stay missing where the depth is missing, the
-    # mask `outlet_ground_missing` says so, and the imputation of the model
-    # inputs (`models/imputation.py`) fills them like every other declared gap.
-    # The historical view is left as it was, so the parity gate still holds.
+    # mask `outlet_ground_missing` says so, and the imputation plan shipped with
+    # the model fills them like every other declared gap. The legacy view is left
+    # as it was.
     inlet_ground = inlet_invert.to_numpy() + inlet_manhole
     outlet_ground = np.where(outlet_ground_missing, np.nan, outlet_invert.to_numpy() + outlet_manhole)
 
@@ -453,7 +449,7 @@ def _add_freeboard(frame: pd.DataFrame) -> None:
 
     Arithmetic on two columns the frame already carries rather than a fifth table
     read out of the report, and stated as a column rather than left to every
-    consumer because it is the premise a whole family of label sources rests on:
+    consumer because it is the sign of an overload:
     under a dynamic wave a node whose head reaches the ground surcharges out of it,
     and the sign of this number is what says so.
 
@@ -471,19 +467,19 @@ def _add_capacity(frame: pd.DataFrame) -> None:
     """Full-pipe capacity and the ratio of the peak flow to it.
 
     The capacity is the denominator of the ``manning_v2`` flow law -- the
-    corrected law variant B4 and the C1 profile run under -- so the two describe
-    the same pipe. It is computed only where the slope is positive: ``sqrt`` of a
+    corrected law the physical view runs under -- so the two describe the same
+    pipe. It is computed only where the slope is positive: ``sqrt`` of a
     negative fall is not a smaller capacity, it is no capacity, and a flat
     conduit divided into would produce an infinity that later reads as an
     enormous overload.
 
-    It is the capacity of **one barrel**, exactly as the historical ``NMaxQ`` is,
+    It is the capacity of **one barrel**, exactly as the legacy ``NMaxQ`` is,
     while ``max_flow_cms`` from the report is the flow through all of them. The
-    two agree wherever ``barrels`` is 1, which is every conduit of the B4 pool
-    (33 040 of 33 040) but not every conduit of Wroclaw, where ``K58`` and ``K60``
-    carry two barrels and ``flow_capacity_ratio`` therefore reads about twice the
-    load one pipe sees. The column keeps the historical meaning; ``barrels`` rides
-    next to it so a consumer can tell which rows that meaning covers.
+    two agree wherever ``barrels`` is 1, but not on a conduit with several barrels
+    (``K58`` and ``K60`` of the Wroclaw network carry two), where
+    ``flow_capacity_ratio`` therefore reads about twice the load one pipe sees. The
+    column keeps the legacy meaning; ``barrels`` rides next to it so a consumer can
+    tell which rows that meaning covers.
     """
     slope = frame["slope_signed"].to_numpy()
     roughness = frame["roughness"].to_numpy()
@@ -504,7 +500,7 @@ def _add_capacity(frame: pd.DataFrame) -> None:
 def _add_slope_requirements(frame: pd.DataFrame, *, config: Config) -> None:
     """``min_slope_required`` and ``max_slope_allowed``, in m/m, each failing on its own.
 
-    Both come from the very functions the historical ``MinRequiredSlope`` and
+    Both come from the very functions the legacy ``MinRequiredSlope`` and
     ``MaxAllowableSlope`` come from, under this run's ``theta``/``g``/Manning, so
     the requirement means the same thing in both views. The stored unit is
     **m/m**, not the per mille those functions return, because the margins divide
@@ -578,7 +574,7 @@ def _add_context(
     tagged = assign_categories(subcatchments, read_tags(model))
     with_subcatchments = assign_subcatchment_info(nodes, tagged)
 
-    # The class a conduit inherits has to be the *same* class the historical view
+    # The class a conduit inherits has to be the *same* class the legacy view
     # gives it, otherwise the two views would disagree about the same network, so
     # the two steps that compute it are called rather than reimplemented. They
     # need a frost zone to construct, and never read it.
@@ -618,9 +614,7 @@ def _add_requirements(frame: pd.DataFrame, *, config: Config) -> None:
     """The design rules in force, one constant column each.
 
     They are read from the configuration and written into the row so that a
-    margin can be recomputed from the row alone. The dataset frost zone is the
-    one that applies: this view is a dataset artifact, and the serving frost zone
-    belongs to the historical scoring path in ``experiments/e_wroclaw.py``.
+    margin can be recomputed from the row alone.
     """
     frame["required_cover_m"] = resolve_required_cover(config.frost_zone_depth, config.required_cover)
     frame["frost_zone_m"] = config.frost_zone_depth
@@ -653,7 +647,7 @@ def _add_margins(frame: pd.DataFrame) -> None:
 
     Nothing is clipped: two conduits short of cover by 0.1 m and by 0.9 m have to
     stay two different rows, which is exactly what a saturated ``[0, 1]``
-    normalisation destroys (plan16 §2 P3). ``r_C`` is reported next to ``m_C``
+    normalisation destroys. ``r_C`` is reported next to ``m_C``
     rather than instead of it, because it compresses the whole deficit range into
     roughly 1.04-1.14 and would flatten those two rows into one.
     """
@@ -703,7 +697,7 @@ def _rainfall_scenario(model: sw.Model) -> _RainfallScenario:
     The scenario is a property of the file: ``[SUBCATCHMENTS]`` names the gage,
     the gage names a time series, and the series is the storm. Turning the name
     into an arbitrary integer would give the model a code whose meaning depends
-    on which files happened to be in the pool; the depth, the duration and the
+    on which files happened to be loaded; the depth, the duration and the
     peak intensity mean the same thing in every file, so those are what the
     contract carries and the two names travel as identity columns.
 

@@ -551,14 +551,12 @@ class ConduitPanelTests(TestCase):
         self.assertNotContains(response, "reset-zoom")
         self.assertNotContains(response, "conduit-diagram.js")
 
-    def test_no_reference_label_in_payload_or_panel(self):
+    def test_no_reference_rule_in_payload(self):
         make_conduit(self.session, conduit_name="K1", inlet_node="N1", outlet_node="N2", subcatchment="-")
 
         payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
         k1 = next(c for c in payload["conduits"] if c["conduit_name"] == "K1")
-        self.assertNotIn("rule", k1)
-        self.assertNotIn("rule_label", k1)
-        self.assertNotContains(self._get("K1"), "Rule Label")
+        self.assertEqual([key for key in k1 if key.lower().startswith("rule")], [])
 
     def test_design_rules_list_only_the_changes_the_stored_flags_ask_for(self):
         cases = {

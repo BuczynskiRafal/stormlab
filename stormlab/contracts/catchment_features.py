@@ -2,23 +2,18 @@
 
 Eight columns are taken verbatim from the INP/RPT frames; the last four are
 runoff volumes that must be divided by ``Area`` (``Area`` itself is not a
-feature). The division carries the ``sum() != 0`` guard of the original
-notebook: a column that is identically zero across the frame stays zero instead
-of producing NaN/inf.
+feature). The division carries a ``sum() != 0`` guard: a column that is
+identically zero across the frame stays zero instead of producing NaN/inf.
 
-The ``sum() != 0`` guard is kept because the trained model was fitted under it,
-but it is a column-level guard only: a zero ``Area`` on an individual row is
+The guard is a column-level guard only: a zero ``Area`` on an individual row is
 rejected outright rather than allowed to produce ``inf``.
 
-``CLASSIFIER_CLASS_ORDER`` is alphabetical because training used
-``pd.get_dummies`` on the raw ``[TAGS]`` strings without a reindex. It is
-written as an explicit literal — deriving it from the enum declaration order is
-what mis-decoded 11 of 12 classes historically.
+``CLASSIFIER_CLASS_ORDER`` is alphabetical, the order of the classifier's output
+units. It is written as an explicit literal — deriving it from the enum
+declaration order would decode 11 of 12 classes wrongly.
 
 The twelve columns are the contract; :class:`CatchmentFeatureSet` names a subset
-of them a classifier is built on, so that the ablations of plan19 §Etap 4 are a
-parameter of a run rather than a second feature pipeline. ``full_12`` is the
-default everywhere and hashes to the digest every earlier run recorded.
+of them a classifier can be built on. ``full_12`` is the default everywhere.
 """
 
 from __future__ import annotations
@@ -65,31 +60,6 @@ CLASSIFIER_CLASS_ORDER: tuple[str, ...] = (
     "urban_weakly_impervious",
 )
 
-LEGACY_SERVING_CLASS_ORDER: tuple[str, ...] = (
-    "marshes",
-    "arable",
-    "meadows",
-    "forests",
-    "rural",
-    "suburban_weakly_impervious",
-    "suburban_highly_impervious",
-    "urban_weakly_impervious",
-    "urban_moderately_impervious",
-    "urban_highly_impervious",
-    "mountains_rocky",
-    "mountains_vegetated",
-)
-"""The order the historical serving code and the notebooks decoded predictions with.
-
-Recorded here as a *wrong* answer that has to stay reproducible: it is the literal
-of ``app/sa/core/constants.py::SUBCATCHMENT_CATEGORIES``, and eleven of its twelve
-positions disagree with :data:`CLASSIFIER_CLASS_ORDER` (index 9,
-``urban_highly_impervious``, is the one fixed point). Reporting the accuracy of a
-decode under this order next to the accuracy under the sorted one is what turns
-"the class mapping is right" from a claim into a measurement. It is never used to
-decode a number that reaches the thesis.
-"""
-
 CATCHMENT_INPUT_SHAPE: tuple[int | None, int] = (None, len(CATCHMENT_FEATURE_COLUMNS))
 
 CATCHMENT_FEATURE_DTYPE = "float64"
@@ -103,11 +73,9 @@ class CatchmentContractError(ValueError):
 class CatchmentFeatureSet:
     """A named subset of the contract columns one classifier is built and scored on.
 
-    The twelve columns stay the contract; a feature set is a *reading* of them, so
-    that "how much of the accuracy comes from the report columns" can be answered
-    by a run rather than by an argument. The name travels into the registry entry
-    beside the weights, because a model that takes seven inputs and a model that
-    takes twelve are two different artifacts under one architecture.
+    The twelve columns stay the contract; a feature set is a *reading* of them. The
+    name travels with the weights, because a model that takes seven inputs and a
+    model that takes twelve are two different models under one architecture.
     """
 
     name: str
@@ -132,21 +100,13 @@ class CatchmentFeatureSet:
 
 
 FULL_12 = CatchmentFeatureSet("full_12", CATCHMENT_FEATURE_COLUMNS)
-"""Every contract column: the set every historical run was trained and scored on."""
+"""Every contract column: the default set."""
 
 INP_7 = CatchmentFeatureSet("inp_7", CATCHMENT_FEATURE_COLUMNS[:7])
-"""The seven INP columns alone, without ``RunoffCoeff`` and the four report quantities.
-
-Against :data:`FULL_12` it measures what the rainfall-dependent report columns are
-worth; the seven are exactly the columns a class band is written over
-(``stormlab.contracts.catchment_classes.CLASS_COLUMNS``)."""
+"""The seven INP columns alone, without ``RunoffCoeff`` and the four report quantities."""
 
 INP_2 = CatchmentFeatureSet("inp_2", ("PercImperv", "PercSlope"))
-"""The two quantities the series-C generator draws per class.
-
-Against :data:`INP_7` it measures the contribution of the five ``[SUBAREAS]``
-columns, which in a real network are flat-rate constants rather than per-class
-values."""
+"""Imperviousness and slope alone."""
 
 FEATURE_SETS: Mapping[str, CatchmentFeatureSet] = {feature_set.name: feature_set for feature_set in (FULL_12, INP_7, INP_2)}
 """Every feature set a configuration may name, by name."""
@@ -155,9 +115,8 @@ FEATURE_SETS: Mapping[str, CatchmentFeatureSet] = {feature_set.name: feature_set
 def feature_set_contract_sha(feature_set: CatchmentFeatureSet = FULL_12) -> str:
     """sha256 of the set's column names joined by newlines, in contract order.
 
-    One recipe for every set, so the digest of :data:`FULL_12` is byte for byte the
-    one every run wrote before feature sets existed: a model trained on twelve
-    columns must keep hashing to the value its registry entry already carries.
+    One recipe for every set, so the digest of :data:`FULL_12` is the plain digest
+    of the twelve contract column names.
     """
     return hashlib.sha256("\n".join(feature_set.columns).encode("utf-8")).hexdigest()
 
@@ -172,8 +131,7 @@ def transform_column(frame: pd.DataFrame, column: str) -> pd.Series:
 
     The four area-normalised columns are divided elementwise by ``Area``; if the
     column sums to exactly zero over ``frame`` the original (all-zero) column is
-    returned untouched, which is the guard the training notebook used. Every
-    other column is passed through unchanged.
+    returned untouched. Every other column is passed through unchanged.
 
     Raises:
         CatchmentContractError: if ``column`` is not a contract column, or the

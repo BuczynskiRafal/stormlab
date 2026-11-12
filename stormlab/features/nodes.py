@@ -33,8 +33,7 @@ def assign_subcatchment_info(dfn: pd.DataFrame, dfs: pd.DataFrame) -> pd.DataFra
         encoder emits an all-zero block for ``NaN`` exactly as it does for the
         sentinel, so the two are equivalent downstream, and writing the sentinel
         instead would diverge from ``app/sa/core/nodes.py``. When several
-        subcatchments share an outlet the last one in frame order wins, as it did
-        historically.
+        subcatchments share an outlet the last one in frame order wins.
     """
     nodes = dfn.copy()
     nodes["Subcatchment"] = NO_SUBCATCHMENT

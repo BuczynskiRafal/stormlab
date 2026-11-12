@@ -161,7 +161,7 @@ def test_feature_contract_v2_removes_only_the_two_redundant_cover_columns() -> N
 
 
 def test_the_v1_and_v2_digests_are_pinned_literals_no_later_contract_may_move() -> None:
-    """Adding a contract to the registry must not relabel a model already trained.
+    """Adding a contract to the table must not relabel a model already trained.
 
     The digest is over one contract's own ordered column names, so a third entry
     cannot reach the first two — but that is a property of the recipe, and the
@@ -188,7 +188,7 @@ def test_feature_contract_v2_noflags_declares_every_input_as_a_float() -> None:
     assert set(FEATURE_CONTRACT_V2_NOFLAGS.dtypes_map.values()) == {contract.FLOAT_DTYPE}
 
 
-def test_the_registry_resolves_every_contract_and_refuses_an_unknown_name() -> None:
+def test_the_contract_table_resolves_every_contract_and_refuses_an_unknown_name() -> None:
     from stormlab.contracts.features import FEATURE_CONTRACTS, feature_contract
 
     assert sorted(FEATURE_CONTRACTS) == [
@@ -216,7 +216,7 @@ def test_the_registry_resolves_every_contract_and_refuses_an_unknown_name() -> N
 
 
 def test_a_v2_frame_satisfies_v2_noflags_without_being_reordered() -> None:
-    """A build writes v2; the ablation arm reads a projection of it, not a new build."""
+    """A build writes v2; the no-flags layout reads a projection of it, not a new build."""
     frame = _valid_frame()[list(FEATURE_CONTRACT_V2.columns)]
 
     validate_features(frame, contract=FEATURE_CONTRACT_V2_NOFLAGS)
@@ -226,8 +226,8 @@ def test_the_physical_contract_carries_the_measurements_the_masks_and_no_decisio
     """F2: geometry, the simulated state, the context, the requirements and the masks.
 
     The negative half matters as much as the positive one. Not a single validity
-    flag and not a single proposed action is in the contract -- those are what
-    plan16 §2 P3 removes from the model input -- and no column of v1/v2 is
+    flag and not a single proposed action is in the contract -- those are kept out
+    of the model input -- and no column of v1/v2 is
     reachable from it, so the two views cannot be silently mixed.
     """
     from stormlab.contracts.features import (
@@ -269,13 +269,13 @@ def test_the_v3_contracts_type_every_indicator_as_int8_and_everything_else_as_fl
 
 
 def test_the_v3_contracts_declare_the_build_they_need() -> None:
-    """``schema_version`` names a build, and no v2 parquet can answer these columns."""
+    """``schema_version`` names a build, and no v2 feature frame can answer these columns."""
     assert FEATURE_CONTRACT_V3_PHYSICAL.schema_version == 3
     assert FEATURE_CONTRACT_V3_MARGINS.schema_version == 3
 
 
 def test_the_v3_digests_are_pinned_literals() -> None:
-    """Two contracts frozen the day they were written, by the same v1 recipe."""
+    """Two contracts pinned when they were written, by the same v1 recipe."""
     assert FEATURE_CONTRACT_V3_PHYSICAL.sha == "6e6320bbf670b5af9053a65706fe7c3d0784e0c9c3d5f018d3aa5c70047668b5"
     assert FEATURE_CONTRACT_V3_MARGINS.sha == "f9f23105b6b786b0c30527ad2b554aa3528553b5d3e26dc1687d5c4c0a89be9d"
 
@@ -287,7 +287,7 @@ def test_adding_the_v3_contracts_left_every_earlier_digest_where_it_was() -> Non
 
 
 def test_the_neighbourhood_contract_is_the_physical_view_followed_by_its_block() -> None:
-    """F2 + aggregates: the columns of ``v3_physical``, then the 56 generated ones."""
+    """``v3_physical`` plus aggregates: the columns of ``v3_physical``, then the 56 of the block."""
     base = FEATURE_CONTRACT_V3_PHYSICAL
     assert FEATURE_CONTRACT_V3_PHYSICAL_NBR.columns[: base.n_columns] == base.columns
     assert FEATURE_CONTRACT_V3_PHYSICAL_NBR.columns[base.n_columns :] == NEIGHBORHOOD_BLOCK_COLUMNS
@@ -315,7 +315,7 @@ def test_the_neighbourhood_digest_is_a_pinned_literal_and_moved_no_earlier_one()
 
 
 def test_the_nocat_contracts_are_their_bases_without_the_land_cover_category() -> None:
-    """The category ablation removes two columns and leaves the rest in place, in order."""
+    """The no-category layouts remove two columns and leave the rest in place, in order."""
     from stormlab.contracts.features import (
         FEATURE_CONTRACT_V3_PHYSICAL_NBR_NOCAT,
         FEATURE_CONTRACT_V3_PHYSICAL_NOCAT,
@@ -335,11 +335,11 @@ def test_the_nocat_contracts_are_their_bases_without_the_land_cover_category() -
 
 
 def test_the_nocat_contracts_keep_the_four_subcatchment_parameters() -> None:
-    """What goes is the land cover *label*, not the catchment SWMM was run with.
+    """What goes is the land cover category, not the catchment SWMM was run with.
 
     Area, imperviousness, width and slope are inputs of the simulation and stay: the
-    question the ablation asks is what the twelve-class category contributed, and dropping
-    the parameters with it would answer a different one.
+    no-category layouts drop the twelve-class category only, and dropping the
+    parameters with it would remove something else.
     """
     from stormlab.contracts.features import FEATURE_CONTRACT_V3_PHYSICAL_NOCAT
 
@@ -362,10 +362,10 @@ def test_the_nocat_digests_are_pinned_literals_and_moved_no_earlier_one() -> Non
 
 
 def test_the_nocat_neighbourhood_block_is_the_same_fifty_six_columns() -> None:
-    """The aggregates are of measurements, so the ablation does not touch the block.
+    """The aggregates are of measurements, so dropping the category does not touch the block.
 
     Which is what lets one computed aggregate frame serve both contracts: if the block
-    differed, the ablated arm would need its own pass over 1547 networks.
+    differed, the no-category layout would need its own pass over every network.
     """
     from stormlab.contracts.features import FEATURE_CONTRACT_V3_PHYSICAL_NBR_NOCAT, FEATURE_CONTRACT_V3_PHYSICAL_NOCAT
 
@@ -390,13 +390,13 @@ def test_the_v4_contracts_extend_the_v3_ones_by_the_two_freeboard_columns() -> N
 
 
 def test_the_v3_physical_view_is_a_prefix_of_both_v4_contracts() -> None:
-    """What lets one extraction serve C1 and C2: the older layout opens the newer frame."""
+    """What lets one extraction serve both generations: the older layout opens the newer frame."""
     base = FEATURE_CONTRACT_V3_PHYSICAL
     assert FEATURE_CONTRACT_V4_PHYSICAL.columns[: base.n_columns] == base.columns
     assert FEATURE_CONTRACT_V4_MARGINS.columns[: base.n_columns] == base.columns
 
 
-def test_the_v4_contracts_are_the_sizes_the_protocol_declares() -> None:
+def test_the_v4_contracts_have_the_declared_sizes() -> None:
     from stormlab.contracts.features import FEATURE_CONTRACT_V4_PHYSICAL_NBR_NOCAT, FEATURE_CONTRACT_V4_PHYSICAL_NOCAT
 
     assert FEATURE_CONTRACT_V4_PHYSICAL.n_columns == 66
@@ -407,7 +407,7 @@ def test_the_v4_contracts_are_the_sizes_the_protocol_declares() -> None:
 
 
 def test_the_v4_contracts_declare_the_build_they_need() -> None:
-    """No v3 ``features.parquet`` carries a freeboard column, so this is a fourth build."""
+    """No v3 feature frame carries a freeboard column, so this is a fourth build."""
     from stormlab.contracts.features import FEATURE_CONTRACT_V4_PHYSICAL_NBR_NOCAT, FEATURE_CONTRACT_V4_PHYSICAL_NOCAT
 
     for item in (
@@ -428,26 +428,26 @@ def test_the_v4_neighbourhood_arms_aggregate_c2s_own_list_over_the_same_width() 
         neighborhood_column_names,
     )
 
-    generated = neighborhood_column_names(NEIGHBORHOOD_COLUMNS_V4)
+    block_columns = neighborhood_column_names(NEIGHBORHOOD_COLUMNS_V4)
 
-    assert len(generated) == len(NEIGHBORHOOD_BLOCK_COLUMNS) == 56
-    assert generated != NEIGHBORHOOD_BLOCK_COLUMNS
-    assert FEATURE_CONTRACT_V4_PHYSICAL_NBR.columns[FEATURE_CONTRACT_V4_PHYSICAL.n_columns :] == generated
+    assert len(block_columns) == len(NEIGHBORHOOD_BLOCK_COLUMNS) == 56
+    assert block_columns != NEIGHBORHOOD_BLOCK_COLUMNS
+    assert FEATURE_CONTRACT_V4_PHYSICAL_NBR.columns[FEATURE_CONTRACT_V4_PHYSICAL.n_columns :] == block_columns
     base = FEATURE_CONTRACT_V4_PHYSICAL_NOCAT
-    assert FEATURE_CONTRACT_V4_PHYSICAL_NBR_NOCAT.columns[base.n_columns :] == generated
-    assert "up1_inlet_node_flood_hours_mean" in generated
-    assert "up1_hours_capacity_limited_mean" not in generated
+    assert FEATURE_CONTRACT_V4_PHYSICAL_NBR_NOCAT.columns[base.n_columns :] == block_columns
+    assert "up1_inlet_node_flood_hours_mean" in block_columns
+    assert "up1_hours_capacity_limited_mean" not in block_columns
 
 
 def test_the_declared_neighbourhoods_differ_only_in_the_overload_premise() -> None:
-    """C1 aggregates the hours capacity limited the flow; C2 the flooding of the inlet."""
+    """The v3 list aggregates the hours capacity limited the flow; the v4 list the flooding of the inlet."""
     assert NEIGHBORHOOD_COLUMNS[:3] == NEIGHBORHOOD_COLUMNS_V4[:3]
     assert NEIGHBORHOOD_COLUMNS[3] == "hours_capacity_limited"
     assert NEIGHBORHOOD_COLUMNS_V4[3] == "inlet_node_flood_hours"
     assert set(NEIGHBORHOOD_COLUMNS_V4) <= set(FEATURE_CONTRACT_V4_PHYSICAL.columns)
 
 
-def test_every_neighbourhood_contract_names_the_list_it_was_generated_from() -> None:
+def test_every_neighbourhood_contract_names_the_list_it_aggregates() -> None:
     """The map the configuration loader validates ``c1.neighborhood.columns`` against."""
     from stormlab.contracts.features import (
         FEATURE_CONTRACTS,
@@ -458,8 +458,8 @@ def test_every_neighbourhood_contract_names_the_list_it_was_generated_from() -> 
     assert set(NEIGHBORHOOD_CONTRACT_COLUMNS) <= set(FEATURE_CONTRACTS)
     for name, columns in NEIGHBORHOOD_CONTRACT_COLUMNS.items():
         registered = FEATURE_CONTRACTS[name]
-        generated = neighborhood_column_names(columns)
-        assert registered.columns[-len(generated) :] == generated, name
+        block_columns = neighborhood_column_names(columns)
+        assert registered.columns[-len(block_columns) :] == block_columns, name
         assert neighborhood_columns_of(name) == columns
 
     with pytest.raises(FeatureContractError, match="Unknown neighbourhood contract"):
@@ -504,12 +504,12 @@ def test_the_noflood_neighbourhood_is_a_subset_and_not_a_substitution() -> None:
     """No replacement column takes the place of the one the arm may not read."""
     from stormlab.contracts.features import neighborhood_column_names
 
-    generated = neighborhood_column_names(NEIGHBORHOOD_COLUMNS_V4_NOFLOOD)
+    block_columns = neighborhood_column_names(NEIGHBORHOOD_COLUMNS_V4_NOFLOOD)
 
     assert NEIGHBORHOOD_COLUMNS_V4_NOFLOOD == NEIGHBORHOOD_COLUMNS_V4[:3]
-    assert len(generated) == 2 * len(NEIGHBORHOOD_HOPS) * (len(NEIGHBORHOOD_COLUMNS_V4_NOFLOOD) * 3 + 2) == 44
-    assert set(generated) < set(neighborhood_column_names(NEIGHBORHOOD_COLUMNS_V4))
-    assert FEATURE_CONTRACT_V4_NOFLOOD_PHYSICAL_NBR.columns[FEATURE_CONTRACT_V4_NOFLOOD_PHYSICAL.n_columns :] == generated
+    assert len(block_columns) == 2 * len(NEIGHBORHOOD_HOPS) * (len(NEIGHBORHOOD_COLUMNS_V4_NOFLOOD) * 3 + 2) == 44
+    assert set(block_columns) < set(neighborhood_column_names(NEIGHBORHOOD_COLUMNS_V4))
+    assert FEATURE_CONTRACT_V4_NOFLOOD_PHYSICAL_NBR.columns[FEATURE_CONTRACT_V4_NOFLOOD_PHYSICAL.n_columns :] == block_columns
 
 
 def test_the_noflood_contracts_are_the_sizes_the_plan_declares() -> None:
@@ -523,7 +523,7 @@ def test_the_noflood_contracts_are_the_sizes_the_plan_declares() -> None:
 
 
 def test_the_v4_digests_are_pinned_literals_and_moved_no_earlier_one() -> None:
-    """The v3 digests are the frozen ones; the v4 neighbourhood digests moved with C2's list."""
+    """The v3 digests are the frozen ones; the v4 neighbourhood digests follow the v4 list."""
     from stormlab.contracts.features import FEATURE_CONTRACT_V4_PHYSICAL_NBR_NOCAT, FEATURE_CONTRACT_V4_PHYSICAL_NOCAT
 
     from stormlab.contracts.features import FEATURE_CONTRACT_V3_PHYSICAL_NBR_NOCAT, FEATURE_CONTRACT_V3_PHYSICAL_NOCAT

@@ -56,7 +56,7 @@ class TestAssignCategories:
         assert pd.isna(result.loc["SC1", "category"])
 
     def test_no_tags_at_all_gives_nan_and_a_warning(self, caplog):
-        """A synthetic untagged network: no tags is data, not an error.
+        """An untagged network: no tags is data, not an error.
 
         Not the Wroclaw model — that one tags all 37 of its subcatchments; see
         ``TestWroclawTagProfile`` below for what it actually carries.

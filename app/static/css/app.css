@@ -35,9 +35,7 @@
        Jedyne źródło skali --radius-*, powierzchni, barw i wysokości nagłówka.
        ============================================================ */
 
-    /* Powierzchnie - neutralny papier. Wersja z 2026-09-05: autor odrzucił ciepłe
-       (kremowe) tło strony i wiersze tabel; wracamy do neutralnych tonów sprzed
-       planu 15 (dawne --paper-white / --paper-warm / --paper-tan). */
+    /* Powierzchnie - neutralny papier (bez ciepłego, kremowego tła strony i wierszy tabel). */
     --surface-0: #FFFFFF;   /* karty, panele, pasek nagłówka, komórki tabel */
     --surface-1: #FAFAF8;   /* tło strony (neutralny papier) */
     --surface-2: #F5F4F0;   /* stopka, hover, chipy neutralne */
@@ -47,8 +45,8 @@
                                przewijania, obramowanie akordeonu w fokusie */
 
     /* Struktura, nigdy tekst: krawędzie i pasma nagłówków. Ciepły papier bez
-       zimnych krawędzi zlewał się w jedną plamę - te wartości przywracają
-       granice sprzed planu 15. Tekst zostaje na --ink/--text/--muted. */
+       zimnych krawędzi zlewał się w jedną plamę - te wartości dają wyraźne
+       granice. Tekst zostaje na --ink/--text/--muted. */
     --slate-100: #F1F5F9;   /* kolumna etykiet, tło hover przycisku konturowego */
     --slate-200: #E2E8F0;   /* pasmo nagłówka tabeli */
     --slate-300: #CBD5E1;   /* krawędzie kart, paneli, akordeonu, pól formularzy */
@@ -973,7 +971,7 @@ footer {
 
 body {
     font-family: var(--font-body);
-    /* Papier (neutralny, jak przed planem 15) zostaje na stronie, karty są białe:
+    /* Papier (neutralny) zostaje na stronie, karty są białe:
        dopiero ta różnica daje im brzeg. */
     background: var(--surface-1);
     color: var(--text);
@@ -1016,7 +1014,7 @@ a.card:hover {
 }
 
 .card-header {
-    /* Pasmo sprzed planu 15: chłodny gradient odcina nagłówek od białej karty.
+    /* Pasmo nagłówka: chłodny gradient odcina nagłówek od białej karty.
        background-color stoi obok gradientu jako wartość realna (klony i starsze
        przeglądarki czytają samo tło). */
     background-color: var(--slate-band-top);
@@ -1100,7 +1098,7 @@ table thead {
 }
 
 .table thead th {
-    /* Pasmo slate sprzed planu 15, ale PŁASKIE, nie gradientowe: klon nagłówka
+    /* Pasmo slate, ale PŁASKIE, nie gradientowe: klon nagłówka
        w main.js kopiuje wyłącznie computedStyle(th).backgroundColor, więc gradient
        zostałby w oryginale, a klon dostałby samą barwę - dwa różne nagłówki.
        check_tables.py pilnuje, że background-image tu jest `none`. */
@@ -1119,7 +1117,7 @@ table thead {
     position: relative;
 }
 
-/* Wykluczenie panelu przewodu: ta strona ma własną, płaską skórkę (§23.14.1), a podniesionej
+/* Wykluczenie panelu przewodu: ta strona ma własną, płaską skórkę, a podniesionej
    wagi poniżej nie da się przebić bez dokładania kolejnej pozycji do budżetu wag. */
 thead th:not(:where(.conduit-page *)) {
     /* `thead th` (0,0,2) przegrywa z Bootstrapowym `.table > :not(caption) > * > *`
@@ -1379,7 +1377,7 @@ thead th:not(:where(.conduit-page *)) {
     color: #ffffff;
 }
 
-/* Kontur sprzed planu 15: 2 px slate. Blada ciepła krawędź ginęła na papierze,
+/* Kontur: 2 px slate. Blada ciepła krawędź ginęła na papierze,
    a to jest przycisk powrotu, nie ozdoba. Wypełniony .btn-primary zostaje wodny. */
 .btn-outline-primary {
     color: var(--slate-600);
@@ -1732,9 +1730,8 @@ small {
    ============================================================ */
 
 footer {
-    /* Stopka dokładnie jak przed planem 15: --surface-2 nad kreską --rule-soft, tekst
-       --muted. Kreska wraca z --slate-300 na --rule-soft (odwrócenie fragmentu 458135e) -
-       autor uznał slate za zbyt twardy pod stopką. */
+    /* Stopka: --surface-2 nad kreską --rule-soft, tekst --muted. Kreska to
+       --rule-soft, bo slate byłby zbyt twardy pod stopką. */
     background-color: var(--surface-2);
     border-top: 1px solid var(--rule-soft);
     color: var(--muted);
@@ -2490,7 +2487,7 @@ tr.selected:hover td:first-child {
    mono face (numbers align through font-variant-numeric: tabular-nums) and no icon
    font. No rule in this block raises its own weight. */
 
-/* Page tokens - declarations only; rev/findings/plan15-checks/contrast.py reads them. */
+/* Page tokens - declarations only, so that a contrast check can read them. */
 .conduit-page {
     --cp-bg: #f3f5f8;
     --cp-panel: #ffffff;

@@ -5,8 +5,8 @@ The edge rule is copied one-for-one from ``app/sa/core/gnn/graph.py``: an edge
 ``current.InletNode`` after ``strip().lower()``. Row-normalising such a matrix
 and computing ``A @ X`` makes every conduit aggregate over its *downstream*
 neighbours — the opposite of hydraulic intuition. That semantics is preserved
-deliberately (the saved weights were trained with it); ``direction="upstream"``
-transposes the result for the named counter-experiment.
+deliberately (the saved weights expect it); ``direction="upstream"`` transposes
+the result.
 
 Two behaviours of the legacy code are not preserved, both because they were
 silent:
@@ -98,17 +98,16 @@ class GraphBuildResult:
 class GraphChannels:
     """Both message-passing channels of one network, from one build of the edges.
 
-    ``downstream`` is the matrix the pipeline has always built — the legacy
-    orientation ``A[upstream, current] = 1`` — and ``upstream`` is its transpose,
-    which is exactly what ``direction="upstream"`` has always returned. Nothing is
+    ``downstream`` is the matrix of the legacy orientation
+    ``A[upstream, current] = 1`` — and ``upstream`` is its transpose,
+    which is exactly what ``direction="upstream"`` returns. Nothing is
     recomputed: the two are the same edges read in the two directions, so a
     two-channel model and a one-channel model of either direction are fed
     identical numbers.
 
-    The pair exists because ``direction="both"`` of plan16 §3 (E6) is **not** a
-    third orientation of one matrix: it is two neighbourhoods aggregated by two
-    separate sets of weights, and merging them into one adjacency is precisely
-    what the plan forbids.
+    The pair exists because ``direction="both"`` is **not** a third orientation of
+    one matrix: it is two neighbourhoods aggregated by two separate sets of
+    weights, and merging them into one adjacency would be wrong.
 
     Attributes:
         downstream: the stored orientation, ``float32`` CSR with a zero diagonal.

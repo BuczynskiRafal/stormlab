@@ -1112,7 +1112,7 @@ class ResultsV2NetworkMapEnvelopeTests(TestCase):
 
 
 class ResultsV2ProvenanceAndExportTests(TestCase):
-    """Tests for model provenance metadata, top-2 confidence margin, simple band rule (§3.4.3), and server-side CSV export."""
+    """Tests for model provenance metadata, top-2 confidence margin, simple band rule, and server-side CSV export."""
 
     @classmethod
     def setUpTestData(cls):
