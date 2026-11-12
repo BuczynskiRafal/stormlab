@@ -353,4 +353,3 @@ class TestSubcatchmentsClassify:
 
         assert service.dfs.loc["SC1", "category"] == "rural"
         assert service.dfs.loc["SC2", "category"] == "urban_highly_impervious"
-

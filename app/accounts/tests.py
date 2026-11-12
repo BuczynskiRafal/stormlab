@@ -172,5 +172,3 @@ class AvatarChangeFormTests(TestCase):
         form = UserAvatarForm(data={}, files={"avatar": oversized}, instance=user)
         self.assertFalse(form.is_valid())
         self.assertIn("avatar", form.errors)
-
-

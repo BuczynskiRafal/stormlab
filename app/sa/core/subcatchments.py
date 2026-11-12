@@ -127,4 +127,3 @@ class SubcatchmentFeatureEngineeringService:
         else:
             self.dfs["category"] = predicted_values
             logger.info(f"Classified {len(self.dfs)} subcatchments using ML classifier fallback")
-

@@ -80,7 +80,6 @@ def simple_band_rule_passed(filling: Any, diameter: Any, velocity: Any) -> bool:
     return (0.2 <= ratio <= 0.7) and (0.8 <= vel_f <= 3.0)
 
 
-
 class AnalysisService:
     """Service responsible for running SWMM analysis."""
 

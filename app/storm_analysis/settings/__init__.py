@@ -24,7 +24,4 @@ elif env == "testing":
 elif env == "development":
     from .development import *  # noqa: F401, F403
 else:
-    raise ImproperlyConfigured(
-        f"Unknown DJANGO_ENV={env!r}; expected one of: 'development', 'production', 'testing'."
-    )
-
+    raise ImproperlyConfigured(f"Unknown DJANGO_ENV={env!r}; expected one of: 'development', 'production', 'testing'.")

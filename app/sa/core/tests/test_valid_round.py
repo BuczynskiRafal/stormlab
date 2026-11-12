@@ -292,4 +292,3 @@ class TestMinSlopeHydromechanic:
         result_small = min_slope_hydromechanic(0.2, 0.5)
         result_large = min_slope_hydromechanic(0.4, 0.5)
         assert result_small != result_large
-

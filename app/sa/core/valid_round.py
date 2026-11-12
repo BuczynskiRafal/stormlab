@@ -169,4 +169,3 @@ def validate_max_slope(slope: float, diameter: float) -> bool:
             max_allowed = float(max_slope(diameter))
         return slope <= max_allowed
     return False
-
