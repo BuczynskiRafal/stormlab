@@ -1,0 +1,17 @@
+# Development: docker compose -f docker-compose.dev.yaml up --build
+# Runs the development server on http://localhost:8000 with the repository mounted.
+services:
+  web:
+    build: .
+    user: root
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_ENV: development
+      # Blank values restore the defaults inside app/ (db.sqlite3, media/, staticfiles/).
+      SQLITE_PATH: ""
+      MEDIA_ROOT: ""
+      STATIC_ROOT: ""
+    volumes:
+      - .:/srv/stormlab
+    ports:
+      - "127.0.0.1:8000:8000"

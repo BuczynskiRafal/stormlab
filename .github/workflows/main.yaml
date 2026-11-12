@@ -46,3 +46,33 @@ jobs:
           DJANGO_ENV: testing
         working-directory: app
         run: python manage.py test accounts sa
+
+  deploy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: '**/requirements*.txt'
+
+      - name: Install runtime dependencies
+        run: uv pip install --system -r app/requirements.txt
+
+      - name: Check production settings and collect static files
+        working-directory: app
+        env:
+          DJANGO_ENV: production
+          ALLOWED_HOSTS: example.com
+        run: |
+          export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')"
+          python manage.py check --deploy --fail-level WARNING
+          python manage.py collectstatic --noinput
+
+      - name: Build the production image
+        run: docker build --tag stormlab-web:ci .
