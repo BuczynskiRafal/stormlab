@@ -1,67 +1,32 @@
-# ==============================================================================
-# Byte-compiled / optimized / DLL files
-# ==============================================================================
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
-# ==============================================================================
-# Distribution / packaging
-# ==============================================================================
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
-MANIFEST
+build/
+dist/
+wheels/
+.eggs/
 
-# ==============================================================================
-# Installer / build tool artifacts
-# ==============================================================================
-*.manifest
-*.spec
-pip-log.txt
-pip-delete-this-directory.txt
+# Virtual environments and local configuration
+.venv/
+venv/
+env/
+.env
 
-# ==============================================================================
-# Unit test / coverage reports
-# ==============================================================================
-htmlcov/
-.tox/
-.nox/
+# Tests, coverage and tool caches
+.pytest_cache/
 .coverage
 .coverage.*
-.cache
-nosetests.xml
+htmlcov/
 coverage.xml
-*.cover
-*.py,cover
 .hypothesis/
-.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# ==============================================================================
-# Translations
-# ==============================================================================
-*.mo
-*.pot
-
-# ==============================================================================
-# Django stuff
-# ==============================================================================
+# Django
 *.log
 local_settings.py
 db.sqlite3
@@ -69,106 +34,25 @@ db.sqlite3-journal
 app/media/*
 app/staticfiles/*
 
-# ==============================================================================
-# Environments
-# ==============================================================================
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# SWMM writes its report, binary output and backup next to the input file
+# (the two files beside the test network are fixtures and stay tracked)
+*.rpt
+*.out
+*.bak
+!app/sa/core/tests/test_file.rpt
+!app/sa/core/tests/test_file.out
 
-# ==============================================================================
-# IDE / editor settings
-# ==============================================================================
+# IDE and OS files
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-
-# ==============================================================================
-# OS files
-# ==============================================================================
 .DS_Store
 Thumbs.db
 
-# ==============================================================================
-# Python tools
-# ==============================================================================
-.python-version
-__pypackages__/
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-.ropeproject
-.spyderproject
-.spyproject
-profile_default/
-ipython_config.py
-celerybeat-schedule
-celerybeat.pid
-*.sage.py
-.ruff_cache/
-
-# ==============================================================================
-# Documentation builds
-# ==============================================================================
-docs/_build/
-/site
-target/
-
-# ==============================================================================
-# Jupyter / IPython notebooks
-# ==============================================================================
-.ipynb_checkpoints/
-
-# Project-specific: directories with generated/research data
-# ==============================================================================
-stormwater_analysis/data/
-
-# ==============================================================================
-# AI agent workspace / scratch files
-# ==============================================================================
-.codellm/
-.claude/
-scratchpad/
-# Temporary office / Excel lock files
-~$*
-
-# ==============================================================================
-# stormlab pipeline outputs
-# ==============================================================================
-# Working copies of INP files (SWMM writes .rpt/.out/.bak next to its input)
-work/
-# Per-run results; results/golden/ stays tracked on purpose
-results/runs/
-# Generated synthetic SWMM networks (deterministic, reproducible from seed).
-# Both spellings: with the trailing slash git ignores the directory, without it
-# also the read-only symlink a worktree uses to share one pool between checkouts
-# -- which would otherwise be committed as an absolute path to somebody's disk.
-data/generated/
-data/generated
-# Archived copies of a frozen INP pool (`c1-build-cases --archive-pool`). The pool
-# directories above are already untracked, so an archive of them is a second copy
-# of untracked bytes, not a new tracked input; what identifies the population is
-# the run's input_manifest.json, which is tracked nowhere else either.
-data/archive/
-# Evaluation INP and manifests are tracked; SWMM sidecars beside them never are.
-data/eval/**/*.rpt
-data/eval/**/*.out
-data/eval/**/*.bak
-word/media/
-word/Doktorat_Zotero.md
-.agents/*/
-word/
-
-# ==============================================================================
-# Model weights and specs: ignored except the shipped models
-# ==============================================================================
+# Model files: weights are ignored unless listed below.
+# The shipped models are the recommendation weights, their spec and the classifier.
 *.keras
 *.weights.h5
 app/sa/core/recommendations/*.spec.json
