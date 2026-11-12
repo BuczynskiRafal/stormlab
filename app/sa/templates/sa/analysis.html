@@ -248,7 +248,7 @@
     {# does not download ~300 kB of jQuery + DataTables it has nothing to enhance. #}
     {% if data %}
     {# Both deferred, so they run before main.js. #}
-    <script src="https://code.jquery.com/jquery-3.5.1.js" defer></script>
-    <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.js" defer></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.js" integrity="sha384-/LjQZzcpTzaYn7qWqRIWYC5l8FWEZ2bIHIz0D73Uzba4pShEcdLdZyZkI4Kv676E" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.js" integrity="sha384-9jwHdz3xcZ/aQmgwzEl+IfbIibihtBOx76/CoExUWGC11Nb4blmMdE8y2edqF9EF" crossorigin="anonymous" defer></script>
     {% endif %}
 {% endblock %}
