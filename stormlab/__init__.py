@@ -1,10 +1,9 @@
-"""stormlab — reproducible pipeline from SWMM INP files to thesis numbers.
+"""stormlab — the domain layer between SWMM INP files and the recommendation models.
 
 The package is layered: ``contracts`` define the data shapes, ``hydraulics``
-holds pure formulas, ``io`` touches the filesystem and the SWMM engine,
-``features``/``labels``/``graph`` derive model inputs, ``datasets``/``models``
-train and predict, and ``experiments``/``reports`` orchestrate and publish.
-``config`` and ``provenance`` are cross-cutting and may be imported anywhere.
+holds pure formulas, ``io`` reads INP and report files, ``features`` and ``graph``
+derive model inputs, and ``models`` builds the graph network and serves it.
+``config`` is cross-cutting and may be imported anywhere.
 """
 
 from __future__ import annotations

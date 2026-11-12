@@ -686,8 +686,8 @@
     if (!parsed || typeof parsed !== 'object') return fallback();
     // One line per field, each field decided on its own.  The whole-object fallback this
     // replaces was a bug the users already have in their storage: {"mode":"filling"} is
-    // what every reader of the map wrote before plan24, and a missing ``card`` (E2) or
-    // ``labels`` (E4b) must cost the default of that one field, never the remembered
+    // what every earlier reader of the map wrote, and a missing ``card`` or
+    // ``labels`` must cost the default of that one field, never the remembered
     // mode - just as a broken card may not cost the names beside it.
     const stored = parsed.card;
     const usable =
@@ -1021,7 +1021,7 @@
     let gesture = null;
     let hintTimer = null;
 
-    // Labels (position 4).  All of it closure state: the <text> elements are built once
+    // Labels.  All of it closure state: the <text> elements are built once
     // and lazily, the layer that measures them with them, and the deferred placement
     // reads the view of the frame that scheduled it instead of computing it again.
     let labelsBuilt = false;
@@ -1056,7 +1056,7 @@
     const prefs = readMapPrefs(mapStorage());
     let mode = prefs.mode;
     // ...and the corner the reader dragged the card to, which is remembered with it
-    // (D9): the card comes back where it was left, in this visit and the next one.
+    //: the card comes back where it was left, in this visit and the next one.
     // It is deliberately not cleared and not rewritten when the viewport changes -
     // applyCardPos passes it through clampCardPos on its way to the *style*, so a
     // position saved in a larger window lands against the edge of a smaller canvas
@@ -1183,7 +1183,7 @@
         const kind = pair[0];
         (Array.isArray(data[pair[1]]) ? data[pair[1]] : []).forEach(element => {
           if (isAnalysed(kind, String(element.n))) return;
-          // Two lists, deliberately not three: drawing.outletEls is left out (D30).  This
+          // Two lists, deliberately not three: drawing.outletEls is left out.  This
           // function only adds the class nm-na, and every .nm-na rule of the stylesheet
           // names a kind (.nm-node.nm-na, .nm-link.nm-na, .nm-poly.nm-na), so the class on
           // an .nm-outlet would paint nothing at all - dead code frozen by a test.
@@ -1328,7 +1328,7 @@
         const kind = pair[0];
         (Array.isArray(data[pair[1]]) ? data[pair[1]] : []).forEach(element => {
           // A node stands on its own point; a subcatchment on ``element.c``, the centroid
-          // E3a put in the payload (D22) - never on one computed here, which would be a
+          // E3a put in the payload - never on one computed here, which would be a
           // second definition of the same point.  A payload written before E3a carries no
           // ``c``, and such an outline gets no <text> at all.
           let anchor = null;
@@ -1500,8 +1500,8 @@
       });
 
       // Three ways out, all of them hiding the whole group: the names are off, the
-      // symbols are too dense to draw at all (D25), or two node centres are closer than
-      // LABEL_MIN_GAP_PX on screen (D24).  A null min_gap - the auto layout - hides
+      // symbols are too dense to draw at all, or two node centres are closer than
+      // LABEL_MIN_GAP_PX on screen.  A null min_gap - the auto layout - hides
       // nothing: the culling and LABEL_MAX bound the work there.  The "zoom in" hint
       // belongs to toggleLabels and never here: this runs on every step of a pan.
       const gapPx = Number.isFinite(gap) ? gap * pxPerUnit : null;
@@ -1545,7 +1545,7 @@
      * omits an element it found no room for, and the culling drops everything outside the
      * visible rectangle - so a name left where the previous frame put it would sit on a
      * symbol or along a pipe as soon as the view moved, which is the failure the whole of
-     * position 4 exists to prevent.
+     * the label placement exists to prevent.
      *
      * Two spaces and two jobs, deliberately not merged: **which elements are considered**
      * is decided here, in drawing units, through the real CTM (clientToUnits), because
@@ -1559,9 +1559,9 @@
      * the DOM.  ``radiusPx`` is the scale of a symbol and not the radius of a circle
      * around it: the corner of the square of a storage lies sqrt(2) further than its
      * side, so a rectangle that cleared the old disk could still lie on the outline
-     * (N09).  A conduit's half width is computed once and handed to its segment *and* to
+     *.  A conduit's half width is computed once and handed to its segment *and* to
      * its own item as ``r``, so the candidates start off the centre line of its own pipe.
-     * Subcatchment outlines are obstacles for nobody (D22/D31).
+     * Subcatchment outlines are obstacles for nobody.
      */
     function placeLabelsNow() {
       if (!drawing || !labelsBuilt || !labelsOn || !lastView) return;
@@ -1964,7 +1964,7 @@
     }
 
     /**
-     * Turn the names on or off (D19, D25).
+     * Turn the names on or off.
      *
      * The preference is written through savePrefs, so the gesture remembers every field
      * and not only its own.  rescale() then writes the transforms and takes one of its
@@ -2065,7 +2065,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // Selection and the selection card (D11)
+    // Selection and the selection card
     // -------------------------------------------------------------------------
 
     /**
@@ -2310,7 +2310,7 @@
       heading.textContent = name;
       // Four listeners, all four on the heading and none of them on the card or on the
       // container.  The card is built again on every selection, so nothing leaks and
-      // nothing has to be detached.  The heading is the whole handle (D7): the values
+      // nothing has to be detached.  The heading is the whole handle: the values
       // stay selectable and the buttons stay clickable, which they would not be if the
       // gesture sat on .nm-card.
       heading.addEventListener('pointerdown', beginCardDrag);
@@ -2391,7 +2391,7 @@
       el.classList.add('nm-sel');
       selection = { kind: kind, index: index, name: name, el: el };
       buildCard(kind, name);
-      // The selected element goes to the front of the placement order (D27) and its
+      // The selected element goes to the front of the placement order and its
       // outline is now wider; neither fact reaches the names without this call.
       scheduleLabels();
     }

@@ -1,0 +1,20 @@
+{
+  "context_lambda": 0.0,
+  "context_motifs": [],
+  "direction": "upstream",
+  "dropout": 0.2,
+  "epochs": 150,
+  "feature_contract": "v4_physical",
+  "hidden": 64,
+  "hops": 2,
+  "input_norm": "constant_safe",
+  "layer_norm": "layer",
+  "lr": 0.001,
+  "monitor": "val_loss",
+  "operator": "legacy_weighted_mean",
+  "patience": 15,
+  "supervision_mask": true,
+  "target_contract": "primary_action_v3",
+  "target_kind": "soft",
+  "weight_decay": 0.0
+}

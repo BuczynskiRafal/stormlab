@@ -111,6 +111,47 @@ class TestLoadModels:
         assert predictor.get_recommendation() is None
         assert predictor._models_loaded is True
 
+    @pytest.mark.skipif(not HAS_TENSORFLOW, reason="TensorFlow not installed")
+    def test_absent_mlp_model_is_not_an_error(self, reset_predictor_state, monkeypatch, tmp_path, caplog):
+        """The MLP fallback is optional: a missing file is logged below ERROR and not loaded."""
+        monkeypatch.setattr(predictor, "recommendations_classifier_path", str(tmp_path / "recomendations.keras"))
+        loaded_paths = []
+
+        def fake_load_model(path, *args, **kwargs):
+            loaded_paths.append(path)
+            return MagicMock()
+
+        with caplog.at_level("DEBUG", logger=predictor.logger.name):
+            with patch("tensorflow.keras.models.load_model", side_effect=fake_load_model):
+                with patch.object(predictor, "gnn_enabled", return_value=False):
+                    predictor._load_models()
+
+        assert predictor._recommendation is None
+        assert str(tmp_path / "recomendations.keras") not in loaded_paths
+        assert not [record for record in caplog.records if record.levelname == "ERROR"]
+        assert any("MLP recommendation model" in record.getMessage() for record in caplog.records)
+
+    @pytest.mark.skipif(not HAS_TENSORFLOW, reason="TensorFlow not installed")
+    def test_present_but_unloadable_mlp_model_is_an_error(self, reset_predictor_state, monkeypatch, tmp_path, caplog):
+        """A file that exists but fails to load is still reported at ERROR."""
+        broken = tmp_path / "recomendations.keras"
+        broken.write_bytes(b"not a keras archive")
+        monkeypatch.setattr(predictor, "recommendations_classifier_path", str(broken))
+
+        def fake_load_model(path, *args, **kwargs):
+            if path == str(broken):
+                raise ValueError("corrupt archive")
+            return MagicMock()
+
+        with caplog.at_level("DEBUG", logger=predictor.logger.name):
+            with patch("tensorflow.keras.models.load_model", side_effect=fake_load_model):
+                with patch.object(predictor, "gnn_enabled", return_value=False):
+                    predictor._load_models()
+
+        assert predictor._recommendation is None
+        errors = [record.getMessage() for record in caplog.records if record.levelname == "ERROR"]
+        assert errors == [f"Cannot load MLP recommendation model: {broken}"]
+
     @pytest.mark.skipif(HAS_TENSORFLOW, reason="Test requires TensorFlow to be unavailable")
     def test_handles_missing_tensorflow(self, reset_predictor_state):
         """Test that _load_models handles missing TensorFlow gracefully."""

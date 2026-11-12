@@ -1,12 +1,11 @@
 /**
- * Empirical harness of the pure layer of the network map (plan23, stages 5 and 6).
+ * Empirical harness of the pure layer of the network map.
  *
  * It tests **only the exported functions** of ``app/static/js/network-map.js`` and
  * builds no DOM at all — not even a mock one.  A mocked SVG proves that the mock
  * agrees with the code that drives it and nothing about a browser, so everything
  * that needs a document (the view controls, the selection card, Esc, the tooltip,
- * the cursor, the pointer-events layer) is checked by the browser gate
- * ``rev/findings/plan23-checks/shots_map.py`` instead.
+ * the cursor, the pointer-events layer) is checked in a real browser instead.
  *
  * ``require`` works because the module assigns ``module.exports`` inside its IIFE and
  * skips its own initialisation when there is no ``document``.
@@ -41,13 +40,10 @@ const {
   placeLabels
 } = nm;
 
-// The exported surface is a contract between the stages: eleven names after stage 5,
-// fourteen after stage 6, fifteen after stage 7, sixteen once the filter dimming
-// learned to leave the unanalysed elements alone, eighteen when the selection card
-// learned to be dragged (plan24 E2: clampCardPos, and writeMapPrefs, which was written
-// long before but never exported - the preferences grew a second field and the writer
-// had to become testable from here), nineteen with the outlet line of plan24 E3b
-// (outletPath) and twenty once plan24 E4a added the placement solver (placeLabels).
+// The exported surface is a contract: twenty names, including clampCardPos and
+// writeMapPrefs (the selection card can be dragged and the preferences have a second
+// field), outletPath (the outline of a subcatchment's outlet line) and placeLabels
+// (the placement solver).
 // A name that quietly stops being exported takes its whole group with it and the run
 // would still end green without this line.
 assert.strictEqual(Object.keys(nm).length, 20, 'network-map.js must export exactly twenty names');
@@ -155,7 +151,7 @@ group('elementCount counts a link twice, as the extractor does', () => {
   assert.strictEqual(elementCount(null), 0);
   assert.strictEqual(elementCount('links'), 0);
 
-  // plan24: an outlet line is one more drawable element, and only a polygon that
+  // An outlet line is one more drawable element, and only a polygon that
   // carries the point `o` has one.  The centroid `c` is never drawn and costs nothing.
   assert.strictEqual(
     elementCount({ polys: [{ i: 0, c: [0, 0], o: [1, 1] }, { i: 1, c: [2, 2] }], links: [1, 2], nodes: [1, 2, 3] }),
@@ -167,7 +163,7 @@ group('elementCount counts a link twice, as the extractor does', () => {
   assert.strictEqual(
     elementCount({ polys: [{ i: 0 }, { i: 1 }], links: [1, 2, 3], nodes: [1, 2, 3, 4] }),
     2 + 6 + 4,
-    'a version 1 payload must count exactly as it did before plan24'
+    'a version 1 payload must count exactly as it did before outlet lines existed'
   );
 });
 
@@ -423,7 +419,7 @@ group('pickColor names a class for every mode and falls back to nm-nodata', () =
 // ---------------------------------------------------------------------------
 // 11. readMapPrefs — one key, and every field decided on its own
 //
-// Three fields after plan24: ``mode`` (plan23), ``card`` (E2) and ``labels`` (E4b).
+// Three fields: ``mode``, ``card`` and ``labels``.
 // Every assertion here names all three, because the point of the shape is that a
 // broken one may not cost the other two.  The round trip of the writer keeps its own
 // group below (16), where E2 put it: no new group, the count stays what E4a left.
@@ -782,7 +778,7 @@ group('writeMapPrefs stores the whole object and survives a round trip', () => {
 
 
 // ---------------------------------------------------------------------------
-// placeLabels — the placement solver (plan24, stage E4a).
+// placeLabels — the placement solver.
 //
 // Everything below tests the pure solver: no DOM, no measurement, no randomness.
 // The reference implementation that group 3 compares the bucket grid against lives
@@ -1113,7 +1109,7 @@ group('placeLabels with a bucket grid agrees with brute force', () => {
   const fat = agree('a stroke thicker than a bucket', near, thick, {});
   assert.deepStrictEqual(fat, [{ key: 'node:0', dx: -25, dy: 0 }], 'E, W and N lie inside the thick outline, S does not');
 
-  // (c) The disk of a selected storage, sized by the formula of E4b (N09):
+  // (c) The disk of a selected storage, sized by the formula of E4b:
   // sqrt(2) * 3.5 + 3 + 2 = 9.9497.  The rectangle (4.8, 4.8)-(54.8, 21) is 6.788
   // away from the centre, so it passed the old 6.5 disk while crossing the corner
   // of the drawn square (7.071 away).  On the new radius it has to fail.

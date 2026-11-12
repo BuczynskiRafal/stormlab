@@ -56,7 +56,7 @@ class TestAssignCategories:
         assert pd.isna(result.loc["SC1", "category"])
 
     def test_no_tags_at_all_gives_nan_and_a_warning(self, caplog):
-        """A synthetic untagged network: no tags is data, not an error.
+        """An untagged network: no tags is data, not an error.
 
         Not the Wroclaw model — that one tags all 37 of its subcatchments; see
         ``TestWroclawTagProfile`` below for what it actually carries.
@@ -224,9 +224,7 @@ class TestWroclawTagProfile:
         from stormlab.config import repo_root
         from stormlab.io.inp import load_model, read_tags
 
-        inp = repo_root() / "models" / "recomendations" / "gnn" / "wroclaw" / "wroclaw_pipes.inp"
-        if not inp.is_file():
-            pytest.skip(f"the Wroclaw network is not available at {inp}")
+        inp = repo_root() / "examples" / "wroclaw_rakowiec.inp"
         return read_tags(load_model(inp, include_rpt=False))
 
     def test_every_subcatchment_is_tagged(self, wroclaw_tags):
@@ -251,7 +249,7 @@ class TestWroclawTagProfile:
         from stormlab.config import repo_root
         from stormlab.io.inp import load_model, read_frames
 
-        inp = repo_root() / "models" / "recomendations" / "gnn" / "wroclaw" / "wroclaw_pipes.inp"
+        inp = repo_root() / "examples" / "wroclaw_rakowiec.inp"
         _, _, dfs = read_frames(load_model(inp, include_rpt=False), include_rpt=False)
         encoded = one_hot_categories(assign_categories(dfs, wroclaw_tags), FEATURE_ONEHOT_ORDER)
 

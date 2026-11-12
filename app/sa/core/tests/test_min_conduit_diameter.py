@@ -131,4 +131,3 @@ def test_min_conduit_diameter_calc_filling_exceeds_diameter():
             with patch("sa.core.conduits.validate_filling", return_value=True):
                 service.min_conduit_diameter()
                 assert service.dfc.loc[0, "MinDiameter"] == 0.5
-

@@ -317,7 +317,7 @@ class ResultsV2NetworkMapTemplateTests(TestCase):
         it opens.  Written loosely it read the whole line, so a single-line
         ``@media (max-width: 520px) { .sneaky { color: blue } }`` hid its own contents
         from the guard: the inner selector never reached the check.  Measured on a
-        synthetic stylesheet, that line passed before this narrowing and fails after it.
+        small stylesheet, that line passed before this narrowing and fails after it.
         """
         css_path = Path(__file__).resolve().parent.parent.parent / "static" / "css" / "network-map.css"
         self.assertTrue(css_path.exists(), f"network-map.css not found at {css_path}")
@@ -529,7 +529,7 @@ class ResultsV2NetworkMapTemplateTests(TestCase):
         self.assertIn("min-height: 0", canvas_rule.group(1))
         self.assertIn("flex: 0 1 auto", canvas_rule.group(1))
 
-    # -- stage E1 (plan24, position 1): the inset of the map panel ------------------
+    # -- the inset of the map panel ------------------------------------------------
     #
     # Nothing below writes a pixel value down.  The point of the stage is *parity* with
     # the furniture of the table view, so parity is what is measured: a literal "20px"
@@ -682,17 +682,17 @@ class ResultsV2NetworkMapTemplateTests(TestCase):
         self.assertIn("flex-wrap: wrap", modes.group(0))
 
         left, right = self._padding_sides(css, ".nm-empty")
-        self.assertEqual((left, right), ("0", "0"), "the side inset of the empty state is the panel's (D5)")
+        self.assertEqual((left, right), ("0", "0"), "the side inset of the empty state is the panel's")
 
 
 class ResultsV2NetworkMapInteractionTests(TestCase):
-    """Stage 5 — zoom, pan, hit testing, tooltip and the selection card (D11).
+    """Stage 5 — zoom, pan, hit testing, tooltip and the selection card.
 
     The split between this class and the browser gate is deliberate and is the rule
     of the stage: *pure* logic is exported and exercised by ``harness_network_map.js``
     from Node, *behaviour that needs a document* — the controls, the card, Esc, the
     tooltip, the cursor, the hit layer — is measured by
-    ``rev/findings/plan23-checks/shots_map.py`` in a real browser.  What is left here
+    a browser check.  What is left here
     are contracts of the source itself: which names are exported, which patterns must
     never appear, and which declarations the browser behaviour rests on.  A Python
     test that re-implemented the JavaScript would only prove that the copy agrees
@@ -807,8 +807,8 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertNotIn("encodeURIComponent", code, "URLs come from the server's reverse(), never from string building")
         self.assertNotRegex(code, r"\beval\s*\(", "the map must not evaluate source at runtime")
         self.assertNotRegex(code, r"\bnew\s+Function\s*\(", "the map must not build a function from a string")
-        self.assertNotRegex(code, r"location\s*\.\s*href\s*=[^=]", "navigation belongs to <a href>, not to an assignment (D11)")
-        self.assertNotRegex(code, r"location\s*\.\s*(assign|replace)\s*\(", "navigation belongs to <a href> (D11)")
+        self.assertNotRegex(code, r"location\s*\.\s*href\s*=[^=]", "navigation belongs to <a href>, not to an assignment")
+        self.assertNotRegex(code, r"location\s*\.\s*(assign|replace)\s*\(", "navigation belongs to <a href>")
         self.assertNotRegex(code, r"\.\s*outerHTML\b", "the map must never write markup")
         self.assertNotRegex(code, r"insertAdjacentHTML", "the map must never write markup")
 
@@ -1035,7 +1035,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             "the reader, the writer and the access to localStorage itself each need a catch",
         )
 
-    # -- 64 (plan24 E2) ----------------------------------------------------------
+    # -- dragging the selection card ---------------------------------------------
     def test_card_is_draggable_and_keeps_its_place(self):
         """The card is dragged by its heading, and where it was dragged to is kept.
 
@@ -1051,7 +1051,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         # -- the capture: once, in the pointerdown of the handle, with no threshold ---
         #
         # Counted inside the function and not in the file: ``host.setPointerCapture``
-        # has been in the module since plan23 (the pan gesture), so the bare string
+        # has been in the module since the pan gesture, so the bare string
         # occurs twice after this stage and "exactly once" over the file would be a
         # misleading red.
         begin = re.search(r"function beginCardDrag\(", code)
@@ -1176,7 +1176,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             "localStorage.setItem is synchronous; a write per frame has no business in a pointermove",
         )
 
-    # -- 65 (plan24 E2) ----------------------------------------------------------
+    # -- the card against its canvas ---------------------------------------------
     def test_card_fits_the_canvas_and_only_the_heading_drags(self):
         """The card is capped against its canvas, and the three handle declarations are on the heading.
 
@@ -1653,7 +1653,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
 
 
 class ResultsV2MapToTableTests(TestCase):
-    """Stage 7 — the map hands an element over to the table (D10, variant "tab").
+    """Stage 7 — the map hands an element over to the table.
 
     One direction only: under the tabbed layout the map and the table are never on
     screen together, so nothing sends the table's selection back to a map nobody can
@@ -1663,7 +1663,7 @@ class ResultsV2MapToTableTests(TestCase):
 
     The behaviour itself is measured where it can be measured — in
     ``harness_results_v2.js``, which drives the engine against a document, and in the
-    browser gate ``rev/findings/plan23-checks/shots_map.py``.  What is asserted here
+    browser check.  What is asserted here
     is what a source file can be held to: that the highlight is derived on every
     render rather than applied once, and that no element name is ever pasted into a
     selector.
@@ -1785,7 +1785,7 @@ class ResultsV2NetworkMapKeyboardTests(TestCase):
     The split is the one of stage 5 and for the same reason: what a *browser* has to
     show — that an arrow really moves the view, that ``Home`` really brings it back and
     that ``Escape`` really closes the card — is measured by
-    ``rev/findings/plan23-checks/shots_map.py``, which presses those keys on the live
+    a browser check, which presses those keys on the live
     page.  What a source file can be held to is asserted here: the aria contract of the
     drawing, the one place the blocking rule reads, and the wording of the counter under
     the map.  The Django runner executes no JavaScript, so a test that re-implemented
@@ -2324,7 +2324,7 @@ class ResultsV2NetworkMapKeyboardTests(TestCase):
         every line by one the moment a single subcatchment had no outlet — the filter
         would then fade the line of a *different* subcatchment.
 
-        ``outletEls`` is deliberately absent from ``markUnanalysed`` (D30).  That
+        ``outletEls`` is deliberately absent from ``markUnanalysed``.  That
         function only adds the class ``nm-na``, and every ``.nm-na`` rule of the sheet
         names a kind (``.nm-node.nm-na``, ``.nm-link.nm-na``, ``.nm-poly.nm-na``), so the
         class on an ``.nm-outlet`` would paint nothing: dead code frozen by a test.

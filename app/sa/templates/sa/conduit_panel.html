@@ -129,14 +129,14 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                 {% endwith %}
 
                 {% comment %}
-                Design rules: the rule-based counterpart of the prediction above, reduced to
+                Design rules: the design-rule counterpart of the prediction above, reduced to
                 the changes it asks for. The service reads the stored action flags, never a
                 fresh comparison (see ConduitPanelService._design_rules).
                 {% endcomment %}
                 <div class="design-rules">
                     <p class="design-rules-title">Design rules</p>
                     {% for rule in panel.design_rules %}
-                    <div class="design-rule"><span>{{ rule.label }}</span><b>{{ rule.change }}</b></div>
+                    <div class="design-rule"><span>{{ rule.parameter }}</span><b>{{ rule.change }}</b></div>
                     {% empty %}
                     <p class="design-rule-none">No change required by the design rules</p>
                     {% endfor %}
@@ -211,14 +211,11 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                     <div class="property"><span>Subcatchment (model)</span><b>{{ conduit.subcatchment }}</b></div>
                     <div class="property"><span>Subcatchment Category</span><b>{{ conduit.sbc_category }}</b></div>
                     <div class="property"><span>Recommendation</span><b>{{ conduit.recommendation }}</b></div>
-                    {% if rule_label and rule_label != "-" %}
-                    <div class="property"><span>Rule Label (Ground Truth)</span><b>{{ rule_label }}</b></div>
-                    {% endif %}
-                    <div class="property"><span>Model Artifact</span><b>{{ panel.model_metadata.model_id|default:"gnn_c3c_winner_v1" }} ({{ panel.model_metadata.feature_contract|default:"v4_physical" }})</b></div>
+                    <div class="property"><span>Model Artifact</span><b>{{ panel.model_metadata.model_id|default:"gnn_recommender_v1" }} ({{ panel.model_metadata.feature_contract|default:"v4_physical" }})</b></div>
                     {% if panel.confidence_margin is not None %}
                     <div class="property"><span>Top-2 Margin (&Delta;p)</span><b>{{ panel.confidence_margin|floatformat:1 }} pp</b></div>
                     {% endif %}
-                    <div class="property"><span>Simple Rule (&sect;3.4.3)</span><b>{% if panel.simple_rule_passed %}Within band (0.2&ndash;0.7 D, 0.8&ndash;3.0 m/s){% else %}Outside band{% endif %}</b></div>
+                    <div class="property"><span>Simple Rule</span><b>{% if panel.simple_rule_passed %}Within band (0.2&ndash;0.7 D, 0.8&ndash;3.0 m/s){% else %}Outside band{% endif %}</b></div>
                 </div>
             </div>
         </div>

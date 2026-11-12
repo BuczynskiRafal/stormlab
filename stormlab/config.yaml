@@ -1,0 +1,27 @@
+# Design rules and hydraulic constants read by the physical feature extraction
+# (stormlab.features.physical). Loaded and validated by stormlab.config.load_config.
+
+# Name of this configuration; a caller may request it by name (stormlab.config.load_config).
+variant: default
+
+# Frost zone depth [m].
+frost_zone_depth: 0.8
+
+# Soil cover a conduit must carry above its crown [m]; null means the frost zone.
+required_cover: 0.8
+
+# Deepest admissible pipe invert below ground [m].
+max_depth: 8.0
+
+# Largest admissible filling as a share of the diameter.
+max_filling_ratio: 0.827
+
+hydraulics:
+  # Shear stress of the minimum slope criterion [Pa].
+  theta: 1.5
+  # Specific weight of water [kN/m3].
+  g: 9.81
+  # Manning roughness assumed for velocity checks.
+  manning_coefficient: 0.013
+  # Minimum self-cleansing velocity [m/s].
+  v_min: 0.7

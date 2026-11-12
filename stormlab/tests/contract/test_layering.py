@@ -23,31 +23,15 @@ LAYERS: tuple[str, ...] = (
     "contracts",
     "hydraulics",
     "io",
-    "generate",
     "features",
-    "labels",
     "graph",
-    "datasets",
     "models",
-    "experiments",
-    "author_review",
-    "reports",
-    "preflight",
-    "cli",
 )
 
 LAYER_RANK: dict[str, int] = {name: index for index, name in enumerate(LAYERS)}
-# labels and graph are peers: either may import the other, neither may reach higher.
-LAYER_RANK["graph"] = LAYER_RANK["labels"]
 
-CROSS_CUTTING: frozenset[str] = frozenset({"config", "provenance", "determinism", "tests"})
-"""Layers any module may import: they depend on nothing of the pipeline.
-
-``cli`` and ``preflight`` used to be listed here and are not neutral — they are the
-entry points, and an exemption for them meant the two modules that reach furthest
-across the package were the two the check never looked at. They now sit at the top
-of :data:`LAYERS` instead, which lets them import everything below and nothing
-above, and is the same statement without the hole."""
+CROSS_CUTTING: frozenset[str] = frozenset({"config", "tests"})
+"""Layers any module may import: they depend on nothing of the pipeline."""
 
 FORBIDDEN_ROOTS: frozenset[str] = frozenset({"app", "sa"})
 
@@ -161,29 +145,29 @@ def _write_module(root: Path, relative: str, source: str) -> Path:
 
 
 def test_the_rule_rejects_an_upward_import(tmp_path: Path) -> None:
-    module = _write_module(tmp_path, "datasets/build.py", "from stormlab.reports.tables import write\n")
+    module = _write_module(tmp_path, "features/build.py", "from stormlab.models.gnn import load_graphsage_weights\n")
 
     with pytest.raises(LayerViolation, match="sits above it"):
         check_module(module, root=tmp_path)
 
 
 def test_the_rule_rejects_an_upward_import_written_as_a_package_alias(tmp_path: Path) -> None:
-    """``from stormlab import reports`` names its layer in the alias, not the module path."""
-    module = _write_module(tmp_path, "datasets/build.py", "from stormlab import reports\n")
+    """``from stormlab import models`` names its layer in the alias, not the module path."""
+    module = _write_module(tmp_path, "features/build.py", "from stormlab import models\n")
 
     with pytest.raises(LayerViolation, match="sits above it"):
         check_module(module, root=tmp_path)
 
 
-def test_the_entry_points_are_checked_rather_than_exempt(tmp_path: Path) -> None:
-    """``cli`` sits at the top of the stack, so nothing is above it and nothing is unchecked."""
-    module = _write_module(tmp_path, "cli.py", "from stormlab.reports.report import run\n")
+def test_the_top_layer_is_checked_rather_than_exempt(tmp_path: Path) -> None:
+    """``models`` sits at the top of the stack, so it may import below but is still checked."""
+    module = _write_module(tmp_path, "models/gnn.py", "from stormlab.graph.build import build_graph\n")
     check_module(module, root=tmp_path)
 
-    above = _write_module(tmp_path, "preflight.py", "from stormlab.cli import main\n")
+    below = _write_module(tmp_path, "contracts/enums.py", "from stormlab.models.gnn import build_graph_model_for_weights\n")
 
     with pytest.raises(LayerViolation, match="sits above it"):
-        check_module(above, root=tmp_path)
+        check_module(below, root=tmp_path)
 
 
 def test_the_rule_rejects_a_function_local_upward_import(tmp_path: Path) -> None:
@@ -191,7 +175,7 @@ def test_the_rule_rejects_a_function_local_upward_import(tmp_path: Path) -> None
     module = _write_module(
         tmp_path,
         "hydraulics/formulas.py",
-        "def f():\n    from stormlab.models.registry import load_registry\n    return load_registry\n",
+        "def f():\n    from stormlab.models.gnn import load_graphsage_weights\n    return load_graphsage_weights\n",
     )
 
     with pytest.raises(LayerViolation, match="models"):
@@ -236,11 +220,12 @@ def test_the_rule_accepts_a_cross_cutting_import_from_any_layer(tmp_path: Path) 
 
 def test_the_rule_rejects_a_relative_import(tmp_path: Path) -> None:
     """A relative import is invisible to the layer check, so it is banned outright."""
-    module = _write_module(tmp_path, "features/conduits.py", "from ..reports.tables import write\n")
+    module = _write_module(tmp_path, "features/conduits.py", "from ..models.gnn import load_graphsage_weights\n")
 
     with pytest.raises(LayerViolation, match="relative import"):
         check_module(module, root=tmp_path)
 
 
-def test_graph_and_labels_are_peers() -> None:
-    assert LAYER_RANK["graph"] == LAYER_RANK["labels"]
+def test_layer_ranks_follow_the_stack() -> None:
+    assert [LAYER_RANK[name] for name in LAYERS] == sorted(LAYER_RANK.values())
+    assert len(set(LAYER_RANK.values())) == len(LAYERS)

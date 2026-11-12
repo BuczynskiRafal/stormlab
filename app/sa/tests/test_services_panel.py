@@ -822,7 +822,7 @@ class DesignRuleTests(TestCase):
     def _rules(self, **fields):
         session = make_session(self.user)
         conduit = make_conduit(session, conduit_name="K1", **fields)
-        return [(rule.key, rule.label, rule.change) for rule in ConduitPanelService.build(session, conduit).design_rules]
+        return [(rule.key, rule.parameter, rule.change) for rule in ConduitPanelService.build(session, conduit).design_rules]
 
     def test_no_flag_no_rule(self):
         self.assertEqual(self._rules(), [])

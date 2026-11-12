@@ -1,6 +1,6 @@
 """One canonical order for the adjacency, the features and the result.
 
-The scenario is the one plan11 §8 warns about: conduits named ``K1..K10``, where
+The scenario: conduits named ``K1..K10``, where
 the INP order (``K1, K2, ..., K10``) and the sorted order (``K1, K10, K2, ...``)
 disagree on eight of ten positions. The decisive test runs a *graph-dependent*
 computation — neighbour aggregation ``A @ X`` — under both schemes; a

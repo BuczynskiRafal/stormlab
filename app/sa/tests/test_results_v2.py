@@ -4,7 +4,7 @@ Covers Milestone 1:
 - Field completeness across ConduitData (42 fields), NodeData (8 fields), SubcatchmentData (9 fields)
 - Float sanitization (RFC 8259 non-finite float cleaning: NaN, +Inf, -Inf -> None)
 - Summary KPI metric calculations and validation flag aggregation
-- WROCLAW_RULE_LABELS and conduit panel link injection
+- Conduit panel link injection
 - AnalysisResultsView context contract and backward compatibility
 - Edge cases: empty sessions, null fields, division by zero, slashes and special characters
 """
@@ -22,7 +22,6 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from sa.services import CalculationRetrievalService, ConduitPanelService, fill_percent
-from sa.views import WROCLAW_RULE_LABELS
 from sa.core.geometry import NETMAP_MAX_ELEMENTS, NETMAP_MAX_POINTS
 from .factories import (
     VALIDATION_FLAGS,
@@ -418,19 +417,16 @@ class ResultsV2SummaryAndValidationKPITests(TestCase):
         self.assertEqual(c_chg2["flags"][2], False)  # val_min_v
 
 
-class ResultsV2RuleLabelsAndLinksTests(TestCase):
-    """Test cases for injection of WROCLAW_RULE_LABELS and panel navigation links."""
+class ResultsV2PanelLinksTests(TestCase):
+    """Test cases for panel navigation links."""
 
     @classmethod
     def setUpTestData(cls):
         cls.user = make_user(email="links_rules@example.com")
         cls.session = make_session(cls.user)
 
-        # K1 is in WROCLAW_RULE_LABELS ('depth_increase')
         make_conduit(cls.session, conduit_name="K1", inlet_node="N1", outlet_node="N2")
-        # K10 is in WROCLAW_RULE_LABELS ('tank')
         make_conduit(cls.session, conduit_name="K10", inlet_node="N2", outlet_node="N3")
-        # UNMAPPED is not in WROCLAW_RULE_LABELS
         make_conduit(cls.session, conduit_name="UNMAPPED", inlet_node="N3", outlet_node="N4")
 
         make_node(cls.session, node_name="N1")
@@ -439,22 +435,6 @@ class ResultsV2RuleLabelsAndLinksTests(TestCase):
         make_node(cls.session, node_name="N4")
 
         cls.s1 = make_subcatchment(cls.session, subcatchment_name="S1", outlet="N1")
-
-    def test_wroclaw_rule_labels_injected(self):
-        """Conduits matching WROCLAW_RULE_LABELS receive corresponding label; others receive '-'."""
-        payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
-        conduits = {c["conduit_name"]: c for c in payload["conduits"]}
-
-        # K1 -> depth_increase
-        self.assertEqual(conduits["K1"].get("rule_label") or conduits["K1"].get("rule"), WROCLAW_RULE_LABELS["K1"])
-        self.assertEqual(conduits["K1"].get("rule_label") or conduits["K1"].get("rule"), "depth_increase")
-
-        # K10 -> tank
-        self.assertEqual(conduits["K10"].get("rule_label") or conduits["K10"].get("rule"), WROCLAW_RULE_LABELS["K10"])
-        self.assertEqual(conduits["K10"].get("rule_label") or conduits["K10"].get("rule"), "tank")
-
-        # UNMAPPED -> '-'
-        self.assertEqual(conduits["UNMAPPED"].get("rule_label") or conduits["UNMAPPED"].get("rule"), "-")
 
     def test_conduit_detail_links_injected(self):
         """Each conduit record contains detail URL matching sa:conduit_detail."""
@@ -1132,7 +1112,7 @@ class ResultsV2NetworkMapEnvelopeTests(TestCase):
 
 
 class ResultsV2ProvenanceAndExportTests(TestCase):
-    """Tests for model provenance metadata, top-2 confidence margin, simple band rule (§3.4.3), and server-side CSV export."""
+    """Tests for model provenance metadata, top-2 confidence margin, simple band rule, and server-side CSV export."""
 
     @classmethod
     def setUpTestData(cls):
@@ -1183,4 +1163,3 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertEqual(ExportSessionCsvView._sanitize_csv_cell("-"), "-")
         self.assertEqual(ExportSessionCsvView._sanitize_csv_cell("-3.14"), "-3.14")
         self.assertEqual(ExportSessionCsvView._sanitize_csv_cell("C1"), "C1")
-

@@ -45,8 +45,7 @@ def canonical_order(dfc: pd.DataFrame, scheme: OrderScheme = "inp") -> list[str]
     Args:
         dfc: conduit frame.
         scheme: ``"inp"`` keeps the file's row order, ``"sorted"`` sorts the
-            names lexicographically (the order the historical training code
-            used, via ``dfc.sort_values("Name")``).
+            names lexicographically (``dfc.sort_values("Name")``).
 
     Raises:
         OrderError: on duplicate conduit names.

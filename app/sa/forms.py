@@ -1,13 +1,12 @@
 import io
 
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from .core.inp_options import read_flow_units
+from .core.inp_safety import find_unsafe_input
 from .models import SWMMModel
-
-MAX_INP_BYTES = 50 * 1024 * 1024
-"""Upper bound for an uploaded model; the Wrocław network is 60 kB."""
 
 MAX_SCANNED_BYTES = 1024 * 1024
 """How much of the file the FLOW_UNITS gate reads; [OPTIONS] is always at the top."""
@@ -37,11 +36,12 @@ class SWMMModelForm(forms.ModelForm):
         uploaded = self.cleaned_data.get("file")
         if not uploaded:
             return uploaded
-        if uploaded.size > MAX_INP_BYTES:
+        limit = settings.MAX_INP_BYTES
+        if uploaded.size > limit:
             raise ValidationError(
                 "SWMM file is too large (%(size)d bytes; the limit is %(limit)d).",
                 code="too_large",
-                params={"size": uploaded.size, "limit": MAX_INP_BYTES},
+                params={"size": uploaded.size, "limit": limit},
             )
         wrapper = io.TextIOWrapper(uploaded.file, encoding="utf-8", errors="replace")
         try:
@@ -61,5 +61,16 @@ class SWMMModelForm(forms.ModelForm):
                 "This app analyses SI models only: FLOW_UNITS must be CMS (file has %(units)s).",
                 code="flow_units",
                 params={"units": units},
+            )
+        try:
+            unsafe = find_unsafe_input(uploaded.chunks())
+        finally:
+            uploaded.seek(0)
+        if unsafe is not None:
+            raise ValidationError(
+                "SWMM file was rejected: line %(line)d has %(reason)s. "
+                "Uploaded models must be self-contained, without references to other files.",
+                code="unsafe_input",
+                params={"line": unsafe.line, "reason": unsafe.reason},
             )
         return uploaded

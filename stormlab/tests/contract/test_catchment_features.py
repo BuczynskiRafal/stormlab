@@ -142,14 +142,11 @@ def test_the_classifier_shape_assertion_rejects_an_object_without_the_attribute(
         assert_classifier_input_shape(object())
 
 
-def test_the_real_catchment_classifier_takes_the_contract_shape() -> None:
-    """Not a mock: the saved model is what chapter 3 actually runs."""
+def test_the_shipped_catchment_classifier_takes_the_contract_shape() -> None:
     keras = pytest.importorskip("keras")
     from stormlab.config import repo_root
 
-    saved = repo_root() / "models" / "catchment_classification_model" / "model.keras"
-    if not saved.is_file():
-        pytest.skip(f"tracked catchment classifier not present in standalone checkout: {saved}")
+    saved = repo_root() / "app" / "sa" / "core" / "catchment_classifier" / "model.keras"
 
     assert_classifier_input_shape(keras.saving.load_model(saved, compile=False))
 
@@ -174,7 +171,7 @@ class TestFeatureSets:
             assert list(narrow.columns) == [column for column in FULL_12.columns if column in set(narrow.columns)]
 
     def test_the_full_sets_digest_is_the_one_every_earlier_run_recorded(self) -> None:
-        """A literal: a model's registry entry pins this string, and it must not move."""
+        """A literal: a stored model digest pins this string, and it must not move."""
         assert feature_set_contract_sha(FULL_12) == "e41d7e782c726a1aa5b9e53c66c0d24695dd937c3e58f1110c5e1f76f3f1fdd6"
 
     def test_a_narrower_set_hashes_to_something_else(self) -> None:

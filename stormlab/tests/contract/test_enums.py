@@ -54,7 +54,7 @@ def test_declaration_order_of_subcatchment_category_is_not_a_usable_class_order(
     """Neither model was trained on the enum's declaration order.
 
     Guards against a future ``[c.value for c in SubcatchmentCategory]`` — the
-    derivation that historically mis-decoded 11 of the 12 classifier outputs.
+    derivation that would mis-decode 11 of the 12 classifier outputs.
     """
     from stormlab.contracts.features import FEATURE_ONEHOT_ORDER
 

@@ -41,7 +41,7 @@ class SubcatchmentFeatureEngineeringService:
         """One-hot encodes the category column for use in machine learning models.
 
         Creates columns for all possible categories, not just those present in the data,
-        ensuring consistent feature sets across different datasets.
+        ensuring consistent feature sets across different networks.
 
         Args:
             category_column (str, optional): Name of the category column to encode.
@@ -127,4 +127,3 @@ class SubcatchmentFeatureEngineeringService:
         else:
             self.dfs["category"] = predicted_values
             logger.info(f"Classified {len(self.dfs)} subcatchments using ML classifier fallback")
-

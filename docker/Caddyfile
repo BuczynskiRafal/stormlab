@@ -1,0 +1,27 @@
+# Reverse proxy for docker-compose.yaml: TLS with automatic certificates, the upload
+# limit, media files, and an IP allowlist for the admin site.
+# The handle blocks are mutually exclusive; the one without a matcher runs last.
+{$DOMAIN} {
+	encode zstd gzip
+
+	request_body {
+		max_size {$MAX_REQUEST_BODY:55MB}
+	}
+
+	@admin_blocked {
+		path /admin /admin/*
+		not remote_ip {$ADMIN_IPS:127.0.0.1/32}
+	}
+	handle @admin_blocked {
+		respond 403
+	}
+
+	handle /media/* {
+		root * /srv
+		file_server
+	}
+
+	handle {
+		reverse_proxy web:8000
+	}
+}

@@ -1,6 +1,6 @@
 """Shared fixtures and marker handling for the stormlab suite.
 
-Parity tests run SWMM against a frozen golden file and are meant to run only when
+Parity tests run SWMM against a frozen reference file and are meant to run only when
 asked for. ``addopts`` deselects them with ``-m 'not parity'``; ``--run-parity``
 removes exactly that conjunct again. Because pytest's ``-m`` is single-valued, a
 command line that passes its own ``-m`` (for example ``-m 'not slow'``) replaces
@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Iterator
 
 import pytest
 
@@ -54,20 +53,3 @@ def repo_root_path() -> Path:
     from stormlab.config import repo_root
 
     return repo_root()
-
-
-@pytest.fixture(scope="session")
-def test_inp(repo_root_path: Path) -> Path:
-    """The small tracked network used as a simulation smoke test."""
-    candidate = repo_root_path / "app" / "sa" / "core" / "tests" / "test_file.inp"
-    if not candidate.is_file():
-        pytest.skip(f"test network not available at {candidate}")
-    return candidate
-
-
-@pytest.fixture
-def inp_working_copy(test_inp: Path, tmp_path: Path) -> Iterator[Path]:
-    """A copy of the test network inside ``tmp_path``, safe to simulate."""
-    from stormlab.io.workdir import copy_inp
-
-    yield copy_inp(test_inp, tmp_path).path

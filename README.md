@@ -1,124 +1,78 @@
-# StormLab — Stormwater Network Analysis & Validation Platform
+# StormLab
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI](https://github.com/BuczynskiRafal/stormlab/actions/workflows/main.yaml/badge.svg)](https://github.com/BuczynskiRafal/stormlab/actions/workflows/main.yaml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-**StormLab** is an engineering and research platform for hydraulic simulation, standards-based validation, domain feature/graph construction, and interactive visual diagnostics of gravity storm sewer networks built on **EPA SWMM 5.2** and **Django 5.1**.
+Decision support for storm sewer design. StormLab runs an EPA SWMM simulation of a
+network, checks every conduit against design criteria and uses a graph neural network
+to recommend an action for each conduit.
 
-> **Note on Doctoral Research Artifacts:**
-> This repository hosts the public source code of the StormLab web application, the pure domain layer of the `stormlab` Python library, and the hydraulic analysis engine developed as part of the doctoral dissertation by **Rafał Buczyński**. The synthetic SWMM network datasets, reproducible training pipeline, experimental benchmarks, and pretrained Graph Neural Network (GraphSAGE) / MLP model weights will be published in this repository upon completion of the formal dissertation publication process.
+![Network map coloured by the recommended action](docs/images/network_map_recommendations.png)
 
----
+## What it does
 
-## Interactive Visualizations
+- **Simulation.** Runs EPA SWMM 5.2 on an uploaded `.inp` model.
+- **Hydraulic verification.** Seven checks per conduit: filling, velocity, slope, depth and cover.
+- **Recommendations.** A graph neural network reads each conduit together with the
+  conduits that drain into it and scores nine actions, from *no change* to
+  *larger diameter* or *retention tank*.
+- **Catchment categories.** Read from the model's tags, or assigned by a classifier.
+- **Results.** Interactive network map, tables with CSV export and a longitudinal
+  profile for every conduit.
 
-### 1. Network Map — Standards Validation Mode (`Checks passed`)
-Displays the full gravity sewer network topology, subcatchment polygons, runoff routing links, and per-conduit compliance against the 7 engineering validation checks (**PN-EN 752:2008** / **PN-81/B-03020**):
+The method, its evaluation and its limitations are described on the application's
+**About** page.
 
-![StormLab Interactive Network Map — Checks Passed](docs/images/network_map_checks.png)
+## Quick start
 
-### 2. Network Map — Hydraulic Filling Ratio Mode (`Filling`)
-Highlights peak conduit filling bands ($h/D$), surcharged conduits ($h/D \ge 100\%$), and flooded manholes:
-
-![StormLab Interactive Network Map — Filling Ratio](docs/images/network_map_filling.png)
-
-### 3. Engineering Longitudinal Conduit Profile & Diagnostic Breakdown
-Server-rendered longitudinal SVG profile (`viewBox 0 0 880 340`) showing ground surface elevation, frost protection depth, pipe crown and invert levels, water surface profile, node flooding metrics, and deterministic design rule diagnostics:
-
-![StormLab Longitudinal Conduit Profile](docs/images/conduit_profile.png)
-
----
-
-## Key Capabilities
-
-- **Automated EPA SWMM 5.2 Simulation & Parsing:**
-  Uploads and validates `.inp` sewer network models (requiring metric `FLOW_UNITS = CMS`), executes simulations in isolated temporary workspaces via `pyswmm`, and extracts conduit, node, and subcatchment metrics from `.inp` and `.rpt` reports.
-- **Standards-Compliant Hydraulic & Geometric Validation:**
-  Evaluates every conduit against **PN-EN 752:2008** and **PN-81/B-03020** engineering criteria:
-  - Maximum filling ratio $h/D$ as a function of diameter (`app/sa/core/round.py::max_filling`),
-  - Minimum and maximum flow velocity bounds ($0.7 \le v \le 5.0\text{ m/s}$),
-  - Minimum self-cleansing slope derived from the tractive shear stress condition (`app/sa/core/round.py::min_slope`) and maximum allowable slope (`max_slope`),
-  - Ground cover and frost-zone depth verification ($0.8\text{--}1.6\text{ m}$),
-  - Operational band and diameter progression checks.
-- **Pure Domain Library (`stormlab/`):**
-  Provides a standalone, strictly layered Python package for stormwater network analysis:
-  - `stormlab.contracts` — canonical feature, target, and land-cover class contracts,
-  - `stormlab.hydraulics` — circular-pipe geometry (`theta`, area, wetted perimeter, hydraulic radius), Manning/Colebrook-White formulas, and validation rules,
-  - `stormlab.io` — `.inp` / `.rpt` parsing and isolated SWMM simulation workspaces,
-  - `stormlab.features` — conduit, node, subcatchment, and $k$-hop neighborhood feature extraction,
-  - `stormlab.graph` — directed line-graph (`conduit -> conduit`) construction, topological ordering, and $k$-hop aggregation matrices.
-- **Interactive SVG Network Map & Longitudinal Profiles:**
-  Renders the complete sewer network topology with automatic force-directed fallback layout when node coordinates are absent (`examples/demo_network_schematic.inp`), interactive pan/zoom, hydraulic status highlighting, and per-conduit longitudinal engineering profiles.
-- **Ready-to-Run Example SWMM Networks (`examples/`):**
-  Includes synthetic gravity storm sewer models (`examples/demo_network_coordinates.inp` and `examples/demo_network_schematic.inp`) ready to upload directly in the web interface.
-
----
-
-## Repository Structure
-
-| Path | Description |
-|---|---|
-| `app/` | Django web application (`storm_analysis`, `sa`, `accounts`), templates, static assets (`app/static/`), and Docker configuration. |
-| `app/sa/core/` | Application hydraulic engine (`round.py`, `valid_round.py`, `services.py`), feature engineering, network geometry extraction (`geometry.py`), and GNN/MLP model serving (`graph_constructor.py`, `predictor.py`). |
-| `stormlab/` | Pure domain Python package (`contracts`, `hydraulics`, `io`, `features`, `graph`, `provenance`, `determinism`) and its 1,100+ unit & contract test suite (`stormlab/tests/`). |
-| `examples/` | Ready-to-upload synthetic EPA SWMM 5.2 `.inp` demonstration networks (with georeferenced coordinates and schematic topology-only layout). |
-| `docs/images/` | High-resolution screenshots of the interactive network map and longitudinal conduit profile views. |
-
----
-
-## Quick Start (Local Development)
-
-1. **Create and activate a Python 3.12 virtual environment:**
-   ```bash
-   python3.12 -m venv venv
-   ./venv/bin/pip install -r requirements.txt -r app/requirements.txt
-   ```
-
-2. **Configure environment variables:**
-   ```bash
-   cp app/.env.example app/.env
-   ```
-
-3. **Apply database migrations and start the development server:**
-   ```bash
-   make migrate
-   make run
-   ```
-   Open `http://127.0.0.1:8000/`, create a local account, and upload `examples/demo_network_coordinates.inp` (or `examples/demo_network_schematic.inp`).
-
----
-
-## Running with Docker
+Requires Python 3.12.
 
 ```bash
-cd app
-docker compose up --build
+python3.12 -m venv venv
+make install
+cp app/.env.example app/.env
+make migrate
+make run
 ```
 
----
+Open <http://127.0.0.1:8000>, sign up and follow the tour below.
 
-## Running Tests & Static Analysis
+## Tour
 
-- **Application core hydraulic & graph unit tests (`pytest`):**
-  ```bash
-  make test-core
-  ```
-- **Pure domain library (`stormlab/tests`) contract & unit tests:**
-  ```bash
-  make test-stormlab
-  ```
-- **Django web application & frontend harness tests:**
-  ```bash
-  make test-django
-  ```
-- **Linting & static type checking (`ruff` & `pyright`):**
-  ```bash
-  make lint
-  make typecheck
-  ```
+1. Go to **Analysis**, pick a frost zone and choose **Use test file**. It loads the
+   storm sewer network of the Rakowiec estate in Wrocław (62 conduits).
+2. On the **Map** tab, switch between recommendations, passed checks and filling.
+3. Browse the conduit, node and subcatchment tables, or export them to CSV.
+4. Select a conduit to see its profile, the seven checks and the recommended action
+   with the model's score for every class.
+5. Upload your own `.inp` file (flow units: CMS). More examples are in [`examples/`](examples/).
 
----
+| Filling | Conduit panel |
+|---|---|
+| ![Network map coloured by filling](docs/images/network_map_filling.png) | ![Conduit profile, checks and recommendation](docs/images/conduit_panel.png) |
 
-## License & Citation
+## Models
 
-Licensed under the **Apache License, Version 2.0** — see [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
-Citation metadata is provided in [CITATION.cff](CITATION.cff).
+The repository ships the trained models the application uses: the recommendation
+network (five training runs, averaged) and the catchment classifier. Training code is
+not part of this repository.
+
+## Deployment
+
+A production image and a Docker Compose setup are included; see
+[docs/deployment.md](docs/deployment.md).
+
+## Development
+
+```bash
+make test        # unit, contract and Django tests
+make lint        # ruff
+make typecheck   # pyright
+```
+
+Changes go through topic branches merged into `develop`; `main` holds released states.
+
+## License and citation
+
+Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+To cite the software, use [CITATION.cff](CITATION.cff).

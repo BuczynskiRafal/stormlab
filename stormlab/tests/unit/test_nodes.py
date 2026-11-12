@@ -68,7 +68,7 @@ class TestAssignSubcatchmentInfo:
         node is in the mapping, without inspecting the value, so an untagged
         subcatchment leaves ``NaN`` there. Substituting the sentinel would be a
         semantic change: both encode to an all-zero one-hot block, but only one of
-        them is what the frozen golden was built from.
+        them is what the reference outputs were built from.
         """
         dfn = pd.DataFrame({"col": [1]}, index=["N1"])
         dfs = pd.DataFrame({"Name": ["SC1"], "Outlet": ["N1"], "category": [None]}, index=["S1"])

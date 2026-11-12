@@ -24,9 +24,8 @@ repos:
     rev: v1.1.391
     hooks:
       - id: pyright
-        # `scripts/` and the root `conftest.py` are part of the verification path;
-        # a hook that does not cover them lets the next change to either land
-        # untyped while `pyright stormlab scripts` is still reported as green.
+        # The root `conftest.py` is part of the verification path; a hook that
+        # does not cover it lets the next change land untyped.
         files: ^(app/sa|stormlab)/.*\.py$|^conftest\.py$
 
   - repo: local
