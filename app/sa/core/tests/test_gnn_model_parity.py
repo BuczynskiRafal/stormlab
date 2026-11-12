@@ -14,8 +14,8 @@ trained with:
 
 The model-level tests need no simulation and hold on every platform. The ``slow``
 tests run SWMM and the whole application pipeline. The simulation is not
-bit-reproducible across platforms, so those tests compare recommended classes and
-allow a few conduits with nearly tied classes to differ from the reference.
+bit-reproducible across platforms, so those tests compare the recommended
+classes, not the probabilities.
 """
 
 from __future__ import annotations
@@ -39,7 +39,6 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 EXAMPLES = Path(__file__).resolve().parents[4] / "examples"
 RECOMMENDATIONS_DIR = Path(__file__).resolve().parents[1] / "recommendations"
 MODEL_TOLERANCE = 1e-5
-MAX_DIFFERING_CONDUITS = {"demo_network_coordinates.inp": 0, "wroclaw_rakowiec.inp": 0}
 CLASS_ORDER = [category.value for category in RecommendationCategory]
 N_RUNS = 5
 
@@ -216,7 +215,7 @@ def _assert_pipeline_matches(network: str, reference: dict[str, np.ndarray], tmp
         for index, (name, expected) in enumerate(zip(expected_order, reference["recommendation"].tolist()))
         if served[name] != expected
     ]
-    assert len(differing) <= MAX_DIFFERING_CONDUITS[network], (
+    assert not differing, (
         f"{len(differing)} of {len(expected_order)} conduits differ from the reference "
         f"(largest probability drift {drift.max():.4f}, {int((drift > 1e-3).sum())} conduits above 0.001):\n"
         + "\n".join(differing)
