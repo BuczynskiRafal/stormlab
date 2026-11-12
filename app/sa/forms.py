@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from .core.inp_options import read_flow_units
+from .core.inp_safety import find_unsafe_input
 from .models import SWMMModel
 
 MAX_SCANNED_BYTES = 1024 * 1024
@@ -60,5 +61,16 @@ class SWMMModelForm(forms.ModelForm):
                 "This app analyses SI models only: FLOW_UNITS must be CMS (file has %(units)s).",
                 code="flow_units",
                 params={"units": units},
+            )
+        try:
+            unsafe = find_unsafe_input(uploaded.chunks())
+        finally:
+            uploaded.seek(0)
+        if unsafe is not None:
+            raise ValidationError(
+                "SWMM file was rejected: line %(line)d has %(reason)s. "
+                "Uploaded models must be self-contained, without references to other files.",
+                code="unsafe_input",
+                params={"line": unsafe.line, "reason": unsafe.reason},
             )
         return uploaded
