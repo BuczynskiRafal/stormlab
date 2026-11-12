@@ -37,6 +37,9 @@ make run
 
 Open <http://127.0.0.1:8000>, sign up and follow the tour below.
 
+On macOS, `make install` also re-signs the SWMM libraries: the published wheel carries
+invalid code signatures and the system refuses to load it otherwise.
+
 ## Tour
 
 1. Go to **Analysis**, pick a frost zone and choose **Use test file**. It loads the
