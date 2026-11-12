@@ -130,17 +130,16 @@ class TestSWMMGraphConstructorDirect:
 
 class TestRealTopologyReconstructionParity:
     """T1 extension: the serving-side graph reconstruction must reproduce the
-    exact TRAINING adjacency for the real network topology (the core of the
-    K1 fix - previously only covered transitively).
+    reference adjacency for a real network topology.
 
-    The golden fixture carries the real training network's node columns
-    (`names`, `inlet_nodes`, `outlet_nodes`) aligned to `conduit_order`, plus
-    the training-computed raw adjacency `A_raw_dense`. Rebuilding adjacency
-    from those node columns via the production entry point
-    (build_adjacency_from_dfc) must match A_raw_dense exactly. No TF needed.
+    The golden fixture carries a real network's node columns (`names`,
+    `inlet_nodes`, `outlet_nodes`) aligned to `conduit_order`, plus its raw
+    adjacency `A_raw_dense`. Rebuilding adjacency from those node columns via
+    the production entry point (build_adjacency_from_dfc) must match
+    A_raw_dense exactly. No TF needed.
     """
 
-    def test_build_adjacency_reproduces_training_raw_adjacency(self):
+    def test_build_adjacency_reproduces_reference_raw_adjacency(self):
         fixture = np.load(FIXTURE_PATH, allow_pickle=True)
 
         dfc = pd.DataFrame(
@@ -237,3 +236,17 @@ class TestPreprocessAdjacency:
         assert sp.issparse(result)
         assert result.format == "csr"
         assert np.allclose(result.toarray(), preprocess_adjacency(chain_adjacency, max_hops=4).toarray())
+
+
+class TestGoldenFixtureGraphVersusFeatureOnly:
+    """Sanity check on the golden fixture itself: the graph-served softmax and
+    the features-only softmax disagree on the argmax for simulations 0 and 500
+    (and agree for 100/250/755)."""
+
+    @pytest.mark.parametrize("sim_idx", (0, 500))
+    def test_graph_output_differs_from_featonly_for_divergent_sims(self, sim_idx):
+        fixture = np.load(FIXTURE_PATH, allow_pickle=True)
+        graph_sm = fixture[f"graph_softmax_{sim_idx}"]
+        featonly_sm = fixture[f"featonly_softmax_{sim_idx}"]
+
+        assert not np.array_equal(graph_sm.argmax(axis=-1), featonly_sm.argmax(axis=-1))

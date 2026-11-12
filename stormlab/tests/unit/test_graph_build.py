@@ -15,8 +15,6 @@ T2 hand-verifies ``preprocess_adjacency`` on a 4-node chain: self-loops, the
 hop-weighting scheme, diagonal restoration, and row-normalization.
 """
 
-import os
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -30,8 +28,6 @@ from stormlab.graph.build import (
     build_graph_channels,
 )
 from stormlab.graph.khop import preprocess_adjacency
-
-FIXTURE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fixtures", "gnn_golden_fixture.npz")
 
 
 def _synthetic_dfc() -> pd.DataFrame:
@@ -136,37 +132,6 @@ class TestSWMMGraphConstructorDirect:
         for i, name in enumerate(dfc["Name"]):
             assert constructor.conduit_to_idx[name] == i
             assert constructor.idx_to_conduit[i] == name
-
-
-class TestRealTopologyReconstructionParity:
-    """T1 extension: the serving-side graph reconstruction must reproduce the
-    exact TRAINING adjacency for the real network topology.
-
-    The golden fixture carries the real training network's node columns
-    (`names`, `inlet_nodes`, `outlet_nodes`) aligned to `conduit_order`, plus
-    the training-computed raw adjacency `A_raw_dense`. Rebuilding adjacency
-    from those node columns via the production entry point
-    (build_adjacency_from_dfc) must match A_raw_dense exactly. No TF needed.
-    """
-
-    def test_build_adjacency_reproduces_training_raw_adjacency(self):
-        if not os.path.exists(FIXTURE_PATH):
-            pytest.skip("GNN golden fixture not available")
-        fixture = np.load(FIXTURE_PATH, allow_pickle=True)
-
-        dfc = pd.DataFrame(
-            {
-                "Name": [str(n) for n in fixture["names"]],
-                "InletNode": [str(n) for n in fixture["inlet_nodes"]],
-                "OutletNode": [str(n) for n in fixture["outlet_nodes"]],
-            }
-        )
-
-        reconstructed = build_adjacency_from_dfc(dfc).toarray()
-        expected = fixture["A_raw_dense"]
-
-        assert reconstructed.shape == expected.shape
-        assert np.array_equal(reconstructed, expected)
 
 
 class TestPreprocessAdjacency:
