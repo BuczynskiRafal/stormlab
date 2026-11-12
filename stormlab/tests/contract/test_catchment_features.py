@@ -142,14 +142,11 @@ def test_the_classifier_shape_assertion_rejects_an_object_without_the_attribute(
         assert_classifier_input_shape(object())
 
 
-def test_the_real_catchment_classifier_takes_the_contract_shape() -> None:
-    """Not a mock: the saved model is what chapter 3 actually runs."""
+def test_the_shipped_catchment_classifier_takes_the_contract_shape() -> None:
     keras = pytest.importorskip("keras")
     from stormlab.config import repo_root
 
-    saved = repo_root() / "models" / "catchment_classification_model" / "model.keras"
-    if not saved.is_file():
-        pytest.skip(f"tracked catchment classifier not present in standalone checkout: {saved}")
+    saved = repo_root() / "app" / "sa" / "core" / "catchment_classifier" / "model.keras"
 
     assert_classifier_input_shape(keras.saving.load_model(saved, compile=False))
 
