@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Iterator
 
 import pytest
 
@@ -54,20 +53,3 @@ def repo_root_path() -> Path:
     from stormlab.config import repo_root
 
     return repo_root()
-
-
-@pytest.fixture(scope="session")
-def test_inp(repo_root_path: Path) -> Path:
-    """The small tracked network used as a simulation smoke test."""
-    candidate = repo_root_path / "app" / "sa" / "core" / "tests" / "test_file.inp"
-    if not candidate.is_file():
-        pytest.skip(f"test network not available at {candidate}")
-    return candidate
-
-
-@pytest.fixture
-def inp_working_copy(test_inp: Path, tmp_path: Path) -> Iterator[Path]:
-    """A copy of the test network inside ``tmp_path``, safe to simulate."""
-    from stormlab.io.workdir import copy_inp
-
-    yield copy_inp(test_inp, tmp_path).path

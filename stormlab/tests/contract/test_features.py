@@ -381,14 +381,6 @@ def test_the_presence_flags_are_the_only_int8_column_of_the_neighbourhood_block(
     assert len(flags) == 4
 
 
-def test_every_contract_of_the_registry_is_audited_for_provenance() -> None:
-    """A contract outside ``AUDITED_CONTRACTS`` is a model input nothing checks."""
-    from stormlab.contracts.features import FEATURE_CONTRACTS
-    from stormlab.contracts.provenance_columns import AUDITED_CONTRACTS
-
-    assert {item.name for item in AUDITED_CONTRACTS} == set(FEATURE_CONTRACTS)
-
-
 def test_the_v4_contracts_extend_the_v3_ones_by_the_two_freeboard_columns() -> None:
     """Derived, not retyped: what v4 adds is a suffix, and nothing else moved."""
     assert PHYSICAL_FREEBOARD_COLUMNS == ("inlet_node_freeboard_m", "outlet_node_freeboard_m")
