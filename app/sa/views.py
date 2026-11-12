@@ -27,90 +27,6 @@ TEST_FILE = str(REPO_ROOT / "examples" / "wroclaw_rakowiec.inp")
 
 logger = logging.getLogger(__name__)
 
-# Prawidłowe (wzorcowe / regułowe) etykiety dla sieci Wrocławia (62 przewody)
-# Wyznaczone deterministycznie przez kaskadę reguł eksperckich (classify_conduits)
-WROCLAW_RULE_LABELS = {
-    "K1": "depth_increase",
-    "K2": "depth_increase",
-    "K3": "depth_increase",
-    "K4": "depth_increase",
-    "K5": "depth_increase",
-    "K6": "depth_increase",
-    "K7": "depth_increase",
-    "K8": "depth_increase",
-    "K9": "depth_increase",
-    "K10": "tank",
-    "K11": "tank",
-    "K12": "tank",
-    "K13": "tank",
-    "K14": "tank",
-    "K15": "tank",
-    "K16": "tank",
-    "K17": "tank",
-    "K18": "slope_increase",
-    "K19": "tank",
-    "K20": "tank",
-    "K21": "tank",
-    "K22": "tank",
-    "K23": "tank",
-    "K24": "diameter_increase",
-    "K25": "diameter_increase",
-    "K26": "diameter_increase",
-    "K27": "diameter_increase",
-    "K28": "diameter_increase",
-    "K29": "tank",
-    "K30": "tank",
-    "K31": "tank",
-    "K32": "tank",
-    "K33": "tank",
-    "K34": "tank",
-    "K35": "tank",
-    "K36": "valid",
-    "K37": "tank",
-    "K38": "tank",
-    "K39": "tank",
-    "K40": "tank",
-    "K41": "diameter_increase",
-    "K42": "diameter_increase",
-    "K43": "slope_increase",
-    "K44": "diameter_increase",
-    "K45": "diameter_increase",
-    "K46": "diameter_reduction",
-    "K47": "seepage_boxes",
-    "K48": "valid",
-    "K49": "diameter_increase",
-    "K50": "tank",
-    "K51": "tank",
-    "K52": "tank",
-    "K53": "tank",
-    "K54": "tank",
-    "K55": "valid",
-    "K56": "valid",
-    "K57": "valid",
-    "K58": "tank",
-    "K60": "slope_increase",
-    "K62": "slope_increase",
-    "K63": "diameter_reduction",
-    "K64": "slope_increase",
-}
-
-
-def _inject_rule_labels(data):
-    """Wstrzykuje kolumnę 'Rule Label' do tabeli Conduits Data obok Recommendation."""
-    if "Conduits Data" in data:
-        updated_conduits = []
-        for item in data["Conduits Data"]:
-            name = item.get("Name")
-            new_item = {}
-            for k, v in item.items():
-                new_item[k] = v
-                if k == "Recommendation":
-                    new_item["Rule Label"] = WROCLAW_RULE_LABELS.get(name, "-")
-            updated_conduits.append(new_item)
-        data["Conduits Data"] = updated_conduits
-    return data
-
-
 # =============================================================================
 # Mixins
 # =============================================================================
@@ -287,7 +203,6 @@ class AnalysisView(LoginRequiredMixin, View):
     def _render_success(self, request, session):
         """Render successful analysis results."""
         data = CalculationRetrievalService.format_session_data_for_template(session)
-        data = _inject_rule_labels(data)
         panel_links = CalculationRetrievalService.panel_links(session)
         return render(
             request,
@@ -350,7 +265,6 @@ class AnalysisResultsView(LoginRequiredMixin, SessionOwnerMixin, TemplateView):
 
         results_v2_data = CalculationRetrievalService.serialize_session_for_results_v2(
             session=session,
-            rule_labels=WROCLAW_RULE_LABELS,
         )
 
         # The map envelope is always present; ``available`` tells the template and the
@@ -404,7 +318,6 @@ class ConduitDetailView(LoginRequiredMixin, SessionOwnerMixin, TemplateView):
             "outlet_node": panel.outlet.node,
             "subcatchment": panel.model_catchment,
             "conduit_json": panel.diagram_json,
-            "rule_label": WROCLAW_RULE_LABELS.get(conduit.conduit_name, "-"),
             "panel": panel,
         }
 
@@ -619,7 +532,6 @@ class ExportSessionCsvView(LoginRequiredMixin, SessionOwnerMixin, View):
 
         payload = CalculationRetrievalService.serialize_session_for_results_v2(
             session=session,
-            rule_labels=WROCLAW_RULE_LABELS,
         )
         rows = payload.get(kind, [])
 

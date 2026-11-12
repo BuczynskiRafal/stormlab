@@ -146,10 +146,9 @@
           C('category', 'Catchment category', '', 'Assessment', 'category'),
           C('validation', 'Validation', 'passed / 7', 'Assessment', 'checks'),
           C('action', 'Recommendation', '', 'Assessment', 'action'),
-          C('confidence', 'Model confidence', '%', 'Assessment', 'number', 1),
-          C('rule', 'Rule label', 'Wrocław reference', 'Assessment', 'rule')
+          C('confidence', 'Model confidence', '%', 'Assessment', 'number', 1)
         ],
-        overview: ['id', 'diameter', 'flow', 'velocity', 'fillPercent', 'category', 'validation', 'action', 'rule'],
+        overview: ['id', 'diameter', 'flow', 'velocity', 'fillPercent', 'category', 'validation', 'action'],
         technical: ['id', 'diameter', 'slope', 'flow', 'velocity', 'filling', 'fillPercent', 'validation', 'minDiameter', 'minSlope']
       },
       nodes: {
@@ -266,9 +265,6 @@
       if (key === 'action' || key === 'recommendation') {
         return getActionLabel(row[key]);
       }
-      if (key === 'rule' || key === 'rule_label') {
-        return getActionLabel(row[key]);
-      }
       let v = row[key];
       if (v === undefined) {
         // Safe property alias resolution
@@ -287,7 +283,6 @@
           coefficient: 'runoff_coeff',
           impervious: 'perc_imperv',
           action: 'recommendation',
-          rule: 'rule_label',
           category: 'sbc_category'
         };
         if (aliases[key]) v = row[aliases[key]];
@@ -304,7 +299,7 @@
         if (val === undefined) {
           val = sortValue(r, c.key);
         }
-        if (c.kind === 'action' || c.kind === 'rule') {
+        if (c.kind === 'action') {
           val = getActionLabel(val);
         } else if (c.kind === 'checks') {
           val = (r.validation ?? '') + '/7';
@@ -634,23 +629,6 @@
         return `<span class="r-action ${isNormValid ? 'r-valid' : ''}">${esc(getActionLabel(act))}</span>`;
       }
 
-      if (c.kind === 'rule') {
-        const ruleVal = v ?? r.rule ?? r.rule_label;
-        if (!ruleVal || ruleVal === '-') {
-          return `<span class="r-muted">—</span>`;
-        }
-        const actVal = r.action ?? r.recommendation;
-        const isMatch = String(ruleVal).trim().toLowerCase() === String(actVal).trim().toLowerCase();
-        return `
-          <span class="r-rule">
-            <span>${esc(getActionLabel(ruleVal))}</span>
-            <span class="${isMatch ? 'r-agreement' : 'r-disagreement'}" title="${isMatch ? 'Matches model recommendation' : 'Differs from model recommendation'}" aria-label="${isMatch ? 'Matches model' : 'Differs from model'}">
-              <i class="fas ${isMatch ? 'fa-check' : 'fa-times'}" aria-hidden="true"></i>
-            </span>
-          </span>
-        `;
-      }
-
       if (c.kind === 'category') {
         const cat = v ?? r.category ?? r.sbc_category;
         return `<span class="r-category">${esc(cat || '—')}</span>`;
@@ -937,7 +915,7 @@
         if (c.kind === 'id') {
           return r.id || r.name;
         }
-        if (c.kind === 'action' || c.kind === 'rule') {
+        if (c.kind === 'action') {
           return getActionLabel(sortValue(r, c.key));
         }
         if (c.kind === 'checks') {

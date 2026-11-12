@@ -19,6 +19,8 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from sa.services import CalculationRetrievalService
+
 from .factories import DRY_CONDUIT, VALIDATION_FLAGS, make_conduit, make_node, make_session, make_subcatchment, make_user
 
 CARD_RE = re.compile(
@@ -549,14 +551,14 @@ class ConduitPanelTests(TestCase):
         self.assertNotContains(response, "reset-zoom")
         self.assertNotContains(response, "conduit-diagram.js")
 
-    def test_rule_label_row_survives_for_a_conduit_that_has_one(self):
-        # K1 is in WROCLAW_RULE_LABELS, so the panel adds the ground-truth row that the
-        # factory conduits (unknown names) never trigger.
+    def test_no_reference_label_in_payload_or_panel(self):
         make_conduit(self.session, conduit_name="K1", inlet_node="N1", outlet_node="N2", subcatchment="-")
-        response = self._get("K1")
 
-        self.assertContains(response, "<span>Rule Label (Ground Truth)</span>")
-        self.assertContains(response, "depth_increase")
+        payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
+        k1 = next(c for c in payload["conduits"] if c["conduit_name"] == "K1")
+        self.assertNotIn("rule", k1)
+        self.assertNotIn("rule_label", k1)
+        self.assertNotContains(self._get("K1"), "Rule Label")
 
     def test_design_rules_list_only_the_changes_the_stored_flags_ask_for(self):
         cases = {

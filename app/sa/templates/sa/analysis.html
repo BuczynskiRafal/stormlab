@@ -195,13 +195,7 @@
                                                         {% endif %}
                                                     {% else %}
                                                         <!-- Format numeric values -->
-                                                        {% if key == "Rule Label" and value != "-" %}
-                                                            {% if item.Recommendation == value %}
-                                                                <span class="badge bg-success" title="Matches rule cascade (ground truth)">{{ value }} <i class="fas fa-check ms-1"></i></span>
-                                                            {% else %}
-                                                                <span class="badge bg-warning text-dark" title="Model differs from rule cascade">{{ value }}</span>
-                                                            {% endif %}
-                                                        {% elif key == "Recommendation" %}
+                                                        {% if key == "Recommendation" %}
                                                             <span class="badge bg-primary">{{ value }}</span>
                                                         {% elif value|floatformat %}
                                                             <span class="text-monospace">{{ value|floatformat:3 }}</span>
