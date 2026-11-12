@@ -9,8 +9,8 @@
         <div class="hero-section">
             <h1 class="hero-title">Stormwater Analysis System</h1>
             <p class="hero-subtitle">
-                Professional hydraulic modeling platform integrating machine learning
-                for storm sewer network design and optimization
+                Hydraulic simulation, design checks and graph neural network
+                recommendations for storm sewer networks
             </p>
             <div class="hero-actions">
                 <a href="{% url 'sa:analysis' %}" class="btn btn-primary btn-lg">
@@ -30,28 +30,28 @@
                     </div>
                     <h3 class="feature-title">Hydraulic Validation</h3>
                     <p class="feature-description">
-                        Comprehensive validation of SWMM models against Polish and European standards
-                        including velocity, slope, depth, and frost zone requirements.
+                        Seven checks for every conduit against Polish and European design
+                        criteria: filling, velocity, slope, depth and cover.
                     </p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">
                         <i class="fas fa-brain"></i>
                     </div>
-                    <h3 class="feature-title">Graph Neural Network Analysis</h3>
+                    <h3 class="feature-title">Recommendations</h3>
                     <p class="feature-description">
-                        2-hop upstream GraphSAGE (C3c, 66 physical features) and MLP catchment
-                        classification for hydraulic engineering recommendations.
+                        A graph neural network reads each conduit together with the conduits
+                        that drain into it and suggests one of nine actions.
                     </p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">
                         <i class="fas fa-chart-line"></i>
                     </div>
-                    <h3 class="feature-title">Technical Diagrams</h3>
+                    <h3 class="feature-title">Map and Profiles</h3>
                     <p class="feature-description">
-                        Interactive SVG visualizations of conduit profiles with detailed
-                        technical specifications and validation results.
+                        An interactive map of the network and a longitudinal profile
+                        with the check results for every conduit.
                     </p>
                 </div>
             </div>
