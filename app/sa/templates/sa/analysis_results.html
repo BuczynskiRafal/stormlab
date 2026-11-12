@@ -158,7 +158,7 @@
                             <span class="r-info-icon"><i class="fas fa-brain" aria-hidden="true"></i></span>
                             <div>
                                 <dt>Prediction model</dt>
-                                <dd>{{ results_v2_data.session.model_metadata.model_id|default:"gnn_recommender_v1" }} ({{ results_v2_data.session.model_metadata.feature_contract|default:"v4_physical" }}, {{ results_v2_data.session.model_metadata.target_contract|default:"primary_action_v3" }})</dd>
+                                <dd>{% if results_v2_data.session.model_metadata.model_id %}{{ results_v2_data.session.model_metadata.model_id }} ({{ results_v2_data.session.model_metadata.feature_contract }}, {{ results_v2_data.session.model_metadata.target_contract }}){% else %}None (recommendations are switched off){% endif %}</dd>
                             </div>
                         </div>
                     </div>

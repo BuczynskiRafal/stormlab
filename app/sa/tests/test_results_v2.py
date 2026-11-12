@@ -14,7 +14,9 @@ from __future__ import annotations
 import decimal
 import json
 import math
+import os
 import uuid
+from unittest import mock
 
 from django.db import connection
 from django.test import TestCase
@@ -1134,6 +1136,37 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertIsNotNone(c["confidence_margin"])
         self.assertIn("simple_rule_passed", c)
         self.assertIsInstance(c["simple_rule_passed"], bool)
+
+    def test_pages_name_the_running_model_when_the_gnn_is_enabled(self):
+        meta = {
+            "model_kind": "gnn",
+            "model_id": "gnn_recommender_v1",
+            "feature_contract": "v4_physical",
+            "target_contract": "primary_action_v3",
+        }
+        with mock.patch("sa.services.get_model_metadata", return_value=meta):
+            results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+            panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
+        self.assertContains(results, "gnn_recommender_v1 (v4_physical, primary_action_v3)")
+        self.assertContains(panel, "gnn_recommender_v1 (v4_physical)")
+
+    def test_pages_name_no_model_when_none_ran(self):
+        with (
+            mock.patch.dict(os.environ, {"GNN_ENABLED": "false"}),
+            mock.patch("sa.core.predictor._sha256_file_safe", return_value=None),
+        ):
+            results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+            panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
+            payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
+        for response in (results, panel):
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, "mlp_historical")
+            self.assertNotContains(response, "gnn_recommender")
+            self.assertContains(response, "None (recommendations are switched off)")
+        self.assertEqual(payload["session"]["model_metadata"]["model_kind"], "none")
+        self.assertIsNone(payload["session"]["model_metadata"]["model_id"])
+        csv = self.client.get(reverse("sa:export_session_csv", args=[self.session.id, "conduits"]))
+        self.assertEqual(csv.status_code, 200)
 
     def test_server_csv_export_for_all_kinds(self):
         for kind in ("conduits", "nodes", "catchments"):

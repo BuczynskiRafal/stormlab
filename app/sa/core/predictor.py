@@ -18,10 +18,21 @@ catchment_classifier_path = os.path.join(current_directory, "catchment_classifie
 recommendations_classifier_path = os.path.join(current_directory, "recommendations", "recomendations.keras")
 # The GNN is served as the mean of the class probabilities of five training runs.
 # GNN_WEIGHTS may name other members as a comma-separated list of file names.
-_DEFAULT_GNN_WEIGHTS = ",".join(f"gnn_recommender.run{run}.weights.h5" for run in range(1, 6))
+_DEFAULT_GNN_WEIGHTS = tuple(f"gnn_recommender.run{run}.weights.h5" for run in range(1, 6))
+
+
+def _gnn_weight_names(raw: Optional[str]) -> tuple[str, ...]:
+    """The member file names GNN_WEIGHTS lists; unset or blank means the default ensemble.
+
+    An empty list would disable serving without failing any check, so it is never returned.
+    """
+    names = tuple(name.strip() for name in (raw or "").split(",") if name.strip())
+    return names or _DEFAULT_GNN_WEIGHTS
+
+
 GNN_CONFIG = {
     "model_id": os.environ.get("GNN_MODEL_ID", "gnn_recommender_v1"),
-    "weights": tuple(name.strip() for name in os.environ.get("GNN_WEIGHTS", _DEFAULT_GNN_WEIGHTS).split(",") if name.strip()),
+    "weights": _gnn_weight_names(os.environ.get("GNN_WEIGHTS")),
     "spec": os.environ.get("GNN_SPEC", "gnn_recommender.spec.json"),
     "imputation": os.environ.get("GNN_IMPUTATION", "gnn_recommender.imputation.json"),
     "max_hops": int(os.environ.get("GNN_MAX_HOPS", "2")),
@@ -88,7 +99,10 @@ def _read_gnn_spec_contracts(spec_path: str) -> tuple[str, str]:
 
 
 def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
-    """Return provenance metadata for the active recommendation model."""
+    """Return provenance metadata for the active recommendation model.
+
+    ``model_kind`` is ``"none"`` (with empty identity fields) when no model is available.
+    """
     enabled = gnn_enabled()
     resolved_name = model_name if model_name is not None else ("GNN" if enabled else "MLP")
     is_gnn = str(resolved_name).upper() == "GNN" and enabled
@@ -102,10 +116,21 @@ def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
             "target_contract": target_contract,
             "gnn_enabled": enabled,
         }
+    mlp_sha256 = _sha256_file_safe(recommendations_classifier_path)
+    if mlp_sha256 is None:
+        # Neither model is installed, so no recommendation was produced.
+        return {
+            "model_kind": "none",
+            "model_id": None,
+            "weights_sha256": None,
+            "feature_contract": None,
+            "target_contract": None,
+            "gnn_enabled": enabled,
+        }
     return {
         "model_kind": "mlp",
         "model_id": "mlp_historical_20250615",
-        "weights_sha256": _sha256_file_safe(recommendations_classifier_path),
+        "weights_sha256": mlp_sha256,
         "feature_contract": "v1_historical_33",
         "target_contract": "historical_9class",
         "gnn_enabled": enabled,
