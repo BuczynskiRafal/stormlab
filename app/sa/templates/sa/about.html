@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %} About the project {% endblock %}
+{% block title %}About{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/docs.css' %}">
@@ -10,318 +10,271 @@
 {% block content %}
 <div class="docs-container">
     <div class="docs-grid">
-        <!-- Sidebar Navigation -->
         <aside class="docs-sidebar">
             <nav class="docs-nav" aria-label="On this page">
                 <div class="docs-nav-heading" id="docs-nav-heading">Contents</div>
                 <ul class="docs-nav-list" aria-labelledby="docs-nav-heading">
                     <li><a class="docs-nav-link" href="#overview">Overview</a></li>
-                    <li><a class="docs-nav-link" href="#methodology">Methodology</a></li>
-                    <li><a class="docs-nav-link indent" href="#hydraulic-validation">Hydraulic Validation</a></li>
-                    <li><a class="docs-nav-link indent" href="#neural-networks">Neural Networks</a></li>
+                    <li><a class="docs-nav-link" href="#tour">Quick tour</a></li>
+                    <li><a class="docs-nav-link" href="#method">How it works</a></li>
+                    <li><a class="docs-nav-link indent" href="#verification">Hydraulic verification</a></li>
                     <li><a class="docs-nav-link indent" href="#recommendations">Recommendations</a></li>
-                    <li><a class="docs-nav-link" href="#performance">Performance</a></li>
-                    <li><a class="docs-nav-link" href="#standards">Standards</a></li>
-                    <li><a class="docs-nav-link" href="#technology">Technology</a></li>
+                    <li><a class="docs-nav-link indent" href="#catchments">Catchment categories</a></li>
+                    <li><a class="docs-nav-link" href="#evaluation">Evaluation</a></li>
+                    <li><a class="docs-nav-link" href="#limitations">Limitations</a></li>
+                    <li><a class="docs-nav-link" href="#references">References</a></li>
                 </ul>
             </nav>
         </aside>
 
-        <!-- Main Content -->
         <article class="docs-content">
             <header class="docs-header">
                 <h1>Stormwater Analysis System</h1>
                 <p class="docs-lead">
-                    An integrated platform for hydraulic modeling and machine learning-based
-                    classification of storm sewer networks.
+                    Decision support for storm sewer design: hydraulic simulation, verification
+                    against design criteria and a graph neural network that suggests an action
+                    for every conduit.
                 </p>
                 <ul class="docs-meta">
-                    <li class="docs-chip">SWMM 5.2</li>
-                    <li class="docs-chip">PN-EN 752:2008</li>
-                    <li class="docs-chip">12 catchment types</li>
-                    <li class="docs-chip">C3c GraphSAGE (66 features)</li>
+                    <li class="docs-chip">EPA SWMM 5.2</li>
+                    <li class="docs-chip">7 design checks</li>
+                    <li class="docs-chip">9 recommended actions</li>
+                    <li class="docs-chip">12 catchment categories</li>
                 </ul>
             </header>
 
-            <!-- Overview -->
             <section id="overview" class="docs-section">
                 <h2>Overview</h2>
                 <p>
-                    This system processes SWMM (Storm Water Management Model) files through a pipeline
-                    that validates hydraulic parameters, classifies catchments (via explicit SWMM
-                    <code>[TAGS]</code> or a 12-class neural classifier fallback), and generates
-                    conduit-level engineering recommendations using a 2-hop upstream GraphSAGE
-                    network (<code>C3c</code>) trained on 66 physical features (<code>v4_physical</code>).
+                    The application reads a SWMM model of a gravity storm sewer network, runs the
+                    simulation and assesses each conduit on two levels. Locally, it checks the
+                    conduit against hydraulic and geometric design criteria. At network level, a
+                    graph neural network looks at the conduit together with the conduits that
+                    drain into it and returns a probability for each of nine possible actions.
                 </p>
                 <p>
-                    The methodology integrates Polish and European hydraulic design standards with
-                    graph-based deep learning and multi-source soft-label supervision
-                    (<code>primary_action_v3</code>) to evaluate both local conduit capacity and
-                    upstream network context.
+                    The system was developed in the doctoral research of Rafał Buczyński. It points
+                    to the conduits that need attention and to the kind of intervention worth
+                    considering. The decision, the sizing and the check by re-simulation stay with
+                    the designer.
                 </p>
             </section>
 
-            <!-- Methodology -->
-            <section id="methodology" class="docs-section">
-                <h2>Scientific Methodology</h2>
+            <section id="tour" class="docs-section">
+                <h2>Quick tour</h2>
+                <ol>
+                    <li>Open <a href="{% url 'sa:analysis' %}">Analysis</a>, pick a frost zone and
+                        choose <strong>Use test file</strong>. It loads the model of the
+                        Rakowiec estate in Wrocław (62 conduits, 37 subcatchments).</li>
+                    <li>On the <strong>Map</strong> tab, switch between passed checks and filling
+                        to see where the network is overloaded.</li>
+                    <li>Browse the <strong>Conduits</strong>, <strong>Nodes</strong> and
+                        <strong>Subcatchments</strong> tables, or export them to CSV.</li>
+                    <li>Select a conduit to open its panel: longitudinal profile, the seven
+                        checks, the recommended action and the probabilities behind it.</li>
+                    <li>Return to earlier runs from <a href="{% url 'sa:history' %}">History</a>,
+                        or upload your own <code>.inp</code> file (flow units: CMS).</li>
+                </ol>
+            </section>
 
-                <h3 id="hydraulic-validation">1. Hydraulic Model Validation</h3>
-                <p>
-                    The validation process examines hydraulic models for gravity sewer systems,
-                    verifying compliance with Polish and European standards as well as the
-                    engineering sanity rule (§3.4.3).
-                </p>
+            <section id="method" class="docs-section">
+                <h2>How it works</h2>
+                <ol>
+                    <li><strong>Simulation.</strong> SWMM runs on a temporary copy of the uploaded
+                        file, with the options declared in that file.</li>
+                    <li><strong>Hydraulic verification.</strong> Every conduit is checked against
+                        seven design criteria.</li>
+                    <li><strong>Catchment categories.</strong> Land-cover categories are read
+                        from the <code>[TAGS]</code> section; subcatchments without a tag are
+                        classified by a neural network.</li>
+                    <li><strong>Recommendations.</strong> The graph neural network returns a
+                        probability distribution over nine actions for every conduit.</li>
+                </ol>
 
-                <h4>Key Parameters</h4>
-                <dl class="docs-dl">
-                    <dt>Flow velocity</dt>
-                    <dd><span class="docs-value">0.7 - 5.0 m/s</span> (PN-EN 752:2008)</dd>
-
-                    <dt>Minimum slope</dt>
-                    <dd><span class="docs-value">τ = 1.5 Pa</span> shear stress self-cleansing criterion</dd>
-
-                    <dt>Maximum burial depth</dt>
-                    <dd><span class="docs-value">8 m</span> (WTP 1964)</dd>
-
-                    <dt>Pipe filling</dt>
-                    <dd><span class="docs-value">max 82.7%</span> for circular pipe capacity</dd>
-
-                    <dt>Simple-band rule (§3.4.3)</dt>
-                    <dd><span class="docs-value">0.2 ≤ h/D ≤ 0.7</span> and <span class="docs-value">0.8 ≤ v ≤ 3.0 m/s</span></dd>
-
-                    <dt>Minimum cover</dt>
-                    <dd>based on frost zone classification (PN-81/B-03020)</dd>
-                </dl>
-
-                <h4>Frost Zone Classification (PN-81/B-03020)</h4>
+                <h3 id="verification">Hydraulic verification</h3>
                 <div class="docs-table-wrapper">
                     <table class="docs-table">
                         <thead>
-                            <tr>
-                                <th>Zone</th>
-                                <th>Frost Depth (m)</th>
-                                <th>Min Cover (m)</th>
-                            </tr>
+                            <tr><th>Check</th><th>Criterion</th><th>Source</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>I</td><td>0.8</td><td>1.0</td></tr>
-                            <tr><td>II</td><td>1.0</td><td>1.2</td></tr>
-                            <tr><td>III</td><td>1.2</td><td>1.4</td></tr>
-                            <tr><td>IV</td><td>1.4</td><td>1.6</td></tr>
+                            <tr><td>Maximum filling</td><td>h/D ≤ 0.827</td><td>full capacity of a circular section</td></tr>
+                            <tr><td>Minimum velocity</td><td>v ≥ 0.7 m/s</td><td>PN-EN 752</td></tr>
+                            <tr><td>Maximum velocity</td><td>v ≤ 5.0 m/s</td><td>WTP design guidelines</td></tr>
+                            <tr><td>Minimum slope</td><td>shear stress ≥ 1.5 Pa (self-cleansing)</td><td>tractive force criterion</td></tr>
+                            <tr><td>Maximum slope</td><td>slope at which velocity reaches 5.0 m/s</td><td>Manning formula</td></tr>
+                            <tr><td>Maximum depth</td><td>invert depth ≤ 8.0 m</td><td>WTP design guidelines</td></tr>
+                            <tr><td>Minimum cover</td><td>cover ≥ frost depth of the zone</td><td>PN-81/B-03020</td></tr>
                         </tbody>
                     </table>
                 </div>
 
-                <h3 id="neural-networks">2. Subcatchment Classification</h3>
+                <h4>Frost zones</h4>
+                <p>The minimum cover equals the frost depth of the zone chosen for the analysis.</p>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
+                            <tr><th>Zone</th><th>I</th><th>II</th><th>III</th><th>IV</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Frost depth (m)</td><td>0.8</td><td>1.0</td><td>1.2</td><td>1.4</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 id="recommendations">Recommendations</h3>
                 <p>
-                    When subcatchment categories are not explicitly supplied in the SWMM
-                    <code>[TAGS]</code> section, the system falls back to a feed-forward neural
-                    network trained on 12 hydrological features (`full_12` contract) across
-                    12 land-use and terrain classes.
+                    The network is represented as a directed graph in which every conduit is a
+                    node and edges follow the flow towards the outfall. Each conduit is described
+                    by 66 features: geometry, hydraulic state from the simulation, the catchment
+                    and rainfall above it, and the design requirements. Two GraphSAGE layers
+                    aggregate information from the inflow side, reaching four links upstream.
+                    The application serves the mean of five training runs of this model.
                 </p>
+                <p>
+                    The output is a probability for each action rather than a single verdict.
+                    Several actions with similar probability are alternatives to weigh, not steps
+                    to carry out together.
+                </p>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
+                            <tr><th>Action</th><th>Meaning</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>valid</td><td>No change needed</td></tr>
+                            <tr><td>diameter_increase</td><td>Insufficient capacity; larger diameter</td></tr>
+                            <tr><td>diameter_reduction</td><td>Oversized conduit; smaller diameter</td></tr>
+                            <tr><td>slope_increase</td><td>Velocity too low; steeper slope</td></tr>
+                            <tr><td>slope_reduction</td><td>Velocity too high; gentler slope</td></tr>
+                            <tr><td>depth_increase</td><td>Insufficient cover; deeper invert</td></tr>
+                            <tr><td>tank</td><td>Retention to reduce peak flow</td></tr>
+                            <tr><td>seepage_boxes</td><td>Infiltration to relieve the network</td></tr>
+                            <tr><td>pump</td><td>Gravity outflow not possible; pumping station</td></tr>
+                        </tbody>
+                    </table>
+                </div>
 
-                <h4>Classifier Architecture</h4>
-                <dl class="docs-dl">
-                    <dt>Input layer</dt>
-                    <dd><span class="docs-value">12 neurons</span> (hydrological and runoff features)</dd>
-
-                    <dt>Hidden layers</dt>
-                    <dd><span class="docs-value">32 / 16 neurons</span>, ReLU activation with dropout</dd>
-
-                    <dt>Output layer</dt>
-                    <dd><span class="docs-value">12 neurons</span>, softmax (alphabetical class order)</dd>
-                </dl>
-
-                <h4>Catchment Categories (12 classes)</h4>
+                <h3 id="catchments">Catchment categories</h3>
+                <p>
+                    Twelve land-cover categories describe the subcatchments. When a subcatchment
+                    has no tag in the model, a small neural network assigns the category from
+                    twelve inputs: seven catchment parameters and five runoff results of the
+                    simulation.
+                </p>
                 <div class="docs-list-compact">
                     arable, forests, marshes, meadows, mountains_rocky, mountains_vegetated,
                     rural, suburban_highly_impervious, suburban_weakly_impervious,
                     urban_highly_impervious, urban_moderately_impervious, urban_weakly_impervious
                 </div>
+            </section>
 
-                <h4>Rainfall Scenarios</h4>
-                <p>Synthetic and real-world evaluation pools incorporate standard hyetographs:</p>
-                <div class="docs-table-wrapper">
-                    <table class="docs-table">
-                        <thead>
-                            <tr>
-                                <th>Distribution</th>
-                                <th>Characteristics</th>
-                                <th>Duration</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Euler Type II</td>
-                                <td>Asymmetric, peak at 30% duration (ATV A-118:2006) including EulerPlateau135 (52.33 mm)</td>
-                                <td>60-240 min</td>
-                            </tr>
-                            <tr>
-                                <td>Chicago</td>
-                                <td>Symmetric, peak at 50% duration</td>
-                                <td>60-120 min</td>
-                            </tr>
-                            <tr>
-                                <td>Uniform</td>
-                                <td>Constant intensity (Błaszczyk formula)</td>
-                                <td>15-30 min</td>
-                            </tr>
-                            <tr>
-                                <td>PANDa Atlas</td>
-                                <td>IMGW-PIB probabilistic data for Wrocław (Rakowiec)</td>
-                                <td>5-240 min</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <h3 id="recommendations">3. Graph Neural Network Recommendation System (C3c)</h3>
+            <section id="evaluation" class="docs-section">
+                <h2>Evaluation</h2>
                 <p>
-                    The primary serving model (<code>gnn_c3c_winner_v1.weights.h5</code>) is a
-                    2-hop upstream GraphSAGE architecture (<code>gnn_up_k2__f2_l2</code>) operating
-                    on the 66-column physical feature contract (<code>v4_physical</code>) with
-                    training-fold mean imputation (<code>c3c_imputation_plan.json</code>), trained on
-                    5,056 synthetic DYNWAVE networks under soft multi-source supervision
-                    (<code>primary_action_v3</code>). A 33-feature tabular MLP
-                    (<code>recomendations.keras</code>) is retained as a fallback when
-                    <code>GNN_ENABLED=false</code>.
+                    The recommendation model was trained and evaluated on a labelled dataset of
+                    5,056 storm sewer network models with 107,248 conduits, simulated with the
+                    dynamic wave method. The data were divided by network family into training,
+                    validation and test parts (162, 53 and 51 families), so related networks
+                    never appear in more than one part.
                 </p>
 
-                <h4>Recommendation Classes (9 actions)</h4>
+                <h3>Test set</h3>
                 <div class="docs-table-wrapper">
                     <table class="docs-table">
                         <thead>
-                            <tr>
-                                <th>Class</th>
-                                <th>Description</th>
-                            </tr>
+                            <tr><th>Measure</th><th>Graph model</th><th>MLP</th><th>Simple rule</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>pump</td><td>Install pumping station</td></tr>
-                            <tr><td>tank</td><td>Install retention tank</td></tr>
-                            <tr><td>seepage_boxes</td><td>Install infiltration boxes</td></tr>
-                            <tr><td>diameter_increase</td><td>Increase pipe diameter</td></tr>
-                            <tr><td>diameter_reduction</td><td>Reduce pipe diameter</td></tr>
-                            <tr><td>slope_increase</td><td>Increase longitudinal slope</td></tr>
-                            <tr><td>slope_reduction</td><td>Decrease longitudinal slope</td></tr>
-                            <tr><td>depth_increase</td><td>Increase pipe depth</td></tr>
-                            <tr><td>valid</td><td>No modifications required</td></tr>
+                            <tr><td>Accuracy (main action)</td><td><strong>0.893</strong></td><td>0.876</td><td>0.331</td></tr>
+                            <tr><td>Macro-F1 (nine actions)</td><td><strong>0.814</strong></td><td>0.805</td><td>0.203</td></tr>
+                            <tr><td>Brier score</td><td><strong>0.053</strong></td><td>0.061</td><td>n/a</td></tr>
                         </tbody>
                     </table>
                 </div>
-            </section>
+                <p>
+                    Values are means of five training runs on 21,456 test conduits. The MLP sees
+                    the same 66 features of a single conduit without its neighbours. The graph
+                    model is more accurate by 1.73 percentage points (95% CI 0.96 to 2.45).
+                    Averaging the five runs, as the application does, raises its accuracy to 0.907.
+                </p>
 
-            <!-- Performance -->
-            <section id="performance" class="docs-section">
-                <h2>Model Architecture & Evaluation</h2>
-
-                <h3>Catchment Classifier (Plan 19 / K1)</h3>
-                <ul class="docs-stats">
-                    <li class="docs-stat">
-                        <span class="docs-stat-label">Test accuracy (K1)</span>
-                        <span class="docs-stat-value">85.7% (Bayes ceiling 86.7%)</span>
-                    </li>
-                    <li class="docs-stat">
-                        <span class="docs-stat-label">Rakowiec holdout (v3 tags)</span>
-                        <span class="docs-stat-value">34 / 37 (91.9%)</span>
-                    </li>
-                    <li class="docs-stat">
-                        <span class="docs-stat-label">Feature set</span>
-                        <span class="docs-stat-value">full_12 (INP + SWMM RPT)</span>
-                    </li>
-                    <li class="docs-stat">
-                        <span class="docs-stat-label">Classes</span>
-                        <span class="docs-stat-value">12 land-use / terrain types</span>
-                    </li>
-                </ul>
-
-                <h3>Recommendation Model (C3c GraphSAGE)</h3>
-                <ul class="docs-stats">
-                    <li class="docs-stat">
-                        <span class="docs-stat-label">Architecture</span>
-                        <span class="docs-stat-value">2-hop upstream GraphSAGE</span>
-                    </li>
-                    <li class="docs-stat">
-                        <span class="docs-stat-label">Feature contract</span>
-                        <span class="docs-stat-value">v4_physical (66 features)</span>
-                    </li>
-                    <li class="docs-stat">
-                        <span class="docs-stat-label">Training pool (C3c)</span>
-                        <span class="docs-stat-value">5,056 DYNWAVE networks</span>
-                    </li>
-                    <li class="docs-stat">
-                        <span class="docs-stat-label">Wrocław strict holdout</span>
-                        <span class="docs-stat-value">54 / 62 admissible (87.1%)</span>
-                    </li>
-                </ul>
-
-                <h3>Serving Models & Baselines</h3>
+                <h3>Case study: Rakowiec, Wrocław</h3>
+                <p>
+                    The models were applied, without further training, to a model of an existing
+                    network: 62 conduits and 37 subcatchments, loaded with a 120-minute design
+                    rainfall of 26.8 mm. Their recommendations were compared with a designer's
+                    assessment of each conduit.
+                </p>
                 <div class="docs-table-wrapper">
                     <table class="docs-table">
                         <thead>
-                            <tr>
-                                <th>Model / Variant</th>
-                                <th>Features & Topology</th>
-                                <th>Supervision & Split</th>
-                            </tr>
+                            <tr><th>Model</th><th>Same main action</th><th>Within admissible actions</th></tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td><strong>C3c GraphSAGE (Primary)</strong></td>
-                                <td>66 physical features (<code>v4_physical</code>), 2-hop upstream</td>
-                                <td><code>primary_action_v3</code> soft labels, <code>family_v3</code> split</td>
-                            </tr>
-                            <tr>
-                                <td><strong>B4 GraphSAGE (Historical)</strong></td>
-                                <td>33 engineered features (<code>v1</code>), 3-hop downstream</td>
-                                <td>L0 rule cascade, <code>group_v2</code> split</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Tabular MLP (Fallback)</strong></td>
-                                <td>33 engineered features (<code>v1</code>), local conduit only</td>
-                                <td>L0 rule cascade (<code>recomendations.keras</code>)</td>
-                            </tr>
+                            <tr><td>Graph model</td><td><strong>52 / 62</strong></td><td>57 / 62</td></tr>
+                            <tr><td>MLP</td><td>50 / 62</td><td>57 / 62</td></tr>
+                            <tr><td>Simple rule</td><td>28 / 62</td><td>51 / 62</td></tr>
                         </tbody>
                     </table>
                 </div>
+                <p>
+                    This is the network behind <strong>Use test file</strong>. The result concerns
+                    one network and one rainfall scenario; it illustrates the method and is not a
+                    validation on real networks at large.
+                </p>
+
+                <h3>Catchment classifier</h3>
+                <ul class="docs-stats">
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Test accuracy</span>
+                        <span class="docs-stat-value">0.857 (360 catchments)</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Rakowiec</span>
+                        <span class="docs-stat-value">34 / 37 catchments</span>
+                    </li>
+                </ul>
             </section>
 
-            <!-- Standards -->
-            <section id="standards" class="docs-section">
-                <h2>Standards & Compliance</h2>
+            <section id="limitations" class="docs-section">
+                <h2>Limitations</h2>
                 <ul>
-                    <li><strong>PN-EN 752:2008</strong> — European standard for drain and sewer systems</li>
-                    <li><strong>PN-81/B-03020</strong> — Polish frost zone classification</li>
-                    <li><strong>WTP 1964/1965</strong> — Municipal sewer design guidelines</li>
-                    <li><strong>ATV A-118:2006</strong> — German rainfall distribution standards</li>
+                    <li>A recommendation indicates grounds for intervention in the analysed state.
+                        It does not prove that the action is feasible or effective; that requires
+                        a new simulation of the modified network.</li>
+                    <li>The model suggests the kind of action, not its size, such as a tank volume
+                        or a new diameter.</li>
+                    <li>Each action refers to one conduit. Measures designed jointly for a
+                        sequence of conduits are outside the nine actions.</li>
+                    <li>The model was trained on dynamic wave results. Files that declare another
+                        routing method are analysed as declared, and recommendations for them are
+                        less reliable.</li>
+                    <li>Treat with caution the elements rare in the training data: conduits
+                        without a catchment above them, outfalls with a fixed water level,
+                        multi-barrel conduits. Pumping and infiltration are the least reliable
+                        actions.</li>
                 </ul>
             </section>
 
-            <!-- Technology -->
-            <section id="technology" class="docs-section">
-                <h2>Technology Stack</h2>
-                <div class="docs-table-wrapper">
-                    <table class="docs-table">
-                        <tbody>
-                            <tr>
-                                <td><strong>Core Processing</strong></td>
-                                <td>PySWMM 2.1 (EPA SWMM 5.2.4), swmmio 0.8, Python 3.12</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Machine Learning</strong></td>
-                                <td>TensorFlow 2.20, Keras 3, Scikit-learn, XGBoost</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Data Processing</strong></td>
-                                <td>Pandas, NumPy, SciPy, PyArrow</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Web Framework</strong></td>
-                                <td>Django 5.1, Bootstrap 5, Interactive SVG Map & Profile</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <section id="references" class="docs-section">
+                <h2>References</h2>
+                <ul>
+                    <li>Rossman, L. A. <em>Storm Water Management Model User's Manual, Version 5.0.</em>
+                        US Environmental Protection Agency, 2010.</li>
+                    <li>McDonnell, B. E., et al. PySWMM: The Python Interface to Stormwater Management
+                        Model (SWMM). <em>Journal of Open Source Software</em> 5(52), 2292, 2020.</li>
+                    <li>Hamilton, W., Ying, Z., Leskovec, J. Inductive representation learning on large
+                        graphs. <em>Advances in Neural Information Processing Systems</em> 30, 2017.</li>
+                    <li>PN-EN 752:2008. Drain and sewer systems outside buildings.</li>
+                    <li>PN-81/B-03020. Building soils. Foundation bases (frost zones).</li>
+                    <li>Wytyczne techniczne projektowania miejskich sieci kanalizacyjnych (WTP).
+                        Minister Gospodarki Komunalnej, 1965.</li>
+                    <li>DWA-A 118. Hydraulische Bemessung und Nachweis von Entwässerungssystemen, 2006.</li>
+                    <li>Kaźmierczak, B., Kotowski, A. <em>Weryfikacja przepustowości kanalizacji
+                        deszczowej w modelowaniu hydrodynamicznym.</em> Oficyna Wydawnicza Politechniki
+                        Wrocławskiej, 2012.</li>
+                </ul>
             </section>
         </article>
     </div>
