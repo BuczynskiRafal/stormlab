@@ -94,7 +94,9 @@ def test_data_manager_gnn_recommendations_on_wroclaw(gnn_enabled_env, tmp_path):
 
 
 def test_get_model_metadata_respects_gnn_enabled_env(monkeypatch):
-    """Verify get_model_metadata() returns GNN metadata when enabled and MLP metadata when disabled."""
+    """GNN metadata when enabled; MLP metadata when disabled and its file is installed."""
+    from unittest import mock
+
     from sa.core.predictor import get_model_metadata
 
     monkeypatch.setenv("GNN_ENABLED", "true")
@@ -104,10 +106,31 @@ def test_get_model_metadata_respects_gnn_enabled_env(monkeypatch):
     assert meta_gnn["feature_contract"] == "v4_physical"
 
     monkeypatch.setenv("GNN_ENABLED", "false")
-    meta_mlp = get_model_metadata()
+    with mock.patch("sa.core.predictor._sha256_file_safe", return_value="ab" * 32):
+        meta_mlp = get_model_metadata()
     assert meta_mlp["model_kind"] == "mlp"
     assert meta_mlp["model_id"] == "mlp_historical_20250615"
+    assert meta_mlp["weights_sha256"] == "ab" * 32
     assert meta_mlp["feature_contract"] == "v1_historical_33"
+
+
+def test_get_model_metadata_names_no_model_when_none_is_installed(monkeypatch):
+    """With the GNN switched off and no MLP file, no model identity is reported."""
+    from unittest import mock
+
+    from sa.core.predictor import get_model_metadata
+
+    monkeypatch.setenv("GNN_ENABLED", "false")
+    with mock.patch("sa.core.predictor._sha256_file_safe", return_value=None):
+        meta = get_model_metadata()
+    assert meta == {
+        "model_kind": "none",
+        "model_id": None,
+        "weights_sha256": None,
+        "feature_contract": None,
+        "target_contract": None,
+        "gnn_enabled": False,
+    }
 
 
 @pytest.mark.slow
