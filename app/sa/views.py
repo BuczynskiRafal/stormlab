@@ -23,10 +23,7 @@ from .models import CalculationSession, ConduitData, NodeData, SubcatchmentData,
 from .services import AnalysisService, CalculationRetrievalService, ConduitPanelService, NavigationService
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-_PRIMARY_TEST_FILE = REPO_ROOT / "models" / "recomendations" / "gnn" / "wroclaw" / "wroclaw_pipes.inp"
-_FALLBACK_TEST_FILE = REPO_ROOT / "models" / "recomendations" / "wroclaw_pipes.inp"
-_PUBLIC_DEMO_FILE = REPO_ROOT / "examples" / "demo_network_coordinates.inp"
-TEST_FILE = str(next((p for p in (_PRIMARY_TEST_FILE, _FALLBACK_TEST_FILE) if p.is_file()), _PUBLIC_DEMO_FILE))
+TEST_FILE = str(REPO_ROOT / "examples" / "wroclaw_rakowiec.inp")
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +223,8 @@ class AnalysisView(LoginRequiredMixin, View):
         """Process test file analysis on an isolated temporary copy so tracked files are never modified."""
         temp_path = None
         try:
+            if not os.path.isfile(TEST_FILE):
+                raise FileNotFoundError(f"test network not found at {TEST_FILE}")
             zone_val = self._parse_zone(request.POST.get("zone"))
 
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".inp")
