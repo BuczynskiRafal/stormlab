@@ -71,6 +71,7 @@ docker compose cp web:/data/db/backup.sqlite3 ./backup-$(date +%F).sqlite3
 ## Operational notes
 
 - Each worker runs one simulation at a time: the SWMM engine allows a single simulation per process, so gunicorn uses sync workers with one thread. Concurrent analyses are limited by `WEB_CONCURRENCY`.
+- The model files are part of the repository; `manage.py check` and the container start fail if one is missing.
 - The first analysis in each worker takes several seconds longer, because TensorFlow and the models load on first use.
 - Analyses run inside the request; the gunicorn timeout is 180 seconds. If a worker is killed mid-analysis, its session stays in processing until `python manage.py reap_stale_sessions` (run at startup; `--minutes` sets the age, default 30) marks it as failed.
 - `/admin/` is blocked at the proxy except for `ADMIN_IPS`. Management commands work without it via `docker compose exec web python manage.py ...`.
