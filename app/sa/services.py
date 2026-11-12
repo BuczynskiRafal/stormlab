@@ -621,14 +621,13 @@ class CalculationRetrievalService:
     def serialize_session_for_results_v2(
         cls,
         session: CalculationSession,
-        rule_labels: dict[str, str] | None = None,
         panel_links: dict[str, dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """Serialize a session to the JSON-ready payload the Results V2 page embeds.
 
         Carries the conduit, node and subcatchment fields the page reads, with NaN/Inf
         sanitized to ``None`` (RFC 8259 has no literal for either), plus summary counts,
-        validation counts, rule labels and panel navigation URLs.
+        validation counts and panel navigation URLs.
 
         The nine per-class ``confidence_*`` scores are deliberately *not* serialized: the
         table shows only the recommended class's score, as ``confidence`` in percent, and
@@ -636,15 +635,6 @@ class CalculationRetrievalService:
         """
         clean = cls._clean_float
         clean_flag = cls._clean_flag
-
-        # Resolve rule labels avoiding circular imports
-        if rule_labels is None:
-            try:
-                from .views import WROCLAW_RULE_LABELS
-
-                rule_labels = WROCLAW_RULE_LABELS
-            except ImportError:
-                rule_labels = {}
 
         conduits_qs = list(session.conduits.all())
         nodes_qs = list(session.nodes.all())
@@ -723,8 +713,6 @@ class CalculationRetrievalService:
             inlet_depth = clean(c.inlet_max_depth) or 0.0
             outlet_depth = clean(c.outlet_max_depth) or 0.0
             max_depth = max(inlet_depth, outlet_depth)
-
-            rule_lbl = rule_labels.get(c.conduit_name, "-")
 
             try:
                 conduit_url = reverse("sa:conduit_detail", args=[session.id, c.conduit_name])
@@ -817,8 +805,6 @@ class CalculationRetrievalService:
                     "action": rec,
                     "recommendation": rec,
                     "recommendation_label": rec_label,
-                    "rule": rule_lbl,
-                    "rule_label": rule_lbl,
                     # URLs
                     "detail_url": conduit_url,
                     "panel_url": conduit_url,

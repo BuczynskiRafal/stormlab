@@ -1103,23 +1103,6 @@
   font-size: 11px;
 }
 
-#storm-results-v2 .r-rule {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-}
-
-#storm-results-v2 .r-agreement {
-  font-weight: 600;
-  color: var(--r-good);
-}
-
-#storm-results-v2 .r-disagreement {
-  font-weight: 600;
-  color: var(--r-warn);
-}
-
 /* ==============================================================================
    14. INLINE 7-CHECK TECHNICAL VALIDATION EXPANSION GRID
    ============================================================================== */

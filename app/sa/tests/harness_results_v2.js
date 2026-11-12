@@ -506,8 +506,6 @@ function generateMockSessionData() {
         flags: [true, true, true, true, true, true, true],
         action: 'valid',
         recommendation: 'valid',
-        rule: 'valid',
-        rule_label: 'valid',
         confidence: 94.5,
         panel_url: '/analysis/results/42/conduit/C1/'
       },
@@ -540,8 +538,6 @@ function generateMockSessionData() {
         flags: [false, true, false, true, false, true, false],
         action: 'diameter_increase',
         recommendation: 'diameter_increase',
-        rule: 'depth_increase',
-        rule_label: 'depth_increase',
         confidence: 82.0,
         panel_url: '/analysis/results/42/conduit/C2/'
       },
@@ -574,8 +570,6 @@ function generateMockSessionData() {
         flags: [true, false, true, true, true, true, true],
         action: 'slope_reduction',
         recommendation: 'slope_reduction',
-        rule: 'slope_reduction',
-        rule_label: 'slope_reduction',
         confidence: 88.0,
         panel_url: '/analysis/results/42/conduit/C3/'
       },
@@ -608,8 +602,6 @@ function generateMockSessionData() {
         flags: [true, true, true, false, true, true, true],
         action: 'tank',
         recommendation: 'tank',
-        rule: 'tank',
-        rule_label: 'tank',
         confidence: 91.0,
         panel_url: '/analysis/results/42/conduit/C4/'
       },
@@ -642,8 +634,6 @@ function generateMockSessionData() {
         flags: [true, true, true, true, true, true, true],
         action: 'valid',
         recommendation: 'valid',
-        rule: 'valid',
-        rule_label: 'valid',
         confidence: 97.0,
         panel_url: '/analysis/results/42/conduit/C5/'
       }
@@ -1315,7 +1305,7 @@ function runEmpiricalTests() {
   const allPresetBtn = $('[data-preset="all"]');
   allPresetBtn.click();
   visibleThSortKeys = $$('#r-table th button').map(b => b.getAttribute('data-sort'));
-  assert.strictEqual(visibleThSortKeys.length, 20, 'All 20 columns must be visible in All Columns preset');
+  assert.strictEqual(visibleThSortKeys.length, 19, 'All 19 columns must be visible in All Columns preset');
 
   // Check Overview preset
   const overviewPresetBtn = $('[data-preset="overview"]');
@@ -1323,7 +1313,7 @@ function runEmpiricalTests() {
   visibleThSortKeys = $$('#r-table th button').map(b => b.getAttribute('data-sort'));
   assert.deepStrictEqual(
     visibleThSortKeys,
-    ['id', 'diameter', 'flow', 'velocity', 'fillPercent', 'category', 'validation', 'action', 'rule'],
+    ['id', 'diameter', 'flow', 'velocity', 'fillPercent', 'category', 'validation', 'action'],
     'Overview preset columns must match specification'
   );
 
