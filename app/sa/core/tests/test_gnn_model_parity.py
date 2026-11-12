@@ -9,10 +9,13 @@ trained with:
   the 66-column model input after imputation, the adjacency, each run's
   probabilities, their mean and the recommended class per conduit;
 * ``fixtures/gnn_rakowiec_golden.npz``: for ``examples/wroclaw_rakowiec.inp``,
-  the mean probabilities over the five runs and the recommended class per conduit.
+  the model input, the adjacency, the mean probabilities over the five runs and
+  the recommended class per conduit.
 
-The model-level tests need no simulation and are the platform-robust checks; the
-``slow`` tests run SWMM and the whole application pipeline.
+The model-level tests need no simulation and hold on every platform. The ``slow``
+tests run SWMM and the whole application pipeline. The simulation is not
+bit-reproducible across platforms, so those tests compare the recommended
+classes, not the probabilities.
 """
 
 from __future__ import annotations
@@ -36,7 +39,6 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 EXAMPLES = Path(__file__).resolve().parents[4] / "examples"
 RECOMMENDATIONS_DIR = Path(__file__).resolve().parents[1] / "recommendations"
 MODEL_TOLERANCE = 1e-5
-PIPELINE_TOLERANCE = 1e-4
 CLASS_ORDER = [category.value for category in RecommendationCategory]
 N_RUNS = 5
 
@@ -83,6 +85,18 @@ def test_served_model_is_the_mean_of_the_five_runs(demo: dict[str, np.ndarray]) 
 
     np.testing.assert_allclose(probabilities, demo["probabilities"], rtol=0.0, atol=MODEL_TOLERANCE)
     assert [CLASS_ORDER[index] for index in probabilities.argmax(axis=1)] == demo["recommendation"].tolist()
+
+
+@requires_tf
+def test_served_model_reproduces_the_reference_on_the_rakowiec_network(rakowiec: dict[str, np.ndarray]) -> None:
+    from sa.core.graph_constructor import load_gnn_model_weights
+
+    model = load_gnn_model_weights()
+
+    probabilities = model([rakowiec["features"], rakowiec["adjacency"]], training=False).numpy()
+
+    np.testing.assert_allclose(probabilities, rakowiec["probabilities"], rtol=0.0, atol=MODEL_TOLERANCE)
+    assert [CLASS_ORDER[index] for index in probabilities.argmax(axis=1)] == rakowiec["recommendation"].tolist()
 
 
 @requires_tf
@@ -181,6 +195,34 @@ def _served_classes(dm: Any) -> dict[str, str]:
     return dict(zip(names, dm.dfc["recommendation"].astype(str)))
 
 
+def _assert_pipeline_matches(network: str, reference: dict[str, np.ndarray], tmp_path: Path) -> Any:
+    """Serve ``network`` end to end and compare the recommended classes with the reference."""
+    dm, order, probabilities = _serve(EXAMPLES / network, tmp_path)
+
+    expected_order = reference["conduit_order"].tolist()
+    assert sorted(order) == sorted(expected_order)
+    assert probabilities.shape == (len(order), len(CLASS_ORDER))
+    np.testing.assert_allclose(probabilities.sum(axis=1), 1.0, rtol=0.0, atol=1e-5)
+
+    position = {name: index for index, name in enumerate(order)}
+    aligned = probabilities[[position[name] for name in expected_order]]
+    served = _served_classes(dm)
+    assert [served[name] for name in expected_order] == [CLASS_ORDER[index] for index in aligned.argmax(axis=1)]
+
+    drift = np.abs(aligned - reference["probabilities"]).max(axis=1)
+    differing = [
+        f"{name}: served {served[name]}, reference {expected} (probability drift {drift[index]:.4f})"
+        for index, (name, expected) in enumerate(zip(expected_order, reference["recommendation"].tolist()))
+        if served[name] != expected
+    ]
+    assert not differing, (
+        f"{len(differing)} of {len(expected_order)} conduits differ from the reference "
+        f"(largest probability drift {drift.max():.4f}, {int((drift > 1e-3).sum())} conduits above 0.001):\n"
+        + "\n".join(differing)
+    )
+    return dm
+
+
 @requires_tf
 @pytest.mark.slow
 def test_pipeline_serves_the_ensemble_on_the_demo_network(
@@ -188,11 +230,8 @@ def test_pipeline_serves_the_ensemble_on_the_demo_network(
 ) -> None:
     from sa.core.predictor import get_model_metadata
 
-    dm, order, probabilities = _serve(EXAMPLES / "demo_network_coordinates.inp", tmp_path)
+    dm = _assert_pipeline_matches("demo_network_coordinates.inp", demo, tmp_path)
 
-    assert order == demo["conduit_order"].tolist()
-    np.testing.assert_allclose(probabilities, demo["probabilities"], rtol=0.0, atol=PIPELINE_TOLERANCE)
-    assert _served_classes(dm) == dict(zip(order, demo["recommendation"].tolist()))
     metadata = get_model_metadata(dm.recommendation_service.model_name)
     assert metadata["model_kind"] == "gnn"
     assert metadata["model_id"] == "gnn_recommender_v1"
@@ -200,14 +239,7 @@ def test_pipeline_serves_the_ensemble_on_the_demo_network(
 
 @requires_tf
 @pytest.mark.slow
-def test_pipeline_reproduces_the_reference_on_the_rakowiec_network(
+def test_pipeline_serves_the_ensemble_on_the_rakowiec_network(
     rakowiec: dict[str, np.ndarray], gnn_enabled_env: None, tmp_path: Path
 ) -> None:
-    dm, order, probabilities = _serve(EXAMPLES / "wroclaw_rakowiec.inp", tmp_path)
-
-    expected_order = rakowiec["conduit_order"].tolist()
-    assert sorted(order) == sorted(expected_order)
-    position = {name: index for index, name in enumerate(order)}
-    aligned = probabilities[[position[name] for name in expected_order]]
-    np.testing.assert_allclose(aligned, rakowiec["probabilities"], rtol=0.0, atol=PIPELINE_TOLERANCE)
-    assert _served_classes(dm) == dict(zip(expected_order, rakowiec["recommendation"].tolist()))
+    _assert_pipeline_matches("wroclaw_rakowiec.inp", rakowiec, tmp_path)
