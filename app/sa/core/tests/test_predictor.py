@@ -63,6 +63,17 @@ def reset_predictor_state():
     predictor._models_loaded = original_models_loaded
 
 
+class TestGnnWeightNames:
+    """GNN_WEIGHTS parsing: a blank value must not empty the ensemble."""
+
+    @pytest.mark.parametrize("raw", [None, "", "  ", " , ,"])
+    def test_unset_or_blank_means_the_default_ensemble(self, raw):
+        assert predictor._gnn_weight_names(raw) == predictor._DEFAULT_GNN_WEIGHTS
+
+    def test_listed_names_are_stripped_and_kept_in_order(self):
+        assert predictor._gnn_weight_names(" b.weights.h5, a.weights.h5 ,") == ("b.weights.h5", "a.weights.h5")
+
+
 class TestLoadModels:
     """Tests for _load_models function."""
 

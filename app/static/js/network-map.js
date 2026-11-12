@@ -1055,8 +1055,8 @@
     // empty every time the page opens.
     const prefs = readMapPrefs(mapStorage());
     let mode = prefs.mode;
-    // ...and the corner the reader dragged the card to, which is remembered with it
-    //: the card comes back where it was left, in this visit and the next one.
+    // ...and the corner the reader dragged the card to, which is remembered with it:
+    // the card comes back where it was left, in this visit and the next one.
     // It is deliberately not cleared and not rewritten when the viewport changes -
     // applyCardPos passes it through clampCardPos on its way to the *style*, so a
     // position saved in a larger window lands against the edge of a smaller canvas
@@ -1558,8 +1558,8 @@
      * selection, and both come from data - ``selection`` and the results row - never from
      * the DOM.  ``radiusPx`` is the scale of a symbol and not the radius of a circle
      * around it: the corner of the square of a storage lies sqrt(2) further than its
-     * side, so a rectangle that cleared the old disk could still lie on the outline
-     *.  A conduit's half width is computed once and handed to its segment *and* to
+     * side, so a rectangle that cleared the old disk could still lie on the outline.
+     * A conduit's half width is computed once and handed to its segment *and* to
      * its own item as ``r``, so the candidates start off the centre line of its own pipe.
      * Subcatchment outlines are obstacles for nobody.
      */

@@ -820,23 +820,12 @@ class RecommendationService:
                     logger.info(f"{self.model_name} (v4_physical) recommendations generated for {len(self.dfc)} conduits")
                     return self.dfc
 
-                from stormlab.features.conduits import conduit_feature_matrix
-                from stormlab.contracts.features import FEATURE_CONTRACT_V2
-                from stormlab.models.predict import predict_gnn
-                from stormlab.graph.order import canonical_order
-
-                features = conduit_feature_matrix(self.dfc)
-                contract = getattr(self.model, "feature_contract", FEATURE_CONTRACT_V2)
-                model_input = features.loc[:, list(contract.columns)].copy()
-                if "Name" in self.dfc.columns:
-                    model_input.index = self.dfc["Name"].astype(str)
-                order = self.conduit_order or canonical_order(self.dfc, "inp")
-
-                proba = predict_gnn(self.model, model_input, self.adjacency, order, contract=contract)
-                self._assign_aligned_probabilities(proba)
-
-                logger.info(f"{self.model_name} recommendations generated for {len(self.dfc)} conduits")
-                return self.dfc
+                # stormlab.models.gnn_spec.read_spec admits only v4_physical specs, so a spec'd
+                # model on any other contract was not loaded by this application.
+                raise ValueError(
+                    f"GNN model with a spec reads feature contract {getattr(contract, 'name', None)!r}; "
+                    "only v4_physical is served"
+                )
 
             input_data = self.dfc.reindex(columns=FEATURE_COLUMNS, fill_value=0)
             logger.info(f"{self.model_name} input shape: {input_data.shape}")
