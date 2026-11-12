@@ -167,10 +167,10 @@ word/Doktorat_Zotero.md
 word/
 
 # ==============================================================================
-# Local ML model weights & research artifacts (excluded before publication)
+# Model weights and specs: ignored except the shipped recommendation model
 # ==============================================================================
 *.keras
 *.weights.h5
 app/sa/core/recommendations/*.spec.json
-app/sa/core/recommendations/c3c_imputation_plan.json
-app/sa/core/tests/fixtures/gnn_golden_fixture.npz
+!app/sa/core/recommendations/gnn_recommender.run[1-5].weights.h5
+!app/sa/core/recommendations/gnn_recommender.spec.json

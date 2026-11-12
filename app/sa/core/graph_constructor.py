@@ -189,19 +189,87 @@ class GNNModelLoadError(Exception):
     pass
 
 
+class GnnEnsemble:
+    """Serves the arithmetic mean of the members' softmax outputs.
+
+    Called exactly like a single model (``model([features, adjacency], training=False)``,
+    returning a tensor) and carries the members' shared ``spec``, ``feature_contract``
+    and ``imputation_plan``.
+    """
+
+    def __init__(self, members: list[Any]) -> None:
+        if not members:
+            raise GNNModelLoadError("A GNN ensemble needs at least one member")
+        digests = {member.spec.model_config_sha for member in members}
+        contracts = {member.feature_contract.name for member in members}
+        if len(digests) != 1 or len(contracts) != 1:
+            raise GNNModelLoadError(f"Ensemble members disagree: specs {sorted(digests)}, contracts {sorted(contracts)}")
+        self.members = tuple(members)
+        self.spec = members[0].spec
+        self.feature_contract = members[0].feature_contract
+        self.imputation_plan = members[0].imputation_plan
+
+    def __call__(self, inputs: Any, training: bool = False) -> Any:
+        outputs = [member(inputs, training=training) for member in self.members]
+        return tf.reduce_mean(tf.stack(outputs, axis=0), axis=0)
+
+    def predict(self, inputs: Any, verbose: int = 0) -> Any:
+        """Keras-style ``predict``: the mean of the members' ``predict`` outputs, as a NumPy array."""
+        import numpy as np
+
+        return np.mean(np.stack([member.predict(inputs, verbose=verbose) for member in self.members]), axis=0)
+
+
+def _load_spec_model(weights_path: str, spec_path: str, imputation_path: Optional[str]) -> Any:
+    """Build the model a spec sidecar describes and load one weight file into it."""
+    import json
+
+    from stormlab.models.gnn_spec import read_spec
+    from stormlab.models.gnn import build_graph_model_for_weights, load_graphsage_weights
+    from stormlab.contracts.features import FEATURE_CONTRACT_V2, FEATURE_CONTRACT_V4_PHYSICAL
+
+    spec = read_spec(spec_path)
+    contract_name = getattr(spec, "feature_contract", None)
+    if contract_name == "v4_physical":
+        contract = FEATURE_CONTRACT_V4_PHYSICAL
+    else:
+        contract = FEATURE_CONTRACT_V2
+
+    model = build_graph_model_for_weights(spec, n_features=contract.n_columns)
+    load_graphsage_weights(model, weights_path)
+    model.spec = spec
+    model.feature_contract = contract
+
+    if imputation_path is not None and os.path.isfile(imputation_path):
+        with open(imputation_path, "r", encoding="utf-8") as f:
+            model.imputation_plan = json.load(f)
+    else:
+        model.imputation_plan = None
+
+    logger.info(f"Loaded GNN model ({spec.slug()}) with contract {contract.name} from: {weights_path}")
+    return model
+
+
 def load_gnn_model_weights(weights_path: str = None) -> Optional[Any]:
-    """Reconstruct the configured GNN model and load its weights."""
+    """Reconstruct the configured GNN model and load its weights.
+
+    Without ``weights_path`` this loads every configured member and returns a
+    :class:`GnnEnsemble` (or the model itself for a single member); a missing
+    member, spec or imputation plan fails the load, so a partial ensemble is never served.
+    With ``weights_path`` it loads that one file, reading the spec beside it.
+    """
     _require_tensorflow()
 
     from .feature_contract import get_default_feature_columns
     from .enums import RecommendationCategory
     from .predictor import GNN_CONFIG
 
-    project_root = os.path.abspath(os.path.dirname(__file__))
-    model_weights_path = weights_path or os.path.join(project_root, "recommendations", GNN_CONFIG["weights"])
+    recommendations_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "recommendations")
+    model_weights_path = weights_path or os.path.join(recommendations_dir, GNN_CONFIG["weights"][0])
+    configured_names = set(GNN_CONFIG["weights"])
 
     spec_path = None
-    if weights_path is None or os.path.basename(weights_path) == GNN_CONFIG.get("weights"):
+    if weights_path is None or os.path.basename(weights_path) in configured_names:
         spec_name = GNN_CONFIG.get("spec")
         if spec_name:
             candidate = os.path.join(os.path.dirname(model_weights_path), spec_name)
@@ -214,37 +282,22 @@ def load_gnn_model_weights(weights_path: str = None) -> Optional[Any]:
         candidate = f"{base}.spec.json"
         if os.path.isfile(candidate):
             spec_path = candidate
+    imputation_path = os.path.join(os.path.dirname(model_weights_path), GNN_CONFIG["imputation"])
 
     try:
+        if weights_path is None:
+            member_paths = [os.path.join(recommendations_dir, name) for name in GNN_CONFIG["weights"]]
+            spec_path = os.path.join(recommendations_dir, GNN_CONFIG["spec"])
+            missing = [path for path in [*member_paths, spec_path, imputation_path] if not os.path.isfile(path)]
+            if missing:
+                raise GNNModelLoadError(f"GNN ensemble files missing, refusing to serve a partial model: {missing}")
+            logger.info(f"Loading GNN ensemble of {len(member_paths)} member(s) from: {recommendations_dir}")
+            members = [_load_spec_model(path, spec_path, imputation_path) for path in member_paths]
+            return members[0] if len(members) == 1 else GnnEnsemble(members)
+
         logger.info(f"Loading GNN weights from: {model_weights_path}")
         if spec_path:
-            from stormlab.models.gnn_spec import read_spec
-            from stormlab.models.gnn import build_graph_model_for_weights, load_graphsage_weights
-            from stormlab.contracts.features import FEATURE_CONTRACT_V2, FEATURE_CONTRACT_V4_PHYSICAL
-
-            spec = read_spec(spec_path)
-            contract_name = getattr(spec, "feature_contract", None)
-            if contract_name == "v4_physical":
-                contract = FEATURE_CONTRACT_V4_PHYSICAL
-            else:
-                contract = FEATURE_CONTRACT_V2
-
-            model = build_graph_model_for_weights(spec, n_features=contract.n_columns)
-            load_graphsage_weights(model, model_weights_path)
-            model.spec = spec
-            model.feature_contract = contract
-
-            imputation_path = os.path.join(os.path.dirname(model_weights_path), "c3c_imputation_plan.json")
-            if os.path.isfile(imputation_path):
-                import json
-
-                with open(imputation_path, "r", encoding="utf-8") as f:
-                    model.imputation_plan = json.load(f)
-            else:
-                model.imputation_plan = None
-
-            logger.info(f"Loaded GNN model ({spec.slug()}) with contract {contract.name} from: {model_weights_path}")
-            return model
+            return _load_spec_model(model_weights_path, spec_path, imputation_path)
         else:
             n_features = len(get_default_feature_columns())
             n_classes = len(RecommendationCategory)

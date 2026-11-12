@@ -16,20 +16,38 @@ logger = logging.getLogger(__name__)
 current_directory = os.path.dirname(os.path.abspath(__file__))
 catchment_classifier_path = os.path.join(current_directory, "catchment_classifier", "model.keras")
 recommendations_classifier_path = os.path.join(current_directory, "recommendations", "recomendations.keras")
+# The GNN is served as the mean of the class probabilities of five training runs.
+# GNN_WEIGHTS may name other members as a comma-separated list of file names.
+_DEFAULT_GNN_WEIGHTS = ",".join(f"gnn_recommender.run{run}.weights.h5" for run in range(1, 6))
 GNN_CONFIG = {
-    "weights": os.environ.get("GNN_WEIGHTS", "gnn_c3c_winner_v1.weights.h5"),
-    "spec": os.environ.get("GNN_SPEC", "gnn_c3c_winner_v1.spec.json"),
+    "model_id": os.environ.get("GNN_MODEL_ID", "gnn_recommender_v1"),
+    "weights": tuple(name.strip() for name in os.environ.get("GNN_WEIGHTS", _DEFAULT_GNN_WEIGHTS).split(",") if name.strip()),
+    "spec": os.environ.get("GNN_SPEC", "gnn_recommender.spec.json"),
+    "imputation": os.environ.get("GNN_IMPUTATION", "gnn_recommender.imputation.json"),
     "max_hops": int(os.environ.get("GNN_MAX_HOPS", "2")),
 }
-gnn_model_path = os.path.join(current_directory, "recommendations", GNN_CONFIG["weights"])
+gnn_model_paths = tuple(os.path.join(current_directory, "recommendations", name) for name in GNN_CONFIG["weights"])
 gnn_spec_path = os.path.join(current_directory, "recommendations", GNN_CONFIG["spec"])
 
 
 def gnn_enabled() -> bool:
+    """GNN_ENABLED if set; otherwise on when any configured member file exists.
+
+    Any, not all: a partly missing ensemble must fail to load loudly rather than
+    quietly switch serving off.
+    """
     raw = os.environ.get("GNN_ENABLED")
     if raw is not None:
         return raw.strip().lower() in {"1", "true", "yes", "on"}
-    return os.path.isfile(gnn_model_path)
+    return any(os.path.isfile(path) for path in gnn_model_paths)
+
+
+def _ensemble_weights_sha256(paths: tuple[str, ...]) -> Optional[str]:
+    """sha256 over the concatenated hex sha256 digests of the member files, in run order."""
+    digests = [digest for digest in (_sha256_file_safe(path) for path in paths) if digest is not None]
+    if not digests or len(digests) != len(paths):
+        return None
+    return hashlib.sha256("".join(digests).encode("ascii")).hexdigest()
 
 
 # Lazy-loaded models
@@ -75,13 +93,11 @@ def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
     resolved_name = model_name if model_name is not None else ("GNN" if enabled else "MLP")
     is_gnn = str(resolved_name).upper() == "GNN" and enabled
     if is_gnn:
-        weights_name = GNN_CONFIG["weights"]
-        model_id = weights_name[:-11] if weights_name.endswith(".weights.h5") else os.path.splitext(weights_name)[0]
         feature_contract, target_contract = _read_gnn_spec_contracts(gnn_spec_path)
         return {
             "model_kind": "gnn",
-            "model_id": model_id,
-            "weights_sha256": _sha256_file_safe(gnn_model_path),
+            "model_id": GNN_CONFIG["model_id"],
+            "weights_sha256": _ensemble_weights_sha256(gnn_model_paths),
             "feature_contract": feature_contract,
             "target_contract": target_contract,
             "gnn_enabled": enabled,
@@ -132,9 +148,9 @@ def _load_models() -> None:
                 try:
                     from .graph_constructor import load_gnn_model_weights
 
-                    _gnn_recommendation = load_gnn_model_weights(gnn_model_path)
+                    _gnn_recommendation = load_gnn_model_weights()
                     if _gnn_recommendation:
-                        logger.info(f"GNN model loaded successfully from {gnn_model_path}")
+                        logger.info(f"GNN model loaded successfully from {', '.join(gnn_model_paths)}")
                     else:
                         logger.warning("GNN model loading failed")
                 except Exception as e:

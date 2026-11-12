@@ -23,8 +23,8 @@ requires_tf = pytest.mark.skipif(not HAS_TF, reason="requires tensorflow")
 FIXTURE_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "gnn_golden_fixture.npz")
 LEGACY_WEIGHTS_NAME = "graphsage_4hop_model.weights.h5"
 WEIGHTS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "recommendations", LEGACY_WEIGHTS_NAME)
-# Serving weights are git-ignored and unprovisioned in CI, so weight-loading
-# tests must skip (not error) when the file is absent.
+# These legacy weights do not ship with the repository, so tests that load them
+# skip when the file is absent. The golden fixture ships and is required.
 WEIGHTS_AVAILABLE = os.path.exists(WEIGHTS_PATH)
 requires_weights = pytest.mark.skipif(not WEIGHTS_AVAILABLE, reason="GNN model weights not available")
 N_FEATURES = len(FEATURE_COLUMNS)
@@ -36,8 +36,6 @@ CONFIDENCE_COLUMNS = [f"confidence_{category.value}" for category in Recommendat
 
 @pytest.fixture(scope="module")
 def golden_fixture():
-    if not os.path.exists(FIXTURE_PATH):
-        pytest.skip("GNN golden fixture not available")
     return np.load(FIXTURE_PATH, allow_pickle=True)
 
 
@@ -197,16 +195,14 @@ class TestPermutationInvariance:
 
 
 @requires_tf
-@requires_weights
 @pytest.mark.slow
 class TestEndToEndGnnServing:
     """T6: full DataManager pipeline on a real .inp file with GNN_ENABLED=true.
 
     predictor._load_models() reads gnn_enabled() only once and latches via
     _models_loaded, so GNN_ENABLED must be set AND predictor state reset
-    BEFORE constructing DataManager. Guarded on WEIGHTS_AVAILABLE: with
-    GNN_ENABLED=true the predictor loads the git-ignored serving weights, so
-    this must skip (not error) on a fresh CI checkout lacking them.
+    BEFORE constructing DataManager. With GNN_ENABLED=true the predictor loads
+    the configured serving weights, which ship with the repository.
     """
 
     @pytest.fixture

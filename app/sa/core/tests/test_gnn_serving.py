@@ -21,39 +21,23 @@ HAS_TF = importlib.util.find_spec("tensorflow") is not None
 requires_tf = pytest.mark.skipif(not HAS_TF, reason="requires tensorflow")
 
 RECOMMENDATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "recommendations")
-WEIGHTS_PATH = os.path.join(RECOMMENDATIONS_DIR, GNN_CONFIG["weights"])
+WEIGHTS_PATHS = [os.path.join(RECOMMENDATIONS_DIR, name) for name in GNN_CONFIG["weights"]]
 LEGACY_WEIGHTS_PATH = os.path.join(RECOMMENDATIONS_DIR, "graphsage_4hop_model.weights.h5")
 LEGACY_WEIGHTS_AVAILABLE = os.path.exists(LEGACY_WEIGHTS_PATH)
-# The serving weights are git-ignored (.gitignore) and are not provisioned in
-# CI, so any test that actually loads them must SKIP (not error) when the file
-# is absent. Weight provisioning is a separate decision, out of scope here.
-WEIGHTS_AVAILABLE = os.path.exists(WEIGHTS_PATH)
-requires_weights = pytest.mark.skipif(not WEIGHTS_AVAILABLE, reason="GNN model weights not available")
+# The serving weights ship with the repository; tests that load them fail, not skip, when the file is missing.
+WEIGHTS_AVAILABLE = all(os.path.exists(path) for path in WEIGHTS_PATHS)
 N_FEATURES = len(FEATURE_COLUMNS)
 N_CLASSES = 9
 
 
 def test_gnn_enablement_requires_runnable_parity_coverage():
-    """Enable-gate (plan1.md D10 / Etap 3.2): fail loudly, never silently green.
+    """Whenever GNN serving is enabled, the configured serving weights must exist.
 
-    T3/T4 (K1 regression), T5 (train/serve parity) and T6 all load the
-    git-ignored serving weights and therefore SKIP when the weights are absent.
-    A CI job that enables GNN without provisioning those weights would report
-    green while every gating test skipped -- 'green' would NOT prove the
-    graph-served path. So: whenever GNN is actually enabled, require the weights
-    to be present (which forces the gating tests to run instead of skip).
-
-    Stays green today because GNN_ENABLED defaults off; only bites when the flag
-    is flipped (Etap 3.3) in an environment that never runs the parity tests.
+    Skips only when GNN_ENABLED is explicitly switched off in the environment.
     """
     if not gnn_enabled():
         pytest.skip("GNN_ENABLED is off; enable-gate not applicable")
-    assert WEIGHTS_AVAILABLE, (
-        f"GNN_ENABLED=true but serving weights are missing at {WEIGHTS_PATH}. "
-        "The K1/parity regression tests (T3-T6) skip without weights, so a green "
-        "run would not prove the graph-served path. Provision the weights before "
-        "enabling GNN (plan1.md D10 / Etap 3.2)."
-    )
+    assert WEIGHTS_AVAILABLE, f"GNN_ENABLED=true but serving weights are missing among {WEIGHTS_PATHS}."
 
 
 def _build_and_load_legacy_model():
@@ -234,15 +218,12 @@ class TestNaNRobustness:
 
 
 @requires_tf
-@requires_weights
 class TestLoadGnnModelWeightsConfig:
     """T11 (D3): load_gnn_model_weights must respect GNN_CONFIG strictly; a
     planted graphsage_model.keras must not bypass the configured weights.
 
-    Guarded on WEIGHTS_AVAILABLE: the whole recommendations/ directory is
-    git-ignored, so on a fresh CI checkout it does not exist and planting a
-    sentinel .keras there (or resolving WEIGHTS_PATH) would error rather than
-    skip. The guard keeps this a clean skip when weights are unprovisioned."""
+    The configured weights ship with the repository, so these tests run on every
+    checkout; only the optional, unshipped weight files below are skipped."""
 
     def test_planted_keras_file_does_not_bypass_config(self):
         import tensorflow as tf
@@ -274,19 +255,6 @@ class TestLoadGnnModelWeightsConfig:
         assert result.spec.slug() == "legacy_weighted_mean_k2_up_h64_d0.2_wd0_ln_in-constant_safe_v4_physical_soft_masked_lam0"
         assert result.feature_contract.name == "v4_physical"
         assert result.imputation_plan is not None
-
-    def test_b4_winner_weights_path_loads_b4_spec(self):
-        from sa.core import graph_constructor
-
-        b4_path = os.path.join(RECOMMENDATIONS_DIR, "graphsage_b4_winner_v1.weights.h5")
-        if not os.path.exists(b4_path):
-            pytest.skip("B4 weights not available")
-
-        result = graph_constructor.load_gnn_model_weights(b4_path)
-        assert result is not None
-        assert hasattr(result, "spec")
-        assert result.spec.slug() == "support_pool_k4_up_h64_d0.5_wd0.0001_ln_in-constant_safe"
-        assert result.feature_contract.name == "v2"
 
     def test_legacy_weights_path_loads_graphsage_model(self):
         from sa.core import graph_constructor
