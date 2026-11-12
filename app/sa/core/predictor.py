@@ -138,11 +138,16 @@ def _load_models() -> None:
             except (FileNotFoundError, ValueError, OSError):
                 logger.error(f"Cannot load catchment classifier: {catchment_classifier_path}")
 
-            try:
-                _recommendation = load_model(recommendations_classifier_path)
-                logger.info(f"MLP recommendation model loaded from: {recommendations_classifier_path}")
-            except (FileNotFoundError, ValueError, OSError):
-                logger.error(f"Cannot load MLP recommendation model: {recommendations_classifier_path}")
+            # The MLP fallback model is optional and not part of every installation:
+            # an absent file is expected, a present file that fails to load is not.
+            if os.path.isfile(recommendations_classifier_path):
+                try:
+                    _recommendation = load_model(recommendations_classifier_path)
+                    logger.info(f"MLP recommendation model loaded from: {recommendations_classifier_path}")
+                except (FileNotFoundError, ValueError, OSError):
+                    logger.error(f"Cannot load MLP recommendation model: {recommendations_classifier_path}")
+            else:
+                logger.info(f"MLP recommendation model not installed (optional fallback): {recommendations_classifier_path}")
 
             if gnn_enabled():
                 try:

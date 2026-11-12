@@ -171,7 +171,7 @@ class TestFeatureSets:
             assert list(narrow.columns) == [column for column in FULL_12.columns if column in set(narrow.columns)]
 
     def test_the_full_sets_digest_is_the_one_every_earlier_run_recorded(self) -> None:
-        """A literal: a model's registry entry pins this string, and it must not move."""
+        """A literal: a stored model digest pins this string, and it must not move."""
         assert feature_set_contract_sha(FULL_12) == "e41d7e782c726a1aa5b9e53c66c0d24695dd937c3e58f1110c5e1f76f3f1fdd6"
 
     def test_a_narrower_set_hashes_to_something_else(self) -> None:

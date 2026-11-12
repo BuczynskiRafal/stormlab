@@ -28,7 +28,7 @@
    than out, so the canvas is already shrinking and flex-shrink, not the clamp, decides
    what it gets.  The clamp is kept as the *asked* height - the upper bound the drawing
    never exceeds - and the offset inside it is deliberately not restated here, so that
-   one number does not end up spelled out in two stylesheets (D3). */
+   one number does not end up spelled out in two stylesheets. */
 #storm-results-v2 .nm-canvas { position: relative; width: 100%; height: clamp(320px, calc(100vh - 300px), 900px); flex: 0 1 auto; min-height: 0; overflow: hidden; background: var(--r-white); border-radius: 10px; touch-action: none; }
 #storm-results-v2 .nm-svg { display: block; width: 100%; height: 100%; }
 
@@ -76,7 +76,7 @@
 #storm-results-v2 .nm-node.nm-flooded { fill: var(--r-redbg); stroke: var(--r-red); stroke-width: 2; }
 
 /* No side padding: the side inset is the panel's now (results-v2.css, section 6) and
-   a second one here would simply add to it (D5). */
+   a second one here would simply add to it. */
 #storm-results-v2 .nm-empty { margin: 0; padding: 32px 0; text-align: center; color: var(--r-muted); }
 
 /* Stage 8 - the map is one Tab stop, so it has to show where the focus is.  The offset
@@ -133,7 +133,7 @@
 #storm-results-v2 .nm-ctrl { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--r-line); border-radius: 8px; background: var(--r-white); color: var(--r-ink); font-size: 14px; font-weight: 600; line-height: 1; cursor: pointer; }
 #storm-results-v2 .nm-ctrl:hover { background: var(--r-soft); }
 #storm-results-v2 .nm-ctrl:focus-visible { outline: 2px solid var(--r-blue); outline-offset: 1px; }
-/* The one control that carries a state (D19), painted exactly like a pressed mode
+/* The one control that carries a state, painted exactly like a pressed mode
    button so that "on" reads the same in both rows of this panel. */
 #storm-results-v2 .nm-ctrl-on { border-color: var(--r-blue); background: var(--r-soft); color: var(--r-blue); }
 
@@ -163,7 +163,7 @@
    inset of stage E1. */
 #storm-results-v2 .nm-card { position: absolute; left: 10px; bottom: 10px; z-index: 4; max-width: min(260px, calc(100% - 20px)); max-height: calc(100% - 20px); overflow-y: auto; padding: 10px 30px 10px 12px; border: 1px solid var(--r-line); border-radius: 10px; background: var(--r-white); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12); pointer-events: auto; }
 #storm-results-v2 .nm-card-close { position: absolute; top: 4px; right: 6px; width: 22px; height: 22px; padding: 0; border: 0; background: none; color: var(--r-muted); font-size: 16px; line-height: 1; cursor: pointer; }
-/* The heading, and only the heading, is the handle the card is dragged by (D7).
+/* The heading, and only the heading, is the handle the card is dragged by.
    The three declarations belong here and nowhere else: touch-action: none on .nm-card
    would stop the finger from scrolling the very card the cap above tells it to scroll,
    and user-select: none there would take away the copying of the values, which is the
@@ -313,7 +313,7 @@
 #storm-results-v2 .nm-legend-off { color: var(--r-muted); }
 #storm-results-v2 .nm-legend-off .nm-swatch { background: transparent; box-shadow: inset 0 0 0 2px var(--nm-color, var(--r-muted)); }
 
-/* The line from a subcatchment to its outlet (plan24, position 2).
+/* The line from a subcatchment to its outlet.
 
    Dashed and thin: it is a hint about where the runoff goes, not a pipe, and it must
    not read as one on a drawing that already carries 62 of them.  The stroke is the
@@ -364,7 +364,7 @@
  *
  * A subcatchment name is told apart by its *style* and not by a colour: --r-muted is
  * the very token .nm-label.nm-na uses, so italic is what carries the difference
- * (D26), and no new --nm-* token is introduced (that would break the contrast test).
+ *, and no new --nm-* token is introduced (that would break the contrast test).
  *
  * No z-index anywhere here: the controls, the card and the tooltip are HTML with
  * z-index 2-4 over the <svg> in the same host, so they stand above the names by

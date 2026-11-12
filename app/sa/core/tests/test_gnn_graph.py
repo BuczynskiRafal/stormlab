@@ -5,7 +5,7 @@ No TensorFlow required: these modules are pure numpy/pandas/scipy.
 T1 covers ``SWMMGraphConstructor`` / ``build_adjacency_from_dfc``: directed
 edge construction from ``OutletNode(u) == InletNode(v)``, case/whitespace
 insensitivity, zero raw diagonal, isolated conduits, and permutation
-stability of ``conduit_order`` (D5).
+stability of ``conduit_order``.
 
 T2 hand-verifies ``preprocess_adjacency`` on a 4-node chain: self-loops, the
 1 / 0.5 / 0.25 / 0.125 hop-weighting scheme, diagonal restoration, and
@@ -24,7 +24,7 @@ from sa.core.gnn import SWMMGraphConstructor, build_adjacency_from_dfc, preproce
 FIXTURE_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "gnn_golden_fixture.npz")
 
 
-def _synthetic_dfc() -> pd.DataFrame:
+def _chain_dfc() -> pd.DataFrame:
     """Chain (C1->C2), branch (C1->C3), continuation (C3->C5), isolate (C4).
 
     Inlet/Outlet strings deliberately mix case and stray whitespace to
@@ -43,7 +43,7 @@ class TestBuildAdjacencyFromDfc:
     """T1: build_adjacency_from_dfc (serving entry point, D5)."""
 
     def test_directed_edges_match_outlet_to_inlet(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc).toarray()
         idx = {name: i for i, name in enumerate(dfc["Name"])}
 
@@ -55,7 +55,7 @@ class TestBuildAdjacencyFromDfc:
         assert A[idx["C3"], idx["C5"]] == 1
 
     def test_no_spurious_reverse_edges(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc).toarray()
         idx = {name: i for i, name in enumerate(dfc["Name"])}
 
@@ -64,12 +64,12 @@ class TestBuildAdjacencyFromDfc:
         assert A[idx["C5"], idx["C3"]] == 0
 
     def test_raw_diagonal_is_zero(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc).toarray()
         assert np.allclose(np.diag(A), 0)
 
     def test_isolated_conduit_has_zero_row_and_column(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc).toarray()
         idx = {name: i for i, name in enumerate(dfc["Name"])}
         isolate = idx["C4"]
@@ -78,16 +78,16 @@ class TestBuildAdjacencyFromDfc:
         assert np.allclose(A[:, isolate], 0)
 
     def test_returns_raw_csr_matrix(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc)
         assert sp.issparse(A)
         assert A.format == "csr"
 
     def test_permutation_of_conduit_order_permutes_adjacency(self):
-        """Stability w.r.t. conduit_order (D5): a permuted node order must
+        """Stability w.r.t. conduit_order: a permuted node order must
         yield exactly the permuted adjacency, not a re-derived/different
         graph."""
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         names = list(dfc["Name"])
         A1 = build_adjacency_from_dfc(dfc).toarray()
 
@@ -100,7 +100,7 @@ class TestBuildAdjacencyFromDfc:
         assert np.array_equal(A2, expected)
 
     def test_missing_name_column_falls_back_to_index(self):
-        dfc = _synthetic_dfc().drop(columns=["Name"])
+        dfc = _chain_dfc().drop(columns=["Name"])
         A = build_adjacency_from_dfc(dfc)
         assert A.shape == (5, 5)
         assert np.allclose(np.diag(A.toarray()), 0)
@@ -110,7 +110,7 @@ class TestSWMMGraphConstructorDirect:
     """Direct construction API used internally by build_adjacency_from_dfc."""
 
     def test_build_conduit_graph_matches_helper(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         constructor = SWMMGraphConstructor(dfc)
         A_direct, meta = constructor.build_conduit_graph()
 
@@ -119,7 +119,7 @@ class TestSWMMGraphConstructorDirect:
         assert np.array_equal(A_direct.toarray(), A_helper.toarray())
 
     def test_conduit_to_idx_matches_row_order_when_order_not_given(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         constructor = SWMMGraphConstructor(dfc)
         constructor.build_conduit_graph()
 
@@ -130,17 +130,16 @@ class TestSWMMGraphConstructorDirect:
 
 class TestRealTopologyReconstructionParity:
     """T1 extension: the serving-side graph reconstruction must reproduce the
-    exact TRAINING adjacency for the real network topology (the core of the
-    K1 fix - previously only covered transitively).
+    reference adjacency for a real network topology.
 
-    The golden fixture carries the real training network's node columns
-    (`names`, `inlet_nodes`, `outlet_nodes`) aligned to `conduit_order`, plus
-    the training-computed raw adjacency `A_raw_dense`. Rebuilding adjacency
-    from those node columns via the production entry point
-    (build_adjacency_from_dfc) must match A_raw_dense exactly. No TF needed.
+    The golden fixture carries a real network's node columns (`names`,
+    `inlet_nodes`, `outlet_nodes`) aligned to `conduit_order`, plus its raw
+    adjacency `A_raw_dense`. Rebuilding adjacency from those node columns via
+    the production entry point (build_adjacency_from_dfc) must match
+    A_raw_dense exactly. No TF needed.
     """
 
-    def test_build_adjacency_reproduces_training_raw_adjacency(self):
+    def test_build_adjacency_reproduces_reference_raw_adjacency(self):
         fixture = np.load(FIXTURE_PATH, allow_pickle=True)
 
         dfc = pd.DataFrame(
@@ -237,3 +236,17 @@ class TestPreprocessAdjacency:
         assert sp.issparse(result)
         assert result.format == "csr"
         assert np.allclose(result.toarray(), preprocess_adjacency(chain_adjacency, max_hops=4).toarray())
+
+
+class TestGoldenFixtureGraphVersusFeatureOnly:
+    """Sanity check on the golden fixture itself: the graph-served softmax and
+    the features-only softmax disagree on the argmax for simulations 0 and 500
+    (and agree for 100/250/755)."""
+
+    @pytest.mark.parametrize("sim_idx", (0, 500))
+    def test_graph_output_differs_from_featonly_for_divergent_sims(self, sim_idx):
+        fixture = np.load(FIXTURE_PATH, allow_pickle=True)
+        graph_sm = fixture[f"graph_softmax_{sim_idx}"]
+        featonly_sm = fixture[f"featonly_softmax_{sim_idx}"]
+
+        assert not np.array_equal(graph_sm.argmax(axis=-1), featonly_sm.argmax(axis=-1))

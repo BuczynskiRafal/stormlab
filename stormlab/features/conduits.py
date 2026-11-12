@@ -11,7 +11,7 @@ parameters:
   which used to live in ``DataManager.feature_engineering`` and was therefore
   impossible to reuse without the whole Django-era object, validates its inputs
   up front, and works on copies so the caller's frames survive.
-* Every value the thesis backlog wants to vary — the flow constant, the two
+* Every value a caller may want to vary — the flow constant, the two
   minimum slope rules, the maximum filling ratio, the self-cleansing velocity —
   is an explicit argument rather than a module constant.
 
@@ -83,16 +83,14 @@ def resolve_required_cover(frost_zone: float, required_cover: float | None) -> f
 
     The one place the ``None`` of ``config.required_cover`` is turned into a
     number. ``None`` means "the frost zone in force for this extraction", which is
-    what the historical code did with a single value serving as both the climate
+    what the legacy code did with a single value serving as both the climate
     parameter and the design rule -- and it has to stay a rule rather than a
-    repeated literal, because the frost zone reaches the extraction as two
-    different configured values (``frost_zone_dataset`` when the pool is built,
-    ``frost_zone_serving`` when Wroclaw is scored) and one number in the file
-    could only mirror one of them (plan16 §2 P0 point 5).
+    repeated literal, because the frost zone may reach the extraction as different
+    configured values and one number in the file could only mirror one of them.
 
     Callers that record the extraction settings record the value this returns,
-    not the ``None``: a manifest whose reader has to apply a rule to learn what a
-    build ran under is not a record of what it ran under.
+    not the ``None``: a record whose reader has to apply a rule to learn what an
+    extraction ran under is not a record of what it ran under.
     """
     return frost_zone if required_cover is None else required_cover
 
@@ -118,8 +116,8 @@ search relies on exactly that to move to the next candidate. Every other
 negative flow) means the *caller* is wrong, is not an outcome of the search, and
 is raised with the row that produced it instead of being swallowed.
 
-Measured on the six golden networks: 72 x ``SLOPE_TOO_SMALL_MESSAGE`` and 37 x
-``FILLING_EXCEEDS_DIAMETER_MESSAGE``, no other message."""
+On the reference networks the search produces only ``SLOPE_TOO_SMALL_MESSAGE`` and
+``FILLING_EXCEEDS_DIAMETER_MESSAGE``."""
 
 LOW_FILLING_RATIO_THRESHOLD = 0.3
 TARGET_FILLING_RATIO = 0.5
@@ -142,7 +140,7 @@ INTERMEDIATE_COLUMNS: tuple[str, ...] = (
     "OutletGroundCover",
     "SbcCategory",
 )
-"""Columns compared alongside the 33 features so a parity break points at a step."""
+"""Columns kept alongside the 33 features so a discrepancy can be traced to a step."""
 
 REQUIRED_CONDUIT_COLUMNS: tuple[str, ...] = (
     "MaxDPerc",
@@ -291,8 +289,7 @@ class ConduitFeatureSteps:
     def min_ground_cover_is_valid(self) -> None:
         """``ValCoverage``: 1 when both ends carry at least the required cover.
 
-        The requirement, not the frost zone: the two were one number until
-        plan16 §2 P0 point 5 separated them, and they still are wherever
+        The requirement, not the frost zone: the two are one number wherever
         ``config.required_cover`` is ``None``.
         """
         if self.dfc is None:
@@ -501,10 +498,10 @@ class ConduitFeatureSteps:
         dividing by zero.
 
         The lower end stays the **frost zone**, not the required cover. This is a
-        contract v1/v2 column of the historical F0/F1 path, which plan16 §2 P3
-        keeps untouched -- the physical view F2 is a new module rather than a
-        re-parameterised ``normalize_*`` -- so moving its floor onto a parameter
-        the C1 series may change would silently redefine a frozen column.
+        contract v1/v2 column of the legacy path, which stays untouched -- the
+        physical view is a separate module rather than a re-parameterised
+        ``normalize_*`` -- so moving its floor onto a configurable parameter would
+        silently redefine a fixed column.
         """
         if self.dfc is None:
             return
@@ -606,7 +603,7 @@ class ConduitFeatureSteps:
 
         0 means the minimum acceptable cover, 1 the deepest possible burial. The
         lower end is the cover *requirement*, which equals the frost zone wherever
-        ``config.required_cover`` is ``None`` (plan16 §2 P0 point 5).
+        ``config.required_cover`` is ``None``.
         """
         if self.dfc is None:
             return
@@ -824,8 +821,7 @@ def extract_conduit_features(
         dfc: conduit frame as read from the INP and its report.
         dfn: node frame, already carrying ``Subcatchment``/``SbcCategory`` from
             :func:`stormlab.features.nodes.assign_subcatchment_info`.
-        frost_zone: frost penetration depth [m]; 1.6 for the dataset and its
-            labels, 0.8 for the chapter-4 serving run.
+        frost_zone: frost penetration depth [m].
         flow_constant: ``k`` of the theoretical capacity used by ``NMaxQ``.
         flow_law: capacity law used as the denominator of ``NMaxQ``. The legacy
             law uses ``flow_constant``; ``manning_v2`` uses each conduit's

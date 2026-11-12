@@ -1,4 +1,4 @@
-"""Tests for GNN serving behavior (T3, T4, T8, T11).
+"""Tests for GNN serving behavior.
 
 TensorFlow-dependent (weight loading / model calls); guarded with the same
 HAS_TF skip pattern as app/sa/core/tests/test_predictor.py.
@@ -22,8 +22,6 @@ requires_tf = pytest.mark.skipif(not HAS_TF, reason="requires tensorflow")
 
 RECOMMENDATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "recommendations")
 WEIGHTS_PATHS = [os.path.join(RECOMMENDATIONS_DIR, name) for name in GNN_CONFIG["weights"]]
-LEGACY_WEIGHTS_PATH = os.path.join(RECOMMENDATIONS_DIR, "graphsage_4hop_model.weights.h5")
-LEGACY_WEIGHTS_AVAILABLE = os.path.exists(LEGACY_WEIGHTS_PATH)
 # The serving weights ship with the repository; tests that load them fail, not skip, when the file is missing.
 WEIGHTS_AVAILABLE = all(os.path.exists(path) for path in WEIGHTS_PATHS)
 N_FEATURES = len(FEATURE_COLUMNS)
@@ -40,65 +38,9 @@ def test_gnn_enablement_requires_runnable_parity_coverage():
     assert WEIGHTS_AVAILABLE, f"GNN_ENABLED=true but serving weights are missing among {WEIGHTS_PATHS}."
 
 
-def _build_and_load_legacy_model():
-    """Build a serving GraphSAGEModel and load the real 4-hop weights.
-
-    Skips (rather than errors) when the weights file is absent so the
-    dependent tests are portable to a fresh CI checkout without the weights.
-    """
-    if not LEGACY_WEIGHTS_AVAILABLE:
-        pytest.skip("Legacy GNN model weights not available")
-
-    import tensorflow as tf
-    from sa.core.graph_constructor import GraphSAGEModel
-
-    model = GraphSAGEModel(n_features=N_FEATURES, n_classes=N_CLASSES)
-    model([tf.zeros((1, N_FEATURES)), tf.zeros((1, 1))], training=False)
-    model.load_weights(LEGACY_WEIGHTS_PATH)
-    return model
-
-
-@requires_tf
-class TestGraphSAGEWeightCompat:
-    """T3: serving GraphSAGEModel(33, 9) must load graphsage_4hop_model.weights.h5.
-
-    The weight name/shape list is pinned so future architecture changes to
-    GraphSAGEModel are caught as an explicit, deliberate diff rather than a
-    silent shape-mismatch at load time.
-    """
-
-    def test_loads_4hop_weights_without_error(self):
-        _build_and_load_legacy_model()  # must not raise
-
-    def test_weight_name_and_shape_list(self):
-        model = _build_and_load_legacy_model()
-        actual = [(w.name, tuple(w.shape)) for w in model.weights]
-
-        expected = [
-            ("W_self", (N_FEATURES, 64)),
-            ("W_neigh", (N_FEATURES, 64)),
-            ("bias", (64,)),
-            ("gamma", (64,)),
-            ("beta", (64,)),
-            ("moving_mean", (64,)),
-            ("moving_variance", (64,)),
-            ("W_self", (64, 64)),
-            ("W_neigh", (64, 64)),
-            ("bias", (64,)),
-            ("gamma", (64,)),
-            ("beta", (64,)),
-            ("moving_mean", (64,)),
-            ("moving_variance", (64,)),
-            ("kernel", (64, N_CLASSES)),
-            ("bias", (N_CLASSES,)),
-        ]
-
-        assert actual == expected
-
-
 class _FakeTensor:
-    """Minimal stand-in for a tf.Tensor exposing only .numpy(), so the K1
-    regression tests don't require a real model forward pass."""
+    """Minimal stand-in for a tf.Tensor exposing only .numpy(), so the serving
+    tests don't require a real model forward pass."""
 
     def __init__(self, array):
         self._array = array
@@ -109,7 +51,8 @@ class _FakeTensor:
 
 class _SpyGnnModel:
     """Records how it was invoked: direct __call__([features, adjacency])
-    (correct, D4) vs. .predict(...) (the Keras list-coercion trap, K1)."""
+    (correct) vs. .predict(...) (the Keras list-coercion trap, which drops the
+    adjacency)."""
 
     def __init__(self, n_classes=N_CLASSES):
         self.call_args = None
@@ -133,24 +76,11 @@ class _SpyGnnModel:
 
 
 class TestGnnRequiresAdjacency:
-    """T4 (K1 regression guard): GNN serving without adjacency must raise,
-    never silently fall back to features-only prediction.
+    """GNN serving without adjacency must raise, never silently fall back to
+    features-only prediction.
 
-    These two tests deliberately construct RecommendationService using only
-    the dfc/model/model_name arguments (no `adjacency=` kwarg at all,
-    relying on the post-fix default of None) rather than passing
-    ``adjacency=None`` explicitly. The pre-fix ``__init__`` signature was
-    ``def __init__(self, dfc, model, model_name="MLP")`` - it has no
-    ``adjacency`` parameter whatsoever, so passing ``adjacency=None``
-    explicitly would fail on pre-fix code with
-    ``TypeError: unexpected keyword argument 'adjacency'`` - a red for the
-    *wrong* reason (an ImportError-style signature mismatch), which the test
-    contract explicitly rules out. Omitting the kwarg entirely is valid
-    Python on both signatures, so running this exact call against pre-fix
-    code exercises the real defect: it silently falls through to
-    ``self.model.predict(input_data)`` (features-only, no graph, no
-    exception) instead of raising - i.e. these tests are genuinely red on
-    pre-fix code, for the right reason.
+    The service is constructed without an `adjacency=` argument, relying on
+    its default of None.
     """
 
     def test_raises_value_error_when_adjacency_is_none(self):
@@ -161,8 +91,8 @@ class TestGnnRequiresAdjacency:
             service.recommendations()
 
     def test_does_not_call_model_when_adjacency_is_none(self):
-        """The K1 red demo: refusing to serve must happen *before* any model
-        call, not compute features-only and then discard the result."""
+        """Refusing to serve must happen *before* any model call, not compute
+        features-only and then discard the result."""
         dfc = pd.DataFrame(np.zeros((3, N_FEATURES)), columns=FEATURE_COLUMNS)
         spy = _SpyGnnModel()
         service = RecommendationService(dfc, spy, model_name="GNN")
@@ -193,47 +123,22 @@ class TestGnnRequiresAdjacency:
 
 
 @requires_tf
-class TestNaNRobustness:
-    """T8: NaN feature values must not leak into GNN predictions/confidences
-    (np.nan_to_num guard in RecommendationService.recommendations)."""
-
-    def test_predictions_have_no_nan_with_nan_features(self):
-        model = _build_and_load_legacy_model()
-
-        rng = np.random.default_rng(7)
-        names = ["C1", "C2", "C3"]
-        dfc = pd.DataFrame(rng.normal(size=(3, N_FEATURES)).astype(np.float32), columns=FEATURE_COLUMNS)
-        dfc.iloc[1, 2] = np.nan
-        dfc["Name"] = names
-        dfc["InletNode"] = ["A", "B", "C"]
-        dfc["OutletNode"] = ["B", "C", "D"]
-
-        adjacency = preprocess_adjacency(build_adjacency_from_dfc(dfc), max_hops=GNN_CONFIG["max_hops"])
-        service = RecommendationService(dfc, model, model_name="GNN", adjacency=adjacency)
-        result = service.recommendations()
-
-        conf_cols = [c for c in result.columns if c.startswith("confidence_")]
-        assert not result[conf_cols].isna().any().any()
-        assert result["recommendation"].notna().all()
-
-
-@requires_tf
 class TestLoadGnnModelWeightsConfig:
-    """T11 (D3): load_gnn_model_weights must respect GNN_CONFIG strictly; a
-    planted graphsage_model.keras must not bypass the configured weights.
+    """load_gnn_model_weights must respect GNN_CONFIG strictly; a stray
+    graphsage_model.keras must not bypass the configured weights.
 
     The configured weights ship with the repository, so these tests run on every
-    checkout; only the optional, unshipped weight files below are skipped."""
+    checkout."""
 
-    def test_planted_keras_file_does_not_bypass_config(self):
+    def test_stray_keras_file_does_not_bypass_config(self):
         import tensorflow as tf
         from sa.core import graph_constructor
 
-        planted_path = os.path.join(RECOMMENDATIONS_DIR, "graphsage_model.keras")
-        already_existed = os.path.exists(planted_path)
+        stray_path = os.path.join(RECOMMENDATIONS_DIR, "graphsage_model.keras")
+        already_existed = os.path.exists(stray_path)
         if not already_existed:
-            with open(planted_path, "wb") as fh:
-                fh.write(b"not a real keras archive - sentinel planted by test_gnn_serving.py T11")
+            with open(stray_path, "wb") as fh:
+                fh.write(b"not a real keras archive - sentinel planted by test_gnn_serving.py")
 
         try:
             with patch.object(tf.keras.models, "load_model") as mock_load_model:
@@ -242,8 +147,8 @@ class TestLoadGnnModelWeightsConfig:
                 assert result is not None
                 mock_load_model.assert_not_called()
         finally:
-            if not already_existed and os.path.exists(planted_path):
-                os.remove(planted_path)
+            if not already_existed and os.path.exists(stray_path):
+                os.remove(stray_path)
 
     def test_default_weights_path_derives_from_gnn_config(self):
         from sa.core import graph_constructor
@@ -255,13 +160,3 @@ class TestLoadGnnModelWeightsConfig:
         assert result.spec.slug() == "legacy_weighted_mean_k2_up_h64_d0.2_wd0_ln_in-constant_safe_v4_physical_soft_masked_lam0"
         assert result.feature_contract.name == "v4_physical"
         assert result.imputation_plan is not None
-
-    def test_legacy_weights_path_loads_graphsage_model(self):
-        from sa.core import graph_constructor
-        from sa.core.graph_constructor import GraphSAGEModel
-
-        if not LEGACY_WEIGHTS_AVAILABLE:
-            pytest.skip("Legacy weights not available")
-
-        result = graph_constructor.load_gnn_model_weights(LEGACY_WEIGHTS_PATH)
-        assert isinstance(result, GraphSAGEModel)

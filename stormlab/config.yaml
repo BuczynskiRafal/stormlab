@@ -1,11 +1,11 @@
 # Design rules and hydraulic constants read by the physical feature extraction
 # (stormlab.features.physical). Loaded and validated by stormlab.config.load_config.
 
-# Name the web application requests (app/sa/core/conduits.py).
-variant: C3
+# Name of this configuration; a caller may request it by name (stormlab.config.load_config).
+variant: default
 
 # Frost zone depth [m].
-frost_zone_dataset: 0.8
+frost_zone_depth: 0.8
 
 # Soil cover a conduit must carry above its crown [m]; null means the frost zone.
 required_cover: 0.8

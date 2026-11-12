@@ -34,11 +34,9 @@ BARRELS_COLUMN = "Barrels"
 DEFAULT_BARRELS = 1.0
 """Parallel pipes per conduit when ``[XSECTIONS]`` does not say.
 
-``Barrels`` is a column of ``[XSECTIONS]``, not of ``[CONDUITS]``: the generator
-writes it as the seventh field of the cross-section line
-(``generate/template.py::_emit_xsections``), and every conduit of the generated
-pool carries ``1``. SWMM treats an omitted value as one barrel, so that is the
-default here.
+``Barrels`` is a column of ``[XSECTIONS]``, not of ``[CONDUITS]``: it is the
+seventh field of the cross-section line. SWMM treats an omitted value as one
+barrel, so that is the default here.
 """
 
 CONDUIT_GEOMETRY_COLUMNS: tuple[str, ...] = (
@@ -115,7 +113,7 @@ def read_subcatchments(model: sw.Model, include_rpt: bool = True) -> pd.DataFram
     ``[CONDUITS]`` and no ``[XSECTIONS]`` section at all, and ``model.conduits()``
     raises while merging node elevations onto an empty link frame. Asking for the
     three frames together would therefore fail on a model that has everything
-    this study needs, so the subcatchment read is available on its own.
+    the classifier needs, so the subcatchment read is available on its own.
 
     Args:
         model: a model opened by :func:`load_model`.
@@ -163,9 +161,9 @@ def read_tags(model: sw.Model) -> pd.Series:
 def raingage_names(model: sw.Model) -> list[str]:
     """Names declared in the ``[RAINGAGES]`` section, in file order.
 
-    Declaring a gage is not using it. All four Wroclaw INP files declare the same
-    six Euler rainfalls and differ only in which one ``[SUBCATCHMENTS]`` points
-    at, so an assertion about the rainfall scenario belongs on
+    Declaring a gage is not using it: a file may declare several rainfalls and
+    point ``[SUBCATCHMENTS]`` at only one of them, so an assertion about the
+    rainfall scenario belongs on
     :func:`subcatchment_raingages`, not here.
     """
     raingages = getattr(model.inp, "raingages", None)

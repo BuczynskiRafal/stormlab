@@ -1,4 +1,4 @@
-"""Adjacency preprocessing shared by training and serving."""
+"""Adjacency preprocessing for GNN serving."""
 
 import numpy as np
 import scipy.sparse as sp

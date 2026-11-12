@@ -12,7 +12,7 @@ MAX_SCANNED_LINES = 5000
 def read_flow_units(lines: Iterable[str]) -> str | None:
     """Return the FLOW_UNITS value from the [OPTIONS] section, or *None*.
 
-    Scans *lines* (any iterable of strings — file, list, generator) for the
+    Scans *lines* (any iterable of strings — file, list, iterator) for the
     ``[OPTIONS]`` header, then reads until the next section header (a line
     starting with ``[``).  Within [OPTIONS] it looks for a line whose first
     token (case-insensitive) is ``FLOW_UNITS`` and returns the second token

@@ -41,8 +41,8 @@ CIRCULAR_PIPE_FLOW_CONSTANT = 0.312
 # Network propagation
 SUBCATCHMENT_PROPAGATION_ITERATIONS = 5
 
-# Subcatchment categories in alphabetical order (matches pd.get_dummies class order
-# used during catchment_classifier/model.keras training; see stormlab.contracts.catchment_features.CLASSIFIER_CLASS_ORDER)
+# Subcatchment categories in alphabetical order, the order of the output units of
+# catchment_classifier/model.keras (see stormlab.contracts.catchment_features.CLASSIFIER_CLASS_ORDER)
 SUBCATCHMENT_CATEGORIES = [
     "arable",
     "forests",
@@ -58,7 +58,7 @@ SUBCATCHMENT_CATEGORIES = [
     "urban_weakly_impervious",
 ]
 
-# GNN Model Configuration (optimal hyperparameters from tuning)
+# GNN model configuration
 GNN_HIDDEN_UNITS = 64
 GNN_DROPOUT_RATE = 0.2
 GNN_AGGREGATOR = "mean"

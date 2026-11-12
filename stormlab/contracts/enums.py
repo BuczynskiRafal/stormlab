@@ -1,15 +1,15 @@
 """Canonical class vocabularies.
 
 ``RecommendationCategory`` mirrors ``app/sa/core/enums.py`` value-for-value and
-in declaration order, because the saved recommendation models were trained with
-that order as the softmax layout. ``SubcatchmentCategory`` names the twelve land
+in declaration order, because the saved recommendation models use that order as
+their softmax layout. ``SubcatchmentCategory`` names the twelve land
 cover classes used by the catchment classifier and by the one-hot block of the
 conduit feature contract.
 
 The declaration order of ``SubcatchmentCategory`` is deliberately NOT a source
 of truth for any model: both canonical orders live as explicit literals in
-``features.py`` / ``catchment_features.py``. Deriving an order from this enum is
-the exact mistake that produced the historical mis-decoding of the classifier.
+``features.py`` / ``catchment_features.py``. Deriving an order from this enum would
+decode the classifier output into the wrong classes.
 """
 
 from __future__ import annotations

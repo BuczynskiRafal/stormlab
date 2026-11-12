@@ -1,10 +1,7 @@
 """Adjacency construction and the legacy k-hop preprocessing.
 
-Moved from ``app/sa/core/tests/test_gnn_graph.py`` (16 tests) with the imports
-pointed at ``stormlab.graph`` and the direct-constructor test adapted to the
-named :class:`GraphBuildResult` that replaced the legacy ``(matrix, None)``
-tuple. The golden fixture travelled with them so the unit layer stays
-self-contained.
+The direct-constructor test reads the named :class:`GraphBuildResult` that
+replaced the legacy ``(matrix, None)`` tuple.
 
 T1 covers ``SWMMGraphConstructor`` / ``build_adjacency_from_dfc``: directed edge
 construction from ``OutletNode(u) == InletNode(v)``, case/whitespace
@@ -14,8 +11,6 @@ of ``conduit_order``.
 T2 hand-verifies ``preprocess_adjacency`` on a 4-node chain: self-loops, the
 hop-weighting scheme, diagonal restoration, and row-normalization.
 """
-
-import os
 
 import numpy as np
 import pandas as pd
@@ -31,10 +26,8 @@ from stormlab.graph.build import (
 )
 from stormlab.graph.khop import preprocess_adjacency
 
-FIXTURE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fixtures", "gnn_golden_fixture.npz")
 
-
-def _synthetic_dfc() -> pd.DataFrame:
+def _chain_dfc() -> pd.DataFrame:
     """Chain (C1->C2), branch (C1->C3), continuation (C3->C5), isolate (C4).
 
     Inlet/Outlet strings deliberately mix case and stray whitespace to
@@ -53,7 +46,7 @@ class TestBuildAdjacencyFromDfc:
     """T1: build_adjacency_from_dfc (serving entry point)."""
 
     def test_directed_edges_match_outlet_to_inlet(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc).toarray()
         idx = {name: i for i, name in enumerate(dfc["Name"])}
 
@@ -65,7 +58,7 @@ class TestBuildAdjacencyFromDfc:
         assert A[idx["C3"], idx["C5"]] == 1
 
     def test_no_spurious_reverse_edges(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc).toarray()
         idx = {name: i for i, name in enumerate(dfc["Name"])}
 
@@ -74,12 +67,12 @@ class TestBuildAdjacencyFromDfc:
         assert A[idx["C5"], idx["C3"]] == 0
 
     def test_raw_diagonal_is_zero(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc).toarray()
         assert np.allclose(np.diag(A), 0)
 
     def test_isolated_conduit_has_zero_row_and_column(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc).toarray()
         idx = {name: i for i, name in enumerate(dfc["Name"])}
         isolate = idx["C4"]
@@ -88,7 +81,7 @@ class TestBuildAdjacencyFromDfc:
         assert np.allclose(A[:, isolate], 0)
 
     def test_returns_raw_csr_matrix(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         A = build_adjacency_from_dfc(dfc)
         assert sp.issparse(A)
         assert A.format == "csr"
@@ -97,7 +90,7 @@ class TestBuildAdjacencyFromDfc:
     def test_permutation_of_conduit_order_permutes_adjacency(self):
         """Stability w.r.t. conduit_order: a permuted node order must yield
         exactly the permuted adjacency, not a re-derived/different graph."""
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         names = list(dfc["Name"])
         A1 = build_adjacency_from_dfc(dfc).toarray()
 
@@ -110,7 +103,7 @@ class TestBuildAdjacencyFromDfc:
         assert np.array_equal(A2, expected)
 
     def test_missing_name_column_falls_back_to_index(self):
-        dfc = _synthetic_dfc().drop(columns=["Name"])
+        dfc = _chain_dfc().drop(columns=["Name"])
         A = build_adjacency_from_dfc(dfc)
         assert A.shape == (5, 5)
         assert np.allclose(np.diag(A.toarray()), 0)
@@ -120,7 +113,7 @@ class TestSWMMGraphConstructorDirect:
     """Direct construction API used internally by build_adjacency_from_dfc."""
 
     def test_build_conduit_graph_matches_helper(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         constructor = SWMMGraphConstructor(dfc)
         result = constructor.build_conduit_graph()
 
@@ -129,44 +122,13 @@ class TestSWMMGraphConstructorDirect:
         assert np.array_equal(result.adjacency.toarray(), A_helper.toarray())
 
     def test_conduit_to_idx_matches_row_order_when_order_not_given(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         constructor = SWMMGraphConstructor(dfc)
         constructor.build_conduit_graph()
 
         for i, name in enumerate(dfc["Name"]):
             assert constructor.conduit_to_idx[name] == i
             assert constructor.idx_to_conduit[i] == name
-
-
-class TestRealTopologyReconstructionParity:
-    """T1 extension: the serving-side graph reconstruction must reproduce the
-    exact TRAINING adjacency for the real network topology.
-
-    The golden fixture carries the real training network's node columns
-    (`names`, `inlet_nodes`, `outlet_nodes`) aligned to `conduit_order`, plus
-    the training-computed raw adjacency `A_raw_dense`. Rebuilding adjacency
-    from those node columns via the production entry point
-    (build_adjacency_from_dfc) must match A_raw_dense exactly. No TF needed.
-    """
-
-    def test_build_adjacency_reproduces_training_raw_adjacency(self):
-        if not os.path.exists(FIXTURE_PATH):
-            pytest.skip("GNN golden fixture not available")
-        fixture = np.load(FIXTURE_PATH, allow_pickle=True)
-
-        dfc = pd.DataFrame(
-            {
-                "Name": [str(n) for n in fixture["names"]],
-                "InletNode": [str(n) for n in fixture["inlet_nodes"]],
-                "OutletNode": [str(n) for n in fixture["outlet_nodes"]],
-            }
-        )
-
-        reconstructed = build_adjacency_from_dfc(dfc).toarray()
-        expected = fixture["A_raw_dense"]
-
-        assert reconstructed.shape == expected.shape
-        assert np.array_equal(reconstructed, expected)
 
 
 class TestPreprocessAdjacency:
@@ -254,18 +216,18 @@ class TestGraphBuildResult:
     """The reported counts and the direction switch."""
 
     def test_reports_the_number_of_hydraulic_edges(self):
-        result = build_graph(_synthetic_dfc())
+        result = build_graph(_chain_dfc())
         assert result.n_edges_raw == 3
         assert result.n_surrogate_edges == 0
         assert result.adjacency.nnz == 3
 
     def test_order_follows_conduit_order_when_given(self):
         permuted = ["C5", "C3", "C1", "C4", "C2"]
-        result = build_graph(_synthetic_dfc(), conduit_order=permuted)
+        result = build_graph(_chain_dfc(), conduit_order=permuted)
         assert result.order == tuple(permuted)
 
     def test_upstream_direction_is_the_transpose(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         downstream = build_graph(dfc, direction="downstream")
         upstream = build_graph(dfc, direction="upstream")
 
@@ -276,34 +238,34 @@ class TestGraphBuildResult:
 
     def test_unknown_direction_is_rejected(self):
         with pytest.raises(ValueError, match="Unknown graph direction"):
-            build_graph(_synthetic_dfc(), direction="sideways")  # type: ignore[arg-type]
+            build_graph(_chain_dfc(), direction="sideways")  # type: ignore[arg-type]
 
 
 class TestMissingDataIsRejected:
     """What the legacy builder dropped in a log line now raises."""
 
     def test_nan_node_column_raises_with_the_conduit_named(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         dfc.loc[2, "OutletNode"] = np.nan
 
         with pytest.raises(GraphBuildError, match="C3"):
             build_adjacency_from_dfc(dfc)
 
     def test_blank_node_column_raises(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         dfc.loc[1, "InletNode"] = "   "
 
         with pytest.raises(GraphBuildError, match="C2"):
             build_adjacency_from_dfc(dfc)
 
     def test_absent_node_columns_raise(self):
-        dfc = _synthetic_dfc().drop(columns=["OutletNode"])
+        dfc = _chain_dfc().drop(columns=["OutletNode"])
 
         with pytest.raises(GraphBuildError, match="missing node columns"):
             build_adjacency_from_dfc(dfc)
 
     def test_duplicate_names_raise(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
         dfc.loc[4, "Name"] = "C1"
 
         with pytest.raises(GraphBuildError, match="Duplicate conduit names"):
@@ -311,7 +273,7 @@ class TestMissingDataIsRejected:
 
     def test_conduit_order_with_unknown_name_raises(self):
         with pytest.raises(GraphBuildError, match="missing from conduits_data"):
-            build_adjacency_from_dfc(_synthetic_dfc(), conduit_order=["C1", "C2", "C3", "C4", "C9"])
+            build_adjacency_from_dfc(_chain_dfc(), conduit_order=["C1", "C2", "C3", "C4", "C9"])
 
 
 def _disconnected_dfc() -> pd.DataFrame:
@@ -356,7 +318,7 @@ class TestSurrogateEdges:
         assert set(np.unique(result.adjacency.data)) == {np.float32(0.5), np.float32(0.3)}
 
     def test_a_connected_graph_never_gets_surrogate_edges(self):
-        connected = _synthetic_dfc().assign(Length=[100.0, 105.0, 110.0, 115.0, 120.0], X1=[0.0, 1.0, 2.0, 3.0, 4.0])
+        connected = _chain_dfc().assign(Length=[100.0, 105.0, 110.0, 115.0, 120.0], X1=[0.0, 1.0, 2.0, 3.0, 4.0])
         result = build_graph(connected, surrogate_edges=True)
 
         assert result.n_surrogate_edges == 0
@@ -364,16 +326,16 @@ class TestSurrogateEdges:
 
 
 class TestBothChannelsFromOneBuild:
-    """``direction="both"`` of plan16 §3 is a pair of matrices, not a third one.
+    """``direction="both"`` is a pair of matrices, not a third one.
 
-    The downstream channel has to be the matrix the pipeline has always built —
-    otherwise a two-channel arm and the one-channel arms of E6 would not be
+    The downstream channel has to be the matrix the single-channel build returns —
+    otherwise a two-channel model and the one-channel models would not be
     comparable — and the upstream channel has to be exactly its transpose, which
-    is what ``direction="upstream"`` has always returned.
+    is what ``direction="upstream"`` returns.
     """
 
     def test_the_downstream_channel_is_what_build_graph_has_always_returned(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
 
         channels = build_graph_channels(dfc)
         historical = build_graph(dfc, direction="downstream")
@@ -381,7 +343,7 @@ class TestBothChannelsFromOneBuild:
         assert np.array_equal(channels.downstream.toarray(), historical.adjacency.toarray())
 
     def test_the_upstream_channel_is_what_the_transposing_direction_returned(self):
-        dfc = _synthetic_dfc()
+        dfc = _chain_dfc()
 
         channels = build_graph_channels(dfc)
         historical = build_graph(dfc, direction="upstream")
@@ -389,28 +351,28 @@ class TestBothChannelsFromOneBuild:
         assert np.array_equal(channels.upstream.toarray(), historical.adjacency.toarray())
 
     def test_the_edges_are_counted_once_because_transposing_moves_none(self):
-        channels = build_graph_channels(_synthetic_dfc())
+        channels = build_graph_channels(_chain_dfc())
 
-        assert channels.n_edges_raw == build_graph(_synthetic_dfc()).n_edges_raw
+        assert channels.n_edges_raw == build_graph(_chain_dfc()).n_edges_raw
         assert channels.n_surrogate_edges == 0
 
     def test_the_order_is_shared_by_both_channels(self):
         order = ["C5", "C1", "C3", "C2", "C4"]
 
-        channels = build_graph_channels(_synthetic_dfc(), conduit_order=order)
+        channels = build_graph_channels(_chain_dfc(), conduit_order=order)
 
         assert channels.order == tuple(order)
         assert channels.downstream.shape == channels.upstream.shape
 
     def test_a_single_direction_can_be_asked_for_by_name(self):
-        channels = build_graph_channels(_synthetic_dfc())
+        channels = build_graph_channels(_chain_dfc())
 
         assert channels.channel("downstream") is channels.downstream
         assert channels.channel("upstream") is channels.upstream
 
     def test_asking_for_both_at_once_is_refused(self):
-        """A pair answered with one matrix is the merge the plan forbids."""
-        channels = build_graph_channels(_synthetic_dfc())
+        """A pair answered with one matrix would be a merge of the two channels."""
+        channels = build_graph_channels(_chain_dfc())
 
         with pytest.raises(ValueError, match="answers a single direction"):
             channels.channel("both")

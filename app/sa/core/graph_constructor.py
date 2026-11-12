@@ -106,7 +106,7 @@ if _TF_AVAILABLE:
             return config
 
     class GraphSAGEModel(tf.keras.Model):
-        """Pure GraphSAGE model with optimal hyperparameters from tuning."""
+        """Pure GraphSAGE model."""
 
         def __init__(
             self,

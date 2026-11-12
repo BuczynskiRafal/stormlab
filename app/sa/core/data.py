@@ -163,9 +163,9 @@ class DataManager(sw.Model):
                 self._ensure_conduit_node_columns_are_strings()
                 spec = getattr(gnn_model, "spec", None)
                 try:
-                    from stormlab.models.gnn_spec import GnnSpec, GnnSpecC1
+                    from stormlab.models.gnn_spec import GnnSpec, GnnContractSpec
 
-                    is_stormlab_spec = isinstance(spec, (GnnSpec, GnnSpecC1))
+                    is_stormlab_spec = isinstance(spec, (GnnSpec, GnnContractSpec))
                 except ImportError:
                     is_stormlab_spec = False
 

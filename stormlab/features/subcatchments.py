@@ -3,10 +3,7 @@
 Ported from ``SubcatchmentFeatureEngineeringService`` in
 ``app/sa/core/subcatchments.py``, minus its coupling to a live ``swmmio.Model``:
 the tags are read once by :func:`stormlab.io.inp.read_tags` and arrive here as a
-plain Series. The commented-out ML branch of the original is not carried over —
-it divided four columns by ``Area`` without the ``sum() != 0`` guard the training
-notebook used, and the corrected version lives in
-:mod:`stormlab.features.catchment`.
+plain Series. The commented-out ML branch of the original is not carried over.
 """
 
 from __future__ import annotations
@@ -124,7 +121,7 @@ def encode_categories(categories: pd.Series, order: Sequence[str], *, what: str 
         An ``int`` indicator frame with one column per class of ``order`` and the
         index of ``categories``. A missing class — ``NaN``/``None`` or
         :data:`NO_CATEGORY_SENTINEL` — is an all-zero row, which is what the
-        historical ``pd.get_dummies`` produced for it.
+        ``pd.get_dummies`` produces for it.
 
     Raises:
         SubcatchmentFeatureError: if any value is neither a missing-class marker

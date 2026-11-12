@@ -1,8 +1,8 @@
 """k-hop preprocessing of the conduit adjacency.
 
-``legacy_khop_v1`` is the scheme the saved GraphSAGE weights were preprocessed
-with. It is reproduced verbatim from ``app/sa/core/gnn/preprocessing.py``; the
-implementation and its golden test are the definition, not the docstring
+``legacy_khop_v1`` is the scheme the saved GraphSAGE weights expect. It is
+reproduced verbatim from ``app/sa/core/gnn/preprocessing.py``; the
+implementation and its tests are the definition, not the docstring
 formula, because the arithmetic does not match the intent stated in the legacy
 comment.
 
@@ -148,7 +148,7 @@ ZERO_DEGREE_SUBSTITUTE = 1.0
 untouched; the symmetric form does the same, for the same reason: a node with no
 support has nothing to average and dividing it by zero would turn one isolated
 conduit into a matrix of NaN. With self-loops on — which every path here uses —
-no row is ever zero, so this is a guard and not a code path the study exercises."""
+no row is ever zero, so this is a guard and not a code path that is exercised."""
 
 
 def symmetric_normalization(matrix) -> sp.csr_matrix:
@@ -163,7 +163,7 @@ def symmetric_normalization(matrix) -> sp.csr_matrix:
     and stays asymmetric here: ``M_uv / sqrt(d_u · d_v)`` scales an entry by the
     degrees of both endpoints without moving it. Symmetrising ``M + Mᵀ`` first
     would give the textbook GCN operator and would erase the downstream/upstream
-    axis that study (b2) is measuring, so it is deliberately not done — this is
+    axis, so it is deliberately not done — this is
     "the symmetric normalisation of a directed matrix", not "the symmetric
     operator".
 
@@ -210,7 +210,7 @@ def operator_adjacency(adjacency, *, operator: str, max_hops: int) -> sp.csr_mat
     differ in what happens next:
 
     ===========================  ====================================================
-    ``legacy_weighted_mean``     row-wise ``D⁻¹`` — the untouched B1 path
+    ``legacy_weighted_mean``     row-wise ``D⁻¹`` — the legacy path
     ``khop_sum``                 nothing; the expansion's own weights
     ``khop_sym``                 ``D^-1/2 M D^-1/2`` over the expanded matrix
     ``support_max``              the binary support of the expansion
@@ -220,12 +220,12 @@ def operator_adjacency(adjacency, *, operator: str, max_hops: int) -> sp.csr_mat
 
     ``nograph`` is the odd one and deliberately so. Its layer has no neighbour
     term, so *any* matrix would give the same answer; returning zeros rather than
-    the expansion makes that visible in the artifact — the edge counts a run
-    records for this arm are zero, which is what the arm claims — instead of
-    leaving a reader to infer that a matrix that was passed was never read.
+    the expansion makes that visible: the edge counts are zero, which is what the
+    operator claims, instead of leaving a reader to infer that a matrix that was
+    passed was never read.
 
     ``legacy_weighted_mean`` goes through :func:`apply_khop` unchanged rather than
-    through a branch that happens to compute the same thing, so the frozen B1
+    through a branch that happens to compute the same thing, so the shipped
     weights keep exactly one preprocessing path.
 
     Args:

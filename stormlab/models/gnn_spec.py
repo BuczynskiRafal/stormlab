@@ -5,14 +5,14 @@ architecture those numbers belong to, and :func:`read_spec` turns it into a froz
 validated object that :func:`stormlab.models.gnn.build_graph_model_for_weights`
 builds the model from.
 
-Two sidecar formats exist. :class:`GnnSpecC1` is the format of the shipped model:
+Two sidecar formats exist. :class:`GnnContractSpec` is the format of the shipped model:
 the architecture plus the feature and target contracts it was trained under.
 :class:`GnnSpec` is the older architecture-only format; it is recognised so that
 such a sidecar is refused with a clear message instead of being misread.
 
 Training-only fields (schedule, target kind, supervision mask, context penalty)
 stay in both classes: they are part of what the sidecar records, unknown or missing
-fields are refused, and :attr:`GnnSpecC1.model_config_sha` is computed over all of
+fields are refused, and :attr:`GnnContractSpec.model_config_sha` is computed over all of
 them. They have no effect on inference.
 
 Nothing here imports TensorFlow.
@@ -237,7 +237,7 @@ TARGET_KINDS: tuple[str, ...] = (TARGET_KIND_SOFT, TARGET_KIND_HARD)
 
 
 @dataclass(frozen=True)
-class GnnSpecC1:
+class GnnContractSpec:
     """Sidecar format of the shipped model: architecture plus the contracts it was trained under.
 
     Architecture fields are those of :class:`GnnSpec`, except that ``direction`` may
@@ -378,7 +378,7 @@ class GnnSpecC1:
         )
 
     @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> "GnnSpecC1":
+    def from_dict(cls, payload: Mapping[str, Any]) -> "GnnContractSpec":
         """Rebuild a spec from its mapping, refusing unknown or missing fields.
 
         Raises:
@@ -401,17 +401,17 @@ class GnnSpecC1:
         return cls(**values)
 
 
-CONTRACT_SPEC_FIELD_NAMES: tuple[str, ...] = tuple(GnnSpecC1().as_dict())
-"""Field names of :class:`GnnSpecC1`, in declaration order."""
+CONTRACT_SPEC_FIELD_NAMES: tuple[str, ...] = tuple(GnnContractSpec().as_dict())
+"""Field names of :class:`GnnContractSpec`, in declaration order."""
 
 CONTRACT_SPEC_ONLY_FIELDS: frozenset[str] = frozenset(CONTRACT_SPEC_FIELD_NAMES) - frozenset(FIELD_NAMES)
-"""Fields only a :class:`GnnSpecC1` sidecar has; their presence selects that class."""
+"""Fields only a :class:`GnnContractSpec` sidecar has; their presence selects that class."""
 
 
-def spec_class_for(payload: Mapping[str, Any]) -> type[GnnSpec] | type[GnnSpecC1]:
+def spec_class_for(payload: Mapping[str, Any]) -> type[GnnSpec] | type[GnnContractSpec]:
     """Which spec class a sidecar payload describes.
 
-    Any field of :data:`CONTRACT_SPEC_ONLY_FIELDS` selects :class:`GnnSpecC1`, whose
+    Any field of :data:`CONTRACT_SPEC_ONLY_FIELDS` selects :class:`GnnContractSpec`, whose
     ``from_dict`` then names whatever else is missing.
 
     Raises:
@@ -419,10 +419,10 @@ def spec_class_for(payload: Mapping[str, Any]) -> type[GnnSpec] | type[GnnSpecC1
     """
     if not isinstance(payload, Mapping):
         raise GnnSpecError(f"A spec must be a mapping, got {type(payload).__name__}")
-    return GnnSpecC1 if CONTRACT_SPEC_ONLY_FIELDS & set(payload) else GnnSpec
+    return GnnContractSpec if CONTRACT_SPEC_ONLY_FIELDS & set(payload) else GnnSpec
 
 
-def read_spec(path: Path | str) -> GnnSpecC1:
+def read_spec(path: Path | str) -> GnnContractSpec:
     """Read a sidecar and return the spec, if this package can serve it.
 
     Raises:
@@ -442,8 +442,8 @@ def read_spec(path: Path | str) -> GnnSpecC1:
         spec = spec_class_for(payload).from_dict(payload)
     except GnnSpecError as error:
         raise GnnSpecError(f"{source} does not describe a graph model this package can build: {error}") from error
-    if not isinstance(spec, GnnSpecC1) or spec.feature_contract not in SERVED_FEATURE_CONTRACTS:
-        contract = spec.feature_contract if isinstance(spec, GnnSpecC1) else None
+    if not isinstance(spec, GnnContractSpec) or spec.feature_contract not in SERVED_FEATURE_CONTRACTS:
+        contract = spec.feature_contract if isinstance(spec, GnnContractSpec) else None
         raise GnnSpecError(
             f"{source} describes a model on feature contract {contract!r}; this package serves only "
             f"{list(SERVED_FEATURE_CONTRACTS)}"
@@ -470,7 +470,7 @@ __all__ = [
     "TARGET_KIND_HARD",
     "TARGET_KIND_SOFT",
     "GnnSpec",
-    "GnnSpecC1",
+    "GnnContractSpec",
     "GnnSpecError",
     "read_spec",
     "spec_class_for",

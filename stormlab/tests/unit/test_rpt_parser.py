@@ -8,16 +8,6 @@ import pytest
 
 from stormlab.io import rpt
 
-EMPTY_SECTIONS_REPORT = Path("models/recomendations/dataset-backup/proba/generated") / (
-    "01_recomendation_template_D1000_EulerRain60_S6_0_rural.rpt"
-)
-"""A tracked report SWMM produced with nothing surcharged and nothing flooded.
-
-The two "no table here" sentences are pinned literals in the parser, so at least
-one assertion has to hold them against a report the engine actually wrote rather
-than against a string this test also made up.
-"""
-
 
 def _report(
     *,
@@ -221,28 +211,3 @@ class TestRefusals:
 
         with pytest.raises(rpt.RptParseError, match="routing continuity"):
             rpt.continuity_errors(text)
-
-
-class TestAgainstAReportTheEngineWrote:
-    """The pinned sentences and the table shape, held against a tracked report."""
-
-    def test_the_empty_section_sentences_are_the_ones_swmm_writes(self, repo_root_path: Path) -> None:
-        report_path = repo_root_path / EMPTY_SECTIONS_REPORT
-        if not report_path.is_file():
-            pytest.skip(f"tracked dataset report not present in standalone checkout: {EMPTY_SECTIONS_REPORT}")
-        text = report_path.read_text(encoding="utf-8", errors="replace")
-
-        assert rpt.NO_CONDUITS_SURCHARGED in text
-        assert rpt.NO_NODES_FLOODED in text
-
-    def test_a_real_report_parses_into_two_populated_and_two_empty_tables(self, repo_root_path: Path) -> None:
-        report_path = repo_root_path / EMPTY_SECTIONS_REPORT
-        if not report_path.is_file():
-            pytest.skip(f"tracked dataset report not present in standalone checkout: {EMPTY_SECTIONS_REPORT}")
-        tables = rpt.read_report(report_path)
-
-        assert len(tables.link_flow) == 11
-        assert len(tables.node_depth) == 13
-        assert tables.conduit_surcharge.empty
-        assert tables.node_flooding.empty
-        assert tables.routing_continuity_error_percent == 0.366

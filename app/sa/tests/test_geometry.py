@@ -371,7 +371,7 @@ class OutletGeometryTests(GeometryFixtureMixin, SimpleTestCase):
         why ``c`` is there and the pair ``o``/``on`` is not.
 
         The counter stays at zero.  It names outlet lines whose target the model does
-        not know (D18), and an outline no row names carries no target and attempted no
+        not know, and an outline no row names carries no target and attempted no
         line — there is nothing about it the browser should report as unresolved.
         """
         geometry = self.fixture("geom_crlf_vertices.inp")
@@ -551,7 +551,7 @@ class OutletGeometryTests(GeometryFixtureMixin, SimpleTestCase):
     def test_centroid_with_large_coordinates_stays_finite_and_inside_bbox(self):
         """A five-centimetre square in PL-2000 coordinates, where the shoelace sums cancel.
 
-        The author's models live around ``(6 500 000, 5 700 000)``, and a small parcel
+        Real models live around ``(6 500 000, 5 700 000)``, and a small parcel
         there is the classic loss-of-precision case: the cross products are of the order
         of 10^13 and their sum of the order of 10^-3.  Conditions (2) and (3) of the
         fallback catch numerical degeneration just as they catch a self-intersection.

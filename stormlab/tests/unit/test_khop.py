@@ -1,9 +1,8 @@
-"""The ``legacy_khop_v1`` scheme, pinned on the 11-conduit training chain.
+"""The ``legacy_khop_v1`` scheme, pinned on an 11-conduit chain.
 
-The measurements frozen here come from ``docs/project-map/api_map.md`` §3
-(gotcha 1) and are what makes the scheme reproducible: the hop profile is not
-monotone, so it cannot be re-derived from the "1.0, 0.5, 0.25" comment the
-legacy code carried.
+The measurements frozen here are what makes the scheme reproducible: the hop
+profile is not monotone, so it cannot be re-derived from the "1.0, 0.5, 0.25"
+comment the legacy code carried.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ CHAIN_LENGTH = 11
 
 @pytest.fixture
 def chain_adjacency() -> sp.csr_matrix:
-    """The raw adjacency of an 11-conduit chain, as the training template has."""
+    """The raw adjacency of an 11-conduit chain."""
     dfc = pd.DataFrame(
         {
             "Name": [f"K{i + 1}" for i in range(CHAIN_LENGTH)],
@@ -36,7 +35,7 @@ def chain_adjacency() -> sp.csr_matrix:
 
 class TestGoldenHopProfile:
     def test_first_row_before_normalization_matches_the_measured_profile(self, chain_adjacency):
-        """api_map §3 gotcha 1: the 1-hop weight is 3.25, above the 2-hop 2.0."""
+        """The 1-hop weight is 3.25, above the 2-hop 2.0."""
         unnormalized = preprocess_adjacency(chain_adjacency, normalize=False, max_hops=4).toarray()
 
         expected_row = np.array([1.0, 3.25, 2.0, 0.75, 0.125] + [0.0] * (CHAIN_LENGTH - 5))
@@ -64,7 +63,7 @@ class TestGoldenHopProfile:
 class TestEdgeCounts:
     @pytest.mark.parametrize(("max_hops", "expected"), [(1, 21), (4, 45)])
     def test_measured_nnz_of_the_eleven_conduit_chain(self, chain_adjacency, max_hops, expected):
-        """10 raw edges become 21 at one hop and 45 at four (api_map §3)."""
+        """10 raw edges become 21 at one hop and 45 at four."""
         assert apply_khop(chain_adjacency, max_hops=max_hops).n_edges_khop == expected
 
     def test_the_khop_count_includes_the_diagonal(self, chain_adjacency):

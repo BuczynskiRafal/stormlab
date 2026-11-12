@@ -41,7 +41,7 @@ HYDROMECHANIC_COEFFICIENT = 0.612e-3
 
 The rounded literal of ``4 * theta / g / 1000`` at ``theta = 1.5``, ``g = 9.81``
 (exactly ``0.00061162``), carried over verbatim from ``app/sa/core/valid_round.py``
-because the recommendation models were trained on the numbers it produces. It is
+because the recommendation models expect the numbers it produces. It is
 deliberately a literal and not a computation over the configured constants: the
 two differ in the fourth significant digit."""
 
@@ -54,7 +54,7 @@ def validate_max_filling(filling: float, diameter: float, *, ratio: float = MAX_
         diameter: pipe diameter [m].
         ratio: relative filling at which the pipe reaches full capacity. It is a
             parameter because it is the single number behind ``ValMaxFill``, the
-            minimum diameter search and ``NFilling``; the thesis backlog varies it
+            minimum diameter search and ``NFilling``; a caller may vary it
             and all three have to move together.
     """
     return filling <= max_filling(diameter, ratio)

@@ -457,7 +457,7 @@ class MockDocument {
 }
 
 // -----------------------------------------------------------------------------
-// 2. Realistic Session Data Payload Generator
+// 2. Realistic session data payload
 // -----------------------------------------------------------------------------
 
 function generateMockSessionData() {

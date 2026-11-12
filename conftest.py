@@ -35,7 +35,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         RUN_PARITY_OPTION,
         action="store_true",
         default=False,
-        help="run the parity tests that compare against the frozen golden extraction",
+        help="run the parity tests that compare against frozen reference outputs",
     )
     parser.addoption(
         NO_SKIPS_OPTION,
@@ -57,10 +57,9 @@ NO_SKIPS_OPTION = "--no-skips"
 """Turn every skipped test into a failure, for the layer of CI that must not skip.
 
 A skip is invisible in a green run: the parity layer skipping itself for want of
-``--run-parity``, or a results-dependent test skipping because the run directory
-it reads is not there, both report success. The verification layers of the
-pipeline are exactly the ones where that is unacceptable — a CI job that "passed"
-while never comparing anything against the golden extraction is a CI job that
+``--run-parity``, or a test skipping because the file it reads is not there, both
+report success. The verification layers of the pipeline are exactly the ones where that is unacceptable — a CI job that "passed"
+while never comparing anything against the reference outputs is a CI job that
 proves nothing. Deselection is untouched: ``-m 'not slow'`` says which tests this
 invocation is *about*, and a test outside that set was never promised."""
 
