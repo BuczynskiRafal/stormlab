@@ -99,7 +99,10 @@ def _read_gnn_spec_contracts(spec_path: str) -> tuple[str, str]:
 
 
 def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
-    """Return provenance metadata for the active recommendation model."""
+    """Return provenance metadata for the active recommendation model.
+
+    ``model_kind`` is ``"none"`` (with empty identity fields) when no model is available.
+    """
     enabled = gnn_enabled()
     resolved_name = model_name if model_name is not None else ("GNN" if enabled else "MLP")
     is_gnn = str(resolved_name).upper() == "GNN" and enabled
@@ -113,10 +116,21 @@ def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
             "target_contract": target_contract,
             "gnn_enabled": enabled,
         }
+    mlp_sha256 = _sha256_file_safe(recommendations_classifier_path)
+    if mlp_sha256 is None:
+        # Neither model is installed, so no recommendation was produced.
+        return {
+            "model_kind": "none",
+            "model_id": None,
+            "weights_sha256": None,
+            "feature_contract": None,
+            "target_contract": None,
+            "gnn_enabled": enabled,
+        }
     return {
         "model_kind": "mlp",
         "model_id": "mlp_historical_20250615",
-        "weights_sha256": _sha256_file_safe(recommendations_classifier_path),
+        "weights_sha256": mlp_sha256,
         "feature_contract": "v1_historical_33",
         "target_contract": "historical_9class",
         "gnn_enabled": enabled,
