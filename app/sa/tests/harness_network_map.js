@@ -37,16 +37,17 @@ const {
   readMapPrefs,
   writeMapPrefs,
   clampCardPos,
-  placeLabels
+  placeLabels,
+  cardRows
 } = nm;
 
-// The exported surface is a contract: twenty names, including clampCardPos and
+// The exported surface is a contract: twenty-one names, including clampCardPos and
 // writeMapPrefs (the selection card can be dragged and the preferences have a second
-// field), outletPath (the outline of a subcatchment's outlet line) and placeLabels
-// (the placement solver).
+// field), outletPath (the outline of a subcatchment's outlet line), placeLabels
+// (the placement solver) and cardRows (the values of the selection card).
 // A name that quietly stops being exported takes its whole group with it and the run
 // would still end green without this line.
-assert.strictEqual(Object.keys(nm).length, 20, 'network-map.js must export exactly twenty names');
+assert.strictEqual(Object.keys(nm).length, 21, 'network-map.js must export exactly twenty-one names');
 
 let passed = 0;
 
@@ -1287,7 +1288,90 @@ group('placeLabels puts a subcatchment name on its centroid', () => {
   );
 });
 
+// ---------------------------------------------------------------------------
+// 17. cardRows - the values of the selection card, labelled as the table labels them
+// ---------------------------------------------------------------------------
+group('cardRows lists the card values in order, in table units and digits', () => {
+  const conduit = {
+    recommendation_label: 'Increase diameter', recommendation: 'diameter_increase', confidence: 87.46,
+    validation: 5, filling: 0.33, diameter: 0.6, fillPercent: 55, flow: 0.0042, velocity: 1.234,
+    slope: 3.5, length: 1245.371, detail_url: '/x/'
+  };
+  assert.deepStrictEqual(cardRows('link', conduit), [
+    ['Recommendation', 'Increase diameter'],
+    ['Model confidence', '87.5 %'],
+    ['Checks passed', '5 / 7'],
+    ['Filling', '55 % (0.330 m)'],
+    ['Max. flow', '0.004 m\u00b3/s'],
+    ['Max. velocity', '1.23 m/s'],
+    ['Diameter', '0.600 m'],
+    ['Slope', '3.50 \u2030'],
+    ['Length', '1,245.37 m']
+  ], 'every conduit value, with the digits of its table column and no rounding to whole metres');
+
+  const node = { ground: 245.3, invert: 243, depth: 2.3, waterDepth: 0.5, floodVolume: 0.004, floodHours: 0.01 };
+  assert.deepStrictEqual(cardRows('node', node), [
+    ['Ground elevation', '245.30 m'],
+    ['Node invert', '243.00 m'],
+    ['Node depth', '2.30 m'],
+    ['Max. water depth', '0.50 m'],
+    ['Flooding volume', '4.0 m\u00b3'],
+    ['Flooding duration', '0.01 h']
+  ], 'the flooding volume is converted from millions of litres into cubic metres');
+
+  const catchment = {
+    category: 'urban_weakly_impervious', outlet: 'J1', area: 1.2345, impervious: 45.25, slope: 3.5,
+    peak: 0.31, runoff: 0.1234, coefficient: 0.456
+  };
+  assert.deepStrictEqual(cardRows('poly', catchment), [
+    ['Category', 'urban_weakly_impervious'],
+    ['Outlet node', 'J1'],
+    ['Area', '1.235 ha'],
+    ['Imperviousness', '45.3 %'],
+    ['Slope', '3.50 %'],
+    ['Peak runoff', '0.310 m\u00b3/s'],
+    ['Total runoff', '123.4 m\u00b3'],
+    ['Runoff coefficient', '0.456']
+  ], 'the total runoff is converted like the flooding volume');
+});
+
+group('cardRows leaves a missing value out and composes the filling from what is there', () => {
+  const labels = rows => rows.map(pair => pair[0]);
+  const filling = row => {
+    const found = cardRows('link', row).find(pair => pair[0] === 'Filling');
+    return found ? found[1] : null;
+  };
+
+  // A tiny value keeps its digits instead of reading as zero.
+  assert.deepStrictEqual(cardRows('link', { flow: 0.004 }), [['Max. flow', '0.004 m\u00b3/s']]);
+
+  // The percent is sent as 0 when it could not be computed, so it needs its inputs.
+  assert.strictEqual(filling({ filling: 0.33, diameter: 0.6, fillPercent: 55 }), '55 % (0.330 m)');
+  assert.strictEqual(filling({ filling: 0.33, fillPercent: 0 }), '0.330 m', 'no diameter: the depth alone');
+  assert.strictEqual(filling({ diameter: 0.6, fillPercent: 0 }), null, 'no depth: no filling at all, not a false 0 %');
+  assert.strictEqual(filling({ filling: 0, diameter: 0.6, fillPercent: 0 }), '0 % (0.000 m)', 'a dry conduit is a real zero');
+  assert.strictEqual(filling({ filling: 0.33, diameter: 0.6 }), '0.330 m', 'no percent sent: the depth alone');
+
+  // Checks passed is a whole count between 0 and 7.
+  assert.deepStrictEqual(cardRows('link', { validation: 0 }), [['Checks passed', '0 / 7']]);
+  assert.deepStrictEqual(cardRows('link', { validation: 7 }), [['Checks passed', '7 / 7']]);
+  [null, undefined, 8, -1, 2.5, '5'].forEach(value => {
+    assert.deepStrictEqual(cardRows('link', { validation: value }), [], `validation ${String(value)} is not a count`);
+  });
+
+  // null, a string where a number belongs, NaN and the placeholders of an absent text
+  // leave the row out; zero is a value.
+  assert.deepStrictEqual(labels(cardRows('node', { ground: null, invert: '243', depth: NaN, waterDepth: 0, floodVolume: Infinity })), ['Max. water depth']);
+  assert.deepStrictEqual(cardRows('poly', { category: '-', outlet: '' }), []);
+  assert.deepStrictEqual(cardRows('link', { recommendation_label: '\u2014', confidence: null }), []);
+
+  // Nothing to show at all.
+  assert.deepStrictEqual(cardRows('link', null), []);
+  assert.deepStrictEqual(cardRows('pump', { flow: 1 }), [], 'an unknown kind has no fields');
+  assert.deepStrictEqual(cardRows('toString', { flow: 1 }), [], 'an inherited member is not a kind');
+});
+
 console.log('------------------------------------------------------------');
-console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 25 PASSED)`);
+console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 27 PASSED)`);
 console.log('------------------------------------------------------------');
-assert.strictEqual(passed, 25, 'every group must have run');
+assert.strictEqual(passed, 27, 'every group must have run');

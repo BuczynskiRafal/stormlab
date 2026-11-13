@@ -171,6 +171,17 @@
   const NO_DATA_CLASS = 'nm-nodata';
   /** No results row, no usable value: a grey the three modes share. */
 
+  const FOCUS_RING_CLASS = 'nm-focus-ring';
+  /**
+   * The focus ring of the drawing, set by the script and never by ``:focus-visible``.
+   *
+   * The <svg> is the one Tab stop of the map, so a click focuses it too.  Browsers
+   * disagree on what that means: Chromium paints its own ``:focus`` ring on a clicked
+   * SVG, and turns ``:focus-visible`` on at the first arrow key after the click.  The
+   * ring is therefore decided once, when the focus arrives - from the keyboard it is
+   * drawn, from a pointer it is not - and taken away on blur and on the next press.
+   */
+
   /**
    * The nine recommendation codes of the model, each with the class that paints it
    * and the label the legend shows.
@@ -232,19 +243,60 @@
   const COLLECTIONS = [['link', 'links'], ['node', 'nodes'], ['poly', 'polys']];
   /** Drawing kind and the key its elements live under in the geometry payload. */
 
+  /** Number of technical checks behind ``validation``: one colour per possible count. */
+  const CHECK_COUNT = VALIDITY_CLASSES.length - 1;
+
   /**
-   * Two or three values of the results row, shown on the selection card of each kind:
-   * ``[label, key, unit, factor]``, the factor optional.
+   * The values of the results row shown on the selection card of each kind, in order.
    *
-   * ``flood_volume`` is SWMM's Total Flood Volume in millions of litres (models.py:148),
-   * so it is multiplied by 1000 and shown in cubic metres - the conversion the flooding tooltip
-   * of the table makes.  Printed raw it reads "0.00" for a real overflow of four cubic
-   * metres, on the card of a node the map has just painted as flooded.
+   * A field is one of three shapes:
+   *
+   * - ``{label, key}`` - a text value, shown as it stands;
+   * - ``{label, key, unit, digits, factor}`` - a number with exactly *digits* decimals,
+   *   the digits of the matching table column; *factor*, optional, converts the stored
+   *   unit into the shown one;
+   * - ``{label, format}`` - a value composed from several keys of the row.
+   *
+   * Labels, units and digits are those of the table columns, so the card and "Show in
+   * table" agree; "Checks passed" and "Filling" are named after the colour modes they
+   * stand for.  The three conduit values the modes paint by (recommendation, checks
+   * passed, filling) are on the card whichever mode is on.
+   *
+   * ``floodVolume`` and ``runoff`` are SWMM volumes in millions of litres
+   * (models.py:148), so they are multiplied by 1000 and shown in cubic metres, the unit
+   * the flooding tooltip of the table uses: a real overflow of four cubic metres reads
+   * "4.0 m³" rather than "0.004".
    */
   const CARD_FIELDS = {
-    link: [['Recommendation', 'recommendation_label', ''], ['Diameter', 'diameter', 'm'], ['Length', 'length', 'm'], ['Max. velocity', 'velocity', 'm/s']],
-    node: [['Node depth', 'depth', 'm'], ['Max. water depth', 'waterDepth', 'm'], ['Flooding volume', 'floodVolume', 'm\u00b3', 1000]],
-    poly: [['Area', 'area', 'ha'], ['Imperviousness', 'impervious', '%'], ['Runoff coefficient', 'coefficient', '']]
+    link: [
+      {label: 'Recommendation', key: 'recommendation_label'},
+      {label: 'Model confidence', key: 'confidence', unit: '%', digits: 1},
+      {label: 'Checks passed', format: checksText},
+      {label: 'Filling', format: fillingText},
+      {label: 'Max. flow', key: 'flow', unit: 'm\u00b3/s', digits: 3},
+      {label: 'Max. velocity', key: 'velocity', unit: 'm/s', digits: 2},
+      {label: 'Diameter', key: 'diameter', unit: 'm', digits: 3},
+      {label: 'Slope', key: 'slope', unit: '\u2030', digits: 2},
+      {label: 'Length', key: 'length', unit: 'm', digits: 2}
+    ],
+    node: [
+      {label: 'Ground elevation', key: 'ground', unit: 'm', digits: 2},
+      {label: 'Node invert', key: 'invert', unit: 'm', digits: 2},
+      {label: 'Node depth', key: 'depth', unit: 'm', digits: 2},
+      {label: 'Max. water depth', key: 'waterDepth', unit: 'm', digits: 2},
+      {label: 'Flooding volume', key: 'floodVolume', unit: 'm\u00b3', digits: 1, factor: 1000},
+      {label: 'Flooding duration', key: 'floodHours', unit: 'h', digits: 2}
+    ],
+    poly: [
+      {label: 'Category', key: 'category'},
+      {label: 'Outlet node', key: 'outlet'},
+      {label: 'Area', key: 'area', unit: 'ha', digits: 3},
+      {label: 'Imperviousness', key: 'impervious', unit: '%', digits: 1},
+      {label: 'Slope', key: 'slope', unit: '%', digits: 2},
+      {label: 'Peak runoff', key: 'peak', unit: 'm\u00b3/s', digits: 3},
+      {label: 'Total runoff', key: 'runoff', unit: 'm\u00b3', digits: 1, factor: 1000},
+      {label: 'Runoff coefficient', key: 'coefficient', digits: 3}
+    ]
   };
 
   /**
@@ -443,6 +495,83 @@
    */
   function isDrag(dist) {
     return Number.isFinite(dist) && dist > DRAG_PX;
+  }
+
+  /** One number formatter per count of decimals, built on first use. */
+  const NUMBER_FORMATS = new Map();
+
+  /**
+   * *value* with exactly *digits* decimals and *unit* after a space, or null for
+   * anything that is not a finite number.
+   *
+   * The table formats the same way (en-GB, fixed decimals, thousands grouped), so a
+   * value reads identically on the card and in its column.  ``typeof``, not
+   * ``Number()``: ``Number(null)`` is 0 and would print a missing value as zero.
+   */
+  function formatNumber(value, digits, unit, factor) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const scaled = factor === undefined ? value : value * factor;
+    if (!Number.isFinite(scaled)) return null;
+    let format = NUMBER_FORMATS.get(digits);
+    if (!format) {
+      format = new Intl.NumberFormat('en-GB', {minimumFractionDigits: digits, maximumFractionDigits: digits});
+      NUMBER_FORMATS.set(digits, format);
+    }
+    const text = format.format(scaled);
+    return unit ? `${text} ${unit}` : text;
+  }
+
+  /**
+   * A text value of the row, or null when it is missing.  The model stores an absent
+   * category as "-" and the server an absent recommendation as an em dash; both are
+   * placeholders for "nothing", not values.
+   */
+  function formatText(value) {
+    if (typeof value !== 'string') return null;
+    const text = value.trim();
+    return text === '' || text === '-' || text === '\u2014' ? null : text;
+  }
+
+  /** "5 / 7", or null when ``validation`` is not a whole count of passed checks. */
+  function checksText(row) {
+    const passed = row.validation;
+    if (typeof passed !== 'number' || !Number.isInteger(passed)) return null;
+    if (passed < 0 || passed > CHECK_COUNT) return null;
+    return `${passed} / ${CHECK_COUNT}`;
+  }
+
+  /**
+   * Filling as a percent of the diameter with the water depth beside it:
+   * "55 % (0.330 m)", or the depth alone when the percent is not there.
+   *
+   * The server sends ``fillPercent`` as 0 when it could not compute it (no depth or no
+   * diameter), so the percent is shown only when both of its inputs are there: "0 %"
+   * on a conduit with no simulated depth would be a false reading.  No depth, no row.
+   */
+  function fillingText(row) {
+    const depth = formatNumber(row.filling, 3, 'm');
+    const computed = depth !== null && typeof row.diameter === 'number' && row.diameter > 0;
+    const percent = computed ? formatNumber(row.fillPercent, 0, '%') : null;
+    return percent !== null ? `${percent} (${depth})` : depth;
+  }
+
+  /**
+   * The rows of the selection card of *kind*: ``[label, text]`` pairs in the order of
+   * ``CARD_FIELDS``, a field whose value is missing left out.  An unknown kind or a
+   * missing row gives an empty list.
+   */
+  function cardRows(kind, row) {
+    if (!row || typeof row !== 'object') return [];
+    const fields = Object.prototype.hasOwnProperty.call(CARD_FIELDS, kind) ? CARD_FIELDS[kind] : [];
+    const rows = [];
+    fields.forEach(field => {
+      let text;
+      if (field.format) text = field.format(row);
+      else if (field.digits === undefined) text = formatText(row[field.key]);
+      else text = formatNumber(row[field.key], field.digits, field.unit, field.factor);
+      if (text !== null) rows.push([field.label, text]);
+    });
+    return rows;
   }
 
   /**
@@ -1036,6 +1165,10 @@
     let cardDrag = null;
     let gesture = null;
     let hintTimer = null;
+    // Whether the last input on the page was a key rather than a pointer press: the one
+    // fact FOCUS_RING_CLASS is decided on.  True until a pointer says otherwise, so a
+    // focus that arrives without either still shows where it is.
+    let keyboardInput = true;
 
     // Labels.  All of it closure state: the <text> elements are built once
     // and lazily, the layer that measures them with them, and the deferred placement
@@ -1164,6 +1297,12 @@
       // the drawn elements take no focus, so a key is never delivered to one of them.
       // Escape alone is handled on the document (see mapKeyAction).
       drawing.svg.addEventListener('keydown', onMapKey);
+      // The ring is decided when the focus arrives and not on every key: arrows pressed
+      // after a click leave it off.  A press on the map takes it away even though the
+      // focus stays - the reader has just shown where they are.
+      drawing.svg.addEventListener('focus', () => drawing.svg.classList.toggle(FOCUS_RING_CLASS, keyboardInput));
+      drawing.svg.addEventListener('blur', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));
+      drawing.svg.addEventListener('pointerdown', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));
       markFlooded();
       markUnanalysed();
       paint();
@@ -2101,24 +2240,6 @@
     // -------------------------------------------------------------------------
 
     /**
-     * One results value, or null when the row has nothing usable under that key.
-     *
-     * *factor* converts the stored unit into the shown one (millions of litres into
-     * cubic metres) and is applied only to a finite number: a string value is passed
-     * through as it stands.
-     */
-    function formatValue(value, unit, factor) {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        const scaled = Number.isFinite(factor) && factor > 0 ? value * factor : value;
-        if (!Number.isFinite(scaled)) return null;
-        const text = Math.abs(scaled) >= 100 ? scaled.toFixed(0) : scaled.toFixed(2);
-        return unit ? `${text} ${unit}` : text;
-      }
-      if (typeof value === 'string' && value !== '') return value;
-      return null;
-    }
-
-    /**
      * Put the card where ``cardPos`` says, or give it back to the stylesheet.
      *
      * The only place that writes the position of the card into its style, and it is
@@ -2351,22 +2472,26 @@
       heading.addEventListener('pointercancel', endCardDrag);
       card.appendChild(heading);
 
-      if (row) {
+      const rows = cardRows(kind, row);
+      if (rows.length) {
+        // The list is the one part of the card that scrolls when the canvas is short
+        // (network-map.css): the heading and the two actions below it stay in view.
         const values = document.createElement('dl');
         values.className = 'nm-card-values';
-        const fields = Object.prototype.hasOwnProperty.call(CARD_FIELDS, kind) ? CARD_FIELDS[kind] : [];
-        fields.forEach(field => {
-          const text = formatValue(row[field[1]], field[2], field[3]);
-          if (text === null) return;
+        rows.forEach(pair => {
           const term = document.createElement('dt');
-          term.textContent = field[0];
+          term.textContent = pair[0];
           const value = document.createElement('dd');
-          value.textContent = text;
+          value.textContent = pair[1];
           values.appendChild(term);
           values.appendChild(value);
         });
-        if (values.childNodes.length) card.appendChild(values);
+        card.appendChild(values);
       }
+      // The link (or the sentence standing for it) and the button stay together under
+      // the values, in a block that never shrinks.
+      const actions = document.createElement('div');
+      actions.className = 'nm-card-actions';
 
       // An element without a detail page is a normal state, not an error: a node that
       // ends no conduit has no panel to open.  The anchor is then not created at all —
@@ -2380,12 +2505,12 @@
         open.className = 'nm-card-open';
         open.href = href;
         open.textContent = 'Open details';
-        card.appendChild(open);
+        actions.appendChild(open);
       } else {
         const missing = document.createElement('p');
         missing.className = 'nm-card-none';
         missing.textContent = 'No detail page for this element.';
-        card.appendChild(missing);
+        actions.appendChild(missing);
       }
 
       const toTable = document.createElement('button');
@@ -2401,7 +2526,8 @@
           detail: { kind: kindToTab(kind), name: name }
         }));
       });
-      card.appendChild(toTable);
+      actions.appendChild(toTable);
+      card.appendChild(actions);
 
       // Right after the <svg> in the DOM, so that one Tab out of the map reaches the
       // card and not the floating view controls.  The card is positioned absolutely
@@ -2433,6 +2559,8 @@
     // -------------------------------------------------------------------------
 
     host.addEventListener('wheel', event => {
+      // A wheel over the card scrolls its values and is no gesture of the map.
+      if (card && card.contains(event.target)) return;
       const action = wheelAction(event);
       if (!action.zoom) {
         // Nothing is cancelled and nothing moves: the wheel still belongs to whatever
@@ -2607,6 +2735,16 @@
       clearSelection();
       clearLegend();
     });
+
+    // Where the next focus of the map comes from (FOCUS_RING_CLASS).  On the document and
+    // in the capture phase, so the record is written before the focus moves and no
+    // handler that stops propagation can hide an input from it.  A key held with Ctrl,
+    // Alt or Cmd is a shortcut and not navigation - Cmd+Tab to another window would
+    // otherwise bring the ring back on a map the reader clicked.
+    document.addEventListener('pointerdown', () => { keyboardInput = false; }, true);
+    document.addEventListener('keydown', event => {
+      if (!event.ctrlKey && !event.altKey && !event.metaKey) keyboardInput = true;
+    }, true);
 
     if (typeof ResizeObserver !== 'undefined') {
       // One mechanism for both cases: the observer reports the container's size when
@@ -3052,5 +3190,5 @@
     };
   }
 
-  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels};
+  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows};
 })();

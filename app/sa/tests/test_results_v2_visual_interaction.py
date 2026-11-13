@@ -719,6 +719,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         "clampCardPos",
         "writeMapPrefs",
         "placeLabels",
+        "cardRows",
     )
     """Every name the harness calls.  Later stages *add* to this tuple; the test asks
     for a subset and never for an exact count, so stage 7 exporting one more name is
@@ -787,7 +788,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             f"the network map harness failed with exit code {result.returncode}:\n"
             f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
         )
-        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (25 / 25 PASSED)", result.stdout)
+        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (27 / 27 PASSED)", result.stdout)
 
     # -- 57 ---------------------------------------------------------------------
     def test_map_js_has_no_unsafe_patterns(self):
@@ -935,6 +936,35 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertEqual(code.count("nm:select"), 1, "nm:select may be dispatched from one place only")
         dispatch = code.index("nm:select")
         self.assertIn("kindToTab(kind)", code[dispatch : dispatch + 400])
+
+    def test_card_values_come_from_the_field_table(self):
+        """The card shows what ``cardRows`` returns, as text, and nothing it formats itself.
+
+        The formatting lives in the field table and is tested from Node; what is left
+        here is that ``buildCard`` takes it from there, puts every label and value in
+        through ``textContent`` and keeps the conduit attributes the colour modes paint
+        by on the card in every mode.
+        """
+        code = self._code("network-map.js")
+        build = self._braced_block(code, re.search(r"function buildCard\(kind, name\)", code))
+        self.assertIn("cardRows(kind, row)", build)
+        self.assertIn("term.textContent = pair[0]", build)
+        self.assertIn("value.textContent = pair[1]", build)
+        self.assertNotIn("toFixed", build, "numbers are formatted in the field table, not in buildCard")
+        self.assertNotIn("innerHTML", build)
+
+        fields = self._braced_block(code, re.search(r"const CARD_FIELDS = ", code))
+        link = fields[: fields.index("node: [")]
+        for painted in ("key: 'recommendation_label'", "format: checksText", "format: fillingText"):
+            self.assertIn(painted, link, f"the conduit card must show what a colour mode paints by ({painted})")
+        for converted in ("key: 'floodVolume'", "key: 'runoff'"):
+            entry = fields[fields.index(converted) :].split("}", 1)[0]
+            self.assertIn("factor: 1000", entry, f"{converted} is stored in millions of litres")
+
+        # A wheel over the card scrolls its list and must not reach the map.
+        wheel = self._braced_block(code, re.search(r"host\.addEventListener\('wheel', event =>", code))
+        self.assertIn("card.contains(event.target)", wheel)
+        self.assertLess(wheel.index("card.contains(event.target)"), wheel.index("showHint()"))
 
     # -- 62 ---------------------------------------------------------------------
     COLOR_CLASS_RE = re.compile(r"\bnm-(?:c|v|f)-[A-Za-z0-9_]+\b|\bnm-nodata\b")
@@ -1182,7 +1212,8 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
 
         ``.nm-canvas`` clips with ``overflow: hidden`` and ``clampCardPos`` can move a
         card but never shrink one, so the cap is what keeps a long card - and its close
-        button - reachable.  The handle declarations are the other half: on ``.nm-card``
+        button - reachable.  Inside the cap the list of values is what gives way: it
+        shrinks and scrolls, while the heading and the actions keep their height.  The handle declarations are the other half: on ``.nm-card``
         ``touch-action: none`` would stop the finger from scrolling the very card the cap
         tells it to scroll, and ``user-select: none`` would take away the copying of the
         values.
@@ -1210,6 +1241,16 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         heading_body = heading.group(1)
         for declaration in ("cursor: grab", "touch-action: none", "user-select: none"):
             self.assertIn(declaration, heading_body, f"the handle must carry {declaration}")
+        self.assertIn("flex: none", heading_body, "the heading must not shrink when the canvas is short")
+
+        self.assertIn("display: flex; flex-direction: column", card_body, "the card must be a column the list can shrink in")
+        values = re.search(r"#storm-results-v2 \.nm-card-values \{([^}]*)\}", css)
+        self.assertIsNotNone(values, "network-map.css has no rule for .nm-card-values")
+        for declaration in ("flex: 0 1 auto", "min-height:", "overflow-y: auto"):
+            self.assertIn(declaration, values.group(1), f"the list of values must shrink and scroll ({declaration})")
+        actions = re.search(r"#storm-results-v2 \.nm-card-actions \{([^}]*)\}", css)
+        self.assertIsNotNone(actions, "network-map.css has no rule for .nm-card-actions")
+        self.assertIn("flex: none", actions.group(1), "the actions must stay in view")
 
         # A leftover of a decision that no longer holds: with the handle narrowed to the
         # heading, the values keep the browser default and need no rule of their own.
@@ -2066,11 +2107,15 @@ class ResultsV2NetworkMapKeyboardTests(TestCase):
         self.assertNotRegex(code, r"help\.(hidden|setAttribute\('aria-hidden')", "the sentence is for everyone to read")
         css = self._code("network-map.css")
         self.assertRegex(css, r"#storm-results-v2\s+\.nm-help\s*\{")
-        self.assertRegex(css, r"#storm-results-v2\s+\.nm-svg:focus-visible\s*\{", "the one Tab stop must show its focus")
+        self.assertRegex(css, r"#storm-results-v2\s+\.nm-svg\.nm-focus-ring:focus\s*\{", "the one Tab stop must show its focus")
 
         # One keyboard listener, on the container, and every key going through the
         # functions the buttons and the wheel already use.
-        self.assertEqual(code.count("addEventListener('keydown'"), 2, "one listener on the <svg>, one for Esc on the document")
+        self.assertEqual(
+            code.count("addEventListener('keydown'"),
+            3,
+            "one listener on the <svg>, one for Esc on the document, one recording the input for the focus ring",
+        )
         self.assertIn("drawing.svg.addEventListener('keydown', onMapKey);", code)
         keys = self._block(code, r"function mapKeyAction\(event\)")
         for key in ("'ArrowLeft'", "'ArrowRight'", "'ArrowUp'", "'ArrowDown'", "'Home'", "'Enter'", "'+'", "'-'"):
@@ -2094,6 +2139,50 @@ class ResultsV2NetworkMapKeyboardTests(TestCase):
         # D11 parity: Enter opens the anchor of the card, the same one a click opens.
         self.assertIn("card.querySelector('.nm-card-open')", keys)
         self.assertEqual(code.count("createElement('a')"), 1, "there is one anchor and one way to navigate")
+
+    # -- the focus ring of the drawing ------------------------------------------
+    def test_map_focus_ring_follows_the_keyboard_only(self):
+        """The ring shows where a keyboard brought the focus, and never follows a click.
+
+        The <svg> is a Tab stop, so a click focuses it as well.  Chromium then paints its
+        own ``:focus`` ring on the SVG, and a ``:focus-visible`` rule lights up at the
+        first arrow key after the click - neither is the reader's doing.  The ring is a
+        class instead: set on ``focus`` when the last input was a key, removed on
+        ``blur`` and on a press on the map.  The input is recorded on the document in
+        the capture phase, before the focus moves, and a key held with a modifier is a
+        shortcut, not navigation.
+        """
+        code = self._code("network-map.js")
+        css = self._code("network-map.css")
+
+        self.assertIn("const FOCUS_RING_CLASS = 'nm-focus-ring';", code)
+        self.assertIn(
+            "drawing.svg.addEventListener('focus', () => drawing.svg.classList.toggle(FOCUS_RING_CLASS, keyboardInput));",
+            code,
+            "the ring is decided once, when the focus arrives",
+        )
+        self.assertIn("drawing.svg.addEventListener('blur', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));", code)
+        self.assertIn(
+            "drawing.svg.addEventListener('pointerdown', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));",
+            code,
+            "a press on a map focused from the keyboard takes the ring away",
+        )
+        self.assertIn("document.addEventListener('pointerdown', () => { keyboardInput = false; }, true);", code)
+        self.assertRegex(
+            code,
+            r"document\.addEventListener\('keydown', event => \{\s*"
+            r"if \(!event\.ctrlKey && !event\.altKey && !event\.metaKey\) keyboardInput = true;\s*\}, true\);",
+            "every key but a shortcut is recorded, in the capture phase",
+        )
+        self.assertNotIn("keyboardInput", self._block(code, r"function onMapKey\(event\)"), "keys never redecide the ring")
+
+        self.assertNotIn(".nm-svg:focus-visible", css, "the browser heuristic no longer decides the ring")
+        self.assertRegex(css, r"#storm-results-v2\s+\.nm-svg:focus\s*\{\s*outline:\s*none;\s*\}", "no default ring")
+        ring = re.search(r"#storm-results-v2\s+\.nm-svg\.nm-focus-ring:focus\s*\{([^}]*)\}", css)
+        self.assertIsNotNone(ring)
+        self.assertIn("outline: 2px solid var(--r-blue)", ring.group(1))
+        for button in (".nm-ctrl", ".nm-mode", ".nm-legend-item"):
+            self.assertRegex(css, rf"#storm-results-v2\s+{re.escape(button)}:focus-visible\s*\{{", f"{button} keeps its ring")
 
     # -- 69 ---------------------------------------------------------------------
     def test_filter_dimming_never_reaches_an_unanalysed_element(self):
