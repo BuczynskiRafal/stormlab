@@ -101,9 +101,6 @@
   const LABEL_MAX = 600;
   /** How many elements are ever offered a name, selection aside. */
 
-  const LABEL_MIN_GAP_PX = 6;
-  /** Below this screen gap between two nodes the whole group of names is hidden (E4b). */
-
   const LABEL_EPS_PX = 1e-6;
   /**
    * Touching is not colliding.
@@ -148,12 +145,24 @@
   const DEFAULT_MODE = 'recommendation';
   /** D7 - the map opens on the recommendation of the model, not on a hydraulic number. */
 
-  const DEFAULT_LABELS = false;
+  const DEFAULT_LABELS = true;
   /**
-   * D20 - the names of the elements start hidden.
+   * The names of the elements start shown.
    *
-   * A drawing that opens with six hundred names written over it is unreadable before
-   * the reader has done anything, and the gesture that brings them back is one button.
+   * The map is read by its names - a pipe is found by the name the SWMM file gives
+   * it - and the placement keeps a crowded view legible on its own: it drops a name
+   * that finds no room, and it holds the node names back while the node symbols are
+   * too dense to draw.  Turning them off is one button, and that choice is remembered.
+   */
+
+  const PREFS_VERSION = 2;
+  /**
+   * The shape of the stored preferences, written as ``v`` with every save.
+   *
+   * Version 1 carried no marker and stored ``labels: false`` on every gesture - a mode
+   * switch or a card drag wrote it while the names were off by default - so a stored
+   * false without the marker is not a choice anybody made.  ``readMapPrefs`` trusts the
+   * stored ``labels`` only under this version; ``mode`` and ``card`` are read either way.
    */
 
   const NO_DATA_CLASS = 'nm-nodata';
@@ -457,6 +466,17 @@
     if (!Number.isFinite(minGap) || minGap <= 0) return MAX_SYMBOL_PX;
     if (!Number.isFinite(pxPerUnit) || pxPerUnit <= 0) return MAX_SYMBOL_PX;
     return Math.min(MAX_SYMBOL_PX, Math.max(MIN_SYMBOL_PX, (minGap * pxPerUnit) / DENSITY_DIVISOR));
+  }
+
+  /**
+   * Are the node symbols too dense to draw at this scale?  Then rescale hides them and
+   * placeLabelsNow offers none of their names.  An unusable gap - one node position, a
+   * payload without the field - is never crowded, as symbolRadiusPx gives it the ceiling.
+   */
+  function symbolsCrowded(minGap, pxPerUnit) {
+    if (!Number.isFinite(minGap) || minGap <= 0) return false;
+    if (!Number.isFinite(pxPerUnit) || pxPerUnit <= 0) return false;
+    return (minGap * pxPerUnit) / DENSITY_DIVISOR < MIN_SYMBOL_PX;
   }
 
   /**
@@ -817,7 +837,9 @@
     // replaces was a bug the users already have in their storage: {"mode":"filling"} is
     // what every earlier reader of the map wrote, and a missing ``card`` or
     // ``labels`` must cost the default of that one field, never the remembered
-    // mode - just as a broken card may not cost the names beside it.
+    // mode - just as a broken card may not cost the names beside it.  ``labels`` counts
+    // only as a boolean written under PREFS_VERSION (see there); anything else is the
+    // default.
     const stored = parsed.card;
     const usable =
       Boolean(stored) &&
@@ -830,7 +852,7 @@
     return {
       mode: isMode(parsed.mode) ? parsed.mode : DEFAULT_MODE,
       card: usable ? { left: stored.left, top: stored.top } : null,
-      labels: parsed.labels === true
+      labels: parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : DEFAULT_LABELS
     };
   }
 
@@ -847,13 +869,15 @@
    * it (``savePrefs``).  A writer per gesture is how "turn the names on, switch the
    * colouring, reload, names gone" happens: the last write wins and it carried one
    * field - and it is exactly how the dragged position of the card would disappear on
-   * the next click of the mode switch.  All three fields travel together.
+   * the next click of the mode switch.  All three fields travel together, with the
+   * PREFS_VERSION marker that makes the stored ``labels`` a choice.
    */
   function writeMapPrefs(storageLike, prefs) {
     if (!storageLike || typeof storageLike.setItem !== 'function') return;
     const value = prefs && typeof prefs === 'object' ? prefs : {};
+    const labels = typeof value.labels === 'boolean' ? value.labels : DEFAULT_LABELS;
     try {
-      storageLike.setItem(PREFS_KEY, JSON.stringify({ mode: value.mode, card: value.card || null, labels: value.labels === true }));
+      storageLike.setItem(PREFS_KEY, JSON.stringify({ v: PREFS_VERSION, mode: value.mode, card: value.card || null, labels: labels }));
     } catch (err) {
       /* a full or blocked storage costs the preference and nothing else */
     }
@@ -1159,6 +1183,9 @@
     // reads the view of the frame that scheduled it instead of computing it again.
     let labelsBuilt = false;
     let labelFrame = null;
+    // Set by the names button when it turns the names on, consumed by the placement
+    // that follows: that one placement says "zoom in" if it put no name on screen.
+    let labelsJustOn = false;
     let lastView = null;
     let labelCanvas = null;
     let labelCtx = null;
@@ -1197,9 +1224,14 @@
     // The only writers are the drag itself and settleCardPos at the end of it.
     let cardPos = prefs.card;
     // The one read feeds both fields.  Without this line the map has no source for "the
-    // names were on when I left": the button would start off and the stored true would
-    // reach nothing at all.
+    // names were off when I left", nor for the default.
     let labelsOn = prefs.labels;
+    // A browser with no 2D context cannot build a single name, so the names start off
+    // there - the refusal toggleLabels applies to the gesture, made silently, before the
+    // button is painted and without a write: no hint on a page nobody touched yet, and
+    // no stored false the reader never chose.  Asked here and not in rescale, because
+    // the panel may be hidden and the drawing not built for a long while.
+    if (labelsOn && !labelContext()) labelsOn = false;
     let dimmed = [];
     const linkClass = [];  // index of a drawn link -> the colour class it carries now
 
@@ -1423,13 +1455,28 @@
     }
 
     /**
+     * The 2D context the names are measured with, made on the first call and kept - or
+     * null for a browser that hands none back.  Needs no drawing: start-up asks it before
+     * one exists.
+     */
+    function labelContext() {
+      if (!labelCanvas) {
+        labelCanvas = document.createElement('canvas');
+        labelCtx = typeof labelCanvas.getContext === 'function' ? labelCanvas.getContext('2d') : null;
+      }
+      return labelCtx;
+    }
+
+    /**
      * Build the <text> of every element, once, together with the layer that measures
      * them.  Idempotent, and guarded by ``labelsBuilt`` rather than by the length of a
      * list: on a payload with no nodes the length never stops being zero and this would
      * run on every wheel click and every step of a pan, which is the hot path.
      *
      * Lazy on purpose: at the cap of 6000 elements building the names in ensureDrawn
-     * would be thousands of DOM nodes nobody asked for, the names being off by default.
+     * would be thousands of DOM nodes for a reader who turned them off.  With the names
+     * on, the first rescale of a visible panel builds them; a hidden panel measures 0x0
+     * and rescale walks out before this call, so the build waits for the reveal.
      *
      * This is the only place in the module that measures text, and the only one allowed
      * to call getComputedStyle.  The font is read **per variant** - the upright
@@ -1446,11 +1493,7 @@
      */
     function ensureLabels() {
       if (labelsBuilt || !drawing) return;
-      if (!labelCanvas) {
-        labelCanvas = document.createElement('canvas');
-        labelCtx = typeof labelCanvas.getContext === 'function' ? labelCanvas.getContext('2d') : null;
-      }
-      if (!labelCtx) return;
+      if (!labelContext()) return;
 
       const probes = { node: svgNode('text', null, 'nm-label'), poly: svgNode('text', null, 'nm-label nm-label-poly') };
       drawing.labelGroup.appendChild(probes.node);
@@ -1593,10 +1636,9 @@
 
       const radiusPx = symbolRadiusPx(data.min_gap, pxPerUnit);
       const scale = radiusPx / pxPerUnit;
-      const gap = data.min_gap;
       // Below the floor the symbols would merge into a blot; no symbol reads better
       // than a blot, and zooming in brings them back.
-      const crowded = Number.isFinite(gap) && gap > 0 && (gap * pxPerUnit) / DENSITY_DIVISOR < MIN_SYMBOL_PX;
+      const crowded = symbolsCrowded(data.min_gap, pxPerUnit);
       // The payload is walked, exactly as ``markFlooded`` walks it, instead of a second
       // list of handles kept beside ``els``: the two lists are indexed differently — one
       // by ``node.i``, the other by the order the nodes were drawn in — and a node that
@@ -1624,8 +1666,8 @@
       // size, never position).  placeLabelsNow reads the rectangle fresh instead.
       lastView = { pxPerUnit: pxPerUnit, radiusPx: radiusPx, crowded: crowded };
 
-      // The preference came back as true and nobody pressed the button, so this is the
-      // only place that can build the names at all.
+      // The names are on from the start - the default or a stored true - and nobody
+      // pressed the button, so this is the only place that can build them at all.
       if (labelsOn && !labelsBuilt) ensureLabels();
 
       // Synchronous, with the viewBox and with the symbols: a transform written in the
@@ -1638,13 +1680,12 @@
         el.setAttribute('transform', `translate(${anchor[0]} ${anchor[1]}) scale(${labelScale})`);
       });
 
-      // Three ways out, all of them hiding the whole group: the names are off, the
-      // symbols are too dense to draw at all, or two node centres are closer than
-      // LABEL_MIN_GAP_PX on screen.  A null min_gap - the auto layout - hides
-      // nothing: the culling and LABEL_MAX bound the work there.  The "zoom in" hint
-      // belongs to toggleLabels and never here: this runs on every step of a pan.
-      const gapPx = Number.isFinite(gap) ? gap * pxPerUnit : null;
-      const hide = !labelsOn || !labelsBuilt || crowded || (gapPx !== null && gapPx < LABEL_MIN_GAP_PX);
+      // Two ways out, both hiding the whole group: the names are off, or they could not
+      // be built.  Density hides nothing here: the solver keeps the names that fit, the
+      // culling and LABEL_MAX bound its work, and placeLabelsNow holds the node names
+      // back while ``crowded`` hides their symbols.  No hint from here: this runs on
+      // every step of a pan.
+      const hide = !labelsOn || !labelsBuilt;
       drawing.labelGroup.style.display = hide ? 'none' : '';
       if (hide) return;
       scheduleLabels();
@@ -1703,6 +1744,10 @@
      * Subcatchment outlines are obstacles for nobody.
      */
     function placeLabelsNow() {
+      // Read and cleared before any way out, so the hint belongs to the first placement
+      // after the gesture or to none, and never to a later pan.
+      const announce = labelsJustOn;
+      labelsJustOn = false;
       if (!drawing || !labelsBuilt || !labelsOn || !lastView) return;
       hideLabels(drawing.labelEls.node);
       hideLabels(drawing.labelEls.link);
@@ -1745,7 +1790,10 @@
       const byKey = new Map();
       let reach = 0;
 
-      (Array.isArray(data.nodes) ? data.nodes : []).forEach(node => {
+      // While ``crowded`` hides the node symbols their names are not offered at all: a
+      // name beside a symbol that is not drawn names nothing the reader can see, and it
+      // would take the room of the conduit and subcatchment names that still show.
+      (lastView.crowded || !Array.isArray(data.nodes) ? [] : data.nodes).forEach(node => {
         const anchor = labelAnchors.node[node.i];
         const el = drawing.labelEls.node[node.i];
         if (!anchor || !el) return;
@@ -1818,6 +1866,7 @@
       // just inside it, and the margin is the widest name this frame considered.
       const clip = { x1: -reach, y1: -reach, x2: rect.width + reach, y2: rect.height + reach };
       const placed = placeLabels(items, segments, { margin: 0, selected: selectedKey, clip: clip });
+      if (announce && !placed.length) showHint('Zoom in to show names');
 
       for (let n = 0; n < placed.length; n += 1) {
         const entry = placed[n];
@@ -2106,19 +2155,18 @@
      * Turn the names on or off.
      *
      * The preference is written through savePrefs, so the gesture remembers every field
-     * and not only its own.  rescale() then writes the transforms and takes one of its
-     * three ways out, and scheduleLabels() asks for the frame that places them.  The
-     * hint lives here and not in rescale(): it covers *both* ways the group can stay
-     * hidden while the names are on - the density of the symbols and the gap threshold -
-     * and on a 390x844 phone at the fitted view it is the first of them that trips, so a
-     * hint tied to the threshold alone would explain nothing on a phone.
+     * and not only its own.  rescale() then writes the transforms and shows or hides the
+     * group, and scheduleLabels() asks for the frame that places them.  The hint is
+     * decided there and not here: whether any name fits is known only once the solver
+     * has run, so turning the names on raises ``labelsJustOn`` and the placement that
+     * follows says "Zoom in to show names" if it put none on screen.  The page load
+     * never raises it.
      *
-     * There is a third way, and it is not one of those two: a browser that hands back no
-     * 2D context measures no text and so builds no name at all (ensureLabels walks out,
-     * ``labelsBuilt`` stays false).  Telling that reader to zoom in would be advice no
-     * zoom can follow, so the gesture is refused instead (F4): the button goes back off,
-     * the hint says why, and nothing is written - a stored ``labels: true`` would bring
-     * the same dead state back on the next visit.  ``labelCanvas && !labelCtx`` is the
+     * A browser that hands back no 2D context measures no text and so builds no name at
+     * all (ensureLabels walks out, ``labelsBuilt`` stays false).  Telling that reader to
+     * zoom in would be advice no zoom can follow, so the gesture is refused (F4): the
+     * button goes back off, the hint says why, and nothing is written - a stored
+     * ``labels: true`` would bring the same dead state back on the next visit.  ``labelCanvas && !labelCtx`` is the
      * precise question: ``!labelsBuilt`` is also true for a panel that is still hidden,
      * and that one does build its names on the next rescale.
      */
@@ -2132,12 +2180,10 @@
         showHint('Names are not available in this browser');
         return;
       }
+      labelsJustOn = labelsOn;
       savePrefs();
       rescale();
       scheduleLabels();
-      if (labelsOn && drawing && drawing.labelGroup.style.display === 'none') {
-        showHint('Zoom in to show names');
-      }
     }
 
     const hint = document.createElement('div');
@@ -2839,10 +2885,14 @@
     return null;
   }
 
-  /** node before link before subcatchment, whatever the input order was. */
+  /**
+   * Conduit before node before subcatchment, whatever the input order was.  The map is
+   * read by conduit - the recommendations and the tables are keyed on it - so a pipe
+   * name wins a collision against the name of a node.
+   */
   function kindRank(kind) {
-    if (kind === 'node') return 0;
-    if (kind === 'link') return 1;
+    if (kind === 'link') return 0;
+    if (kind === 'node') return 1;
     return 2;
   }
 
@@ -3034,7 +3084,7 @@
    *    The obstacles are node disks, conduit segments and the labels already placed.
    * 3. **One total order, written once.**  The selected element first — named by
    *    ``opts.selected``, a compound key, not by a flag in ``items`` — then ``kind``
-   *    (node 0, link 1, poly 2), then ``i`` ascending.  The input order means
+   *    (link 0, node 1, poly 2), then ``i`` ascending.  The input order means
    *    nothing: this function sorts for itself, or ``opts.max`` and determinism would
    *    say two different things about a shuffled input.  Sorting on the key as a
    *    string is forbidden, 'link:12' standing lexicographically before 'node:3'.
@@ -3158,5 +3208,5 @@
     };
   }
 
-  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows};
+  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded};
 })();
