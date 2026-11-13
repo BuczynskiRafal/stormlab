@@ -79,10 +79,14 @@
    a second one here would simply add to it. */
 #storm-results-v2 .nm-empty { margin: 0; padding: 32px 0; text-align: center; color: var(--r-muted); }
 
-/* Stage 8 - the map is one Tab stop, so it has to show where the focus is.  The offset
-   is negative because .nm-canvas clips (overflow: hidden) and a ring drawn outside the
+/* Stage 8 - the map is one Tab stop, so it has to show where the focus is - when the
+   focus came from the keyboard.  The script sets .nm-focus-ring then and only then
+   (FOCUS_RING_CLASS in network-map.js); every other focus, a click above all, gets no
+   ring, including the one the browser draws on a focused SVG by default.  The offset is
+   negative because .nm-canvas clips (overflow: hidden) and a ring drawn outside the
    <svg> would be cut off on all four sides. */
-#storm-results-v2 .nm-svg:focus-visible { outline: 2px solid var(--r-blue); outline-offset: -2px; }
+#storm-results-v2 .nm-svg:focus { outline: none; }
+#storm-results-v2 .nm-svg.nm-focus-ring:focus { outline: 2px solid var(--r-blue); outline-offset: -2px; }
 
 /* The sentence about the keys and the counter of what could not be drawn, both under
    the drawing and both flex: none - #r-map-panel is a flex column and the canvas is the
