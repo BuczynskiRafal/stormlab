@@ -145,24 +145,24 @@
   const DEFAULT_MODE = 'recommendation';
   /** D7 - the map opens on the recommendation of the model, not on a hydraulic number. */
 
-  const DEFAULT_LABELS = true;
+  const LABELS_MAX_ELEMENTS = 2000;
   /**
-   * The names of the elements start shown.
+   * The names start shown on a network of at most this many elements (elementCount),
+   * and hidden above it, until the reader presses "Aa".
    *
-   * The map is read by its names - a pipe is found by the name the SWMM file gives
-   * it - and the placement keeps a crowded view legible on its own: it drops a name
-   * that finds no room, and it holds the node names back while the node symbols are
-   * too dense to draw.  Turning them off is one button, and that choice is remembered.
+   * The map is read by its names, and the placement keeps a crowded view legible on its
+   * own.  Above this size the thousands of <text> it builds cost frames of 50-150 ms
+   * while zooming and panning, and at the fitted view none of them has room anyway.
    */
 
-  const PREFS_VERSION = 2;
+  const PREFS_VERSION = 3;
   /**
    * The shape of the stored preferences, written as ``v`` with every save.
    *
-   * Version 1 carried no marker and stored ``labels: false`` on every gesture - a mode
-   * switch or a card drag wrote it while the names were off by default - so a stored
-   * false without the marker is not a choice anybody made.  ``readMapPrefs`` trusts the
-   * stored ``labels`` only under this version; ``mode`` and ``card`` are read either way.
+   * Under this version ``labels`` is stored only once the reader has pressed "Aa", so
+   * a stored value is a choice and a missing one means "never chosen".  Versions 1 and
+   * 2 stored it on every gesture - a mode switch, a card drag - so their value is not
+   * read; ``mode`` and ``card`` are read whatever the version.
    */
 
   const NO_DATA_CLASS = 'nm-nodata';
@@ -809,12 +809,14 @@
    * throws (a browser with site data blocked does exactly that), a missing value,
    * broken JSON, a mode nobody knows - gives the default mode back.  There is no path
    * out of this function that throws, and none that returns an unknown mode.
+   * ``labels`` is the reader's choice, true or false, or null when there is none; the
+   * map resolves null with resolveLabels.
    */
   function readMapPrefs(storageLike) {
     // A fresh object on every path, including every failure: the caller keeps what it
     // gets, and one shared fallback would let one map write into the next read.
     function fallback() {
-      return { mode: DEFAULT_MODE, card: null, labels: DEFAULT_LABELS };
+      return { mode: DEFAULT_MODE, card: null, labels: null };
     }
     if (!storageLike || typeof storageLike.getItem !== 'function') return fallback();
 
@@ -838,8 +840,7 @@
     // what every earlier reader of the map wrote, and a missing ``card`` or
     // ``labels`` must cost the default of that one field, never the remembered
     // mode - just as a broken card may not cost the names beside it.  ``labels`` counts
-    // only as a boolean written under PREFS_VERSION (see there); anything else is the
-    // default.
+    // only as a boolean written under PREFS_VERSION (see there); anything else is null.
     const stored = parsed.card;
     const usable =
       Boolean(stored) &&
@@ -852,8 +853,17 @@
     return {
       mode: isMode(parsed.mode) ? parsed.mode : DEFAULT_MODE,
       card: usable ? { left: stored.left, top: stored.top } : null,
-      labels: parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : DEFAULT_LABELS
+      labels: parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : null
     };
+  }
+
+  /**
+   * Are the names on?  The reader's choice when there is one (true or false), and
+   * otherwise the default for the size of the network: on up to LABELS_MAX_ELEMENTS.
+   */
+  function resolveLabels(choice, elements) {
+    if (typeof choice === 'boolean') return choice;
+    return Number.isFinite(elements) && elements <= LABELS_MAX_ELEMENTS;
   }
 
   /** Is *mode* one of the three the switch offers?  Own keys only, as ever. */
@@ -870,12 +880,14 @@
    * colouring, reload, names gone" happens: the last write wins and it carried one
    * field - and it is exactly how the dragged position of the card would disappear on
    * the next click of the mode switch.  All three fields travel together, with the
-   * PREFS_VERSION marker that makes the stored ``labels`` a choice.
+   * PREFS_VERSION marker.  ``labels`` is written only when it is a choice (a boolean);
+   * null leaves it out of the record - JSON.stringify drops an undefined value - so a
+   * mode switch on a fresh visit stores no names setting at all.
    */
   function writeMapPrefs(storageLike, prefs) {
     if (!storageLike || typeof storageLike.setItem !== 'function') return;
     const value = prefs && typeof prefs === 'object' ? prefs : {};
-    const labels = typeof value.labels === 'boolean' ? value.labels : DEFAULT_LABELS;
+    const labels = typeof value.labels === 'boolean' ? value.labels : undefined;
     try {
       storageLike.setItem(PREFS_KEY, JSON.stringify({ v: PREFS_VERSION, mode: value.mode, card: value.card || null, labels: labels }));
     } catch (err) {
@@ -1207,7 +1219,7 @@
      * ``localStorage.setItem`` is synchronous.
      */
     function savePrefs() {
-      writeMapPrefs(mapStorage(), { mode: mode, card: cardPos, labels: labelsOn });
+      writeMapPrefs(mapStorage(), { mode: mode, card: cardPos, labels: labelsChoice });
     }
 
     // Colouring (stage 6).  ``mode`` is the only thing that is remembered between
@@ -1223,13 +1235,14 @@
     // instead of outside it, and comes back where it was when the window grows again.
     // The only writers are the drag itself and settleCardPos at the end of it.
     let cardPos = prefs.card;
-    // The one read feeds both fields.  Without this line the map has no source for "the
-    // names were off when I left", nor for the default.
-    let labelsOn = prefs.labels;
+    // The reader's choice of names - true, false, or null until "Aa" is pressed - and
+    // the state it resolves to on this network.  Only toggleLabels sets the choice.
+    let labelsChoice = prefs.labels;
+    let labelsOn = resolveLabels(labelsChoice, elementCount(data));
     // A browser with no 2D context cannot build a single name, so the names start off
     // there - the refusal toggleLabels applies to the gesture, made silently, before the
-    // button is painted and without a write: no hint on a page nobody touched yet, and
-    // no stored false the reader never chose.  Asked here and not in rescale, because
+    // button is painted and without touching the choice: no hint on a page nobody
+    // touched yet, and no stored false the reader never chose.  Asked here and not in rescale, because
     // the panel may be hidden and the drawing not built for a long while.
     if (labelsOn && !labelContext()) labelsOn = false;
     let dimmed = [];
@@ -1474,7 +1487,8 @@
      * run on every wheel click and every step of a pan, which is the hot path.
      *
      * Lazy on purpose: at the cap of 6000 elements building the names in ensureDrawn
-     * would be thousands of DOM nodes for a reader who turned them off.  With the names
+     * would be thousands of DOM nodes for a reader who turned them off, or on a network
+     * above LABELS_MAX_ELEMENTS that starts with them off.  With the names
      * on, the first rescale of a visible panel builds them; a hidden panel measures 0x0
      * and rescale walks out before this call, so the build waits for the reveal.
      *
@@ -2165,10 +2179,11 @@
      * A browser that hands back no 2D context measures no text and so builds no name at
      * all (ensureLabels walks out, ``labelsBuilt`` stays false).  Telling that reader to
      * zoom in would be advice no zoom can follow, so the gesture is refused (F4): the
-     * button goes back off, the hint says why, and nothing is written - a stored
-     * ``labels: true`` would bring the same dead state back on the next visit.  ``labelCanvas && !labelCtx`` is the
-     * precise question: ``!labelsBuilt`` is also true for a panel that is still hidden,
-     * and that one does build its names on the next rescale.
+     * button goes back off, the hint says why, and no choice is recorded or written - a
+     * stored ``labels: true`` would bring the same dead state back on the next visit.
+     * ``labelCanvas && !labelCtx`` is the precise question: ``!labelsBuilt`` is also
+     * true for a panel that is still hidden, and that one does build its names on the
+     * next rescale.
      */
     function toggleLabels() {
       labelsOn = !labelsOn;
@@ -2181,6 +2196,8 @@
         return;
       }
       labelsJustOn = labelsOn;
+      // From the first press on, the names are a choice and every save carries it.
+      labelsChoice = labelsOn;
       savePrefs();
       rescale();
       scheduleLabels();
@@ -3208,5 +3225,5 @@
     };
   }
 
-  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded};
+  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded, resolveLabels};
 })();
