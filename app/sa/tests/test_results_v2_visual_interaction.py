@@ -721,6 +721,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         "placeLabels",
         "cardRows",
         "symbolsCrowded",
+        "resolveLabels",
     )
     """Every name the harness calls.  Later stages *add* to this tuple; the test asks
     for a subset and never for an exact count, so stage 7 exporting one more name is
@@ -1415,7 +1416,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
 
     # -- 83 ---------------------------------------------------------------------
     def test_prefs_carry_all_three_fields(self):
-        """One object, one writer, every field written every time (N02).
+        """One object, one writer: every save carries every field there is (N02).
 
         ``writeMapPrefs`` takes the whole preference object and ``savePrefs`` is the
         only place that calls it, so no gesture can write one field and drop another -
@@ -1429,41 +1430,48 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertIn("function writeMapPrefs(storageLike, prefs)", code, "the writer takes the whole object")
         self.assertRegex(code, r"JSON\.stringify\(\{[^}]*labels:", "the stored object carries the names field")
         self.assertNotIn("writeMapPrefs(mapStorage(), mode)", code, "no gesture may write the mode on its own")
-        self.assertIn("let labelsOn = prefs.labels", code, "the one read of the preferences must feed the names")
+        self.assertIn("let labelsChoice = prefs.labels;", code, "the one read of the preferences must feed the names")
 
         calls = re.findall(r"(?<!function )writeMapPrefs\(", code)
         self.assertEqual(len(calls), 1, "writeMapPrefs must be called from exactly one place")
         block = self._braced_block(code, re.search(r"function savePrefs\(\)\s*\{", code))
         self.assertIn("writeMapPrefs(", block, "that one place is savePrefs")
         self.assertIn("mode: mode", block)
-        self.assertIn("labels: labelsOn", block)
+        self.assertIn("labels: labelsChoice", block, "the choice is saved, never the state it resolved to")
         self.assertIn("savePrefs();", self._braced_block(code, re.search(r"function setMode\(next\)\s*\{", code)))
 
     # -- 84 ---------------------------------------------------------------------
-    def test_labels_on_by_default(self):
-        """A map opens with its names on it, and an earlier stored false does not count.
+    def test_labels_default_depends_on_the_network_and_a_choice_wins(self):
+        """Names start on up to 2 000 elements and off above; a reader's choice wins.
 
-        The stored ``labels`` is trusted only under the version marker: the unmarked
-        shape wrote ``labels: false`` on every gesture while the names were off by
-        default, so it says nothing about a choice.  A browser that cannot measure text
-        starts with the names off, before the button is painted and without a write -
-        the refusal ``toggleLabels`` makes, minus the hint (test 89).
+        The stored ``labels`` is a choice only under version 3, which writes it once
+        "Aa" has been pressed and never before: earlier versions stored it on every
+        gesture.  ``null`` - never chosen - resolves to the size default through
+        ``resolveLabels``, on ``elementCount(data)``.  Only the button sets the choice.
+        A browser that cannot measure text starts with the names off, before the button
+        is painted, without a write and without touching the choice (test 89).
         """
         code = self._code("network-map.js")
 
-        self.assertIn("const DEFAULT_LABELS = true;", code)
-        self.assertIn("const PREFS_VERSION = 2;", code)
-        self.assertIn("labels: DEFAULT_LABELS", code, "the reader must fall back on that constant")
+        self.assertIn("const LABELS_MAX_ELEMENTS = 2000;", code)
+        self.assertIn("const PREFS_VERSION = 3;", code)
+        self.assertNotIn("DEFAULT_LABELS", code)
         self.assertIn(
-            "parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : DEFAULT_LABELS",
+            "parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : null",
             code,
             "a stored names flag counts only as a boolean under the marker",
         )
         self.assertRegex(code, r"JSON\.stringify\(\{\s*v: PREFS_VERSION,", "every write carries the marker")
+        self.assertIn("const labels = typeof value.labels === 'boolean' ? value.labels : undefined;", code)
+        self.assertIn("let labelsOn = resolveLabels(labelsChoice, elementCount(data));", code)
+        self.assertEqual(len(re.findall(r"labelsChoice = (?!prefs)", code)), 1, "one writer of the choice")
+        toggle = self._braced_block(code, re.search(r"function toggleLabels\(\)\s*\{", code))
+        self.assertIn("labelsChoice = labelsOn;", toggle, "and it is the button")
+        self.assertLess(toggle.index("return;"), toggle.index("labelsChoice = labelsOn;"), "a refused press is no choice")
 
         refusal = "if (labelsOn && !labelContext()) labelsOn = false;"
         self.assertIn(refusal, code, "no 2D context: the names start off")
-        self.assertLess(code.index("let labelsOn = prefs.labels;"), code.index(refusal))
+        self.assertLess(code.index("let labelsOn = resolveLabels("), code.index(refusal))
         self.assertLess(code.index(refusal), code.index("updateLabelButton();"), "decided before the button is painted")
         line = code[code.index(refusal) : code.index("\n", code.index(refusal))]
         self.assertNotIn("showHint", line, "a page nobody touched gets no hint")
