@@ -1398,16 +1398,34 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertIn("savePrefs();", self._braced_block(code, re.search(r"function setMode\(next\)\s*\{", code)))
 
     # -- 84 ---------------------------------------------------------------------
-    def test_labels_off_by_default(self):
-        """D20 - a map opens without its names on it.
+    def test_labels_on_by_default(self):
+        """A map opens with its names on it, and an earlier stored false does not count.
 
-        Six hundred names written over a drawing nobody has touched yet is not a map,
-        and the gesture that brings them back is a single button.
+        The stored ``labels`` is trusted only under the version marker: the unmarked
+        shape wrote ``labels: false`` on every gesture while the names were off by
+        default, so it says nothing about a choice.  A browser that cannot measure text
+        starts with the names off, before the button is painted and without a write -
+        the refusal ``toggleLabels`` makes, minus the hint (test 89).
         """
         code = self._code("network-map.js")
 
-        self.assertIn("const DEFAULT_LABELS = false;", code)
+        self.assertIn("const DEFAULT_LABELS = true;", code)
+        self.assertIn("const PREFS_VERSION = 2;", code)
         self.assertIn("labels: DEFAULT_LABELS", code, "the reader must fall back on that constant")
+        self.assertIn(
+            "parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : DEFAULT_LABELS",
+            code,
+            "a stored names flag counts only as a boolean under the marker",
+        )
+        self.assertRegex(code, r"JSON\.stringify\(\{\s*v: PREFS_VERSION,", "every write carries the marker")
+
+        refusal = "if (labelsOn && !labelContext()) labelsOn = false;"
+        self.assertIn(refusal, code, "no 2D context: the names start off")
+        self.assertLess(code.index("let labelsOn = prefs.labels;"), code.index(refusal))
+        self.assertLess(code.index(refusal), code.index("updateLabelButton();"), "decided before the button is painted")
+        line = code[code.index(refusal) : code.index("\n", code.index(refusal))]
+        self.assertNotIn("showHint", line, "a page nobody touched gets no hint")
+        self.assertNotIn("savePrefs", line, "and writes nothing")
 
     # -- 85 ---------------------------------------------------------------------
     def test_lazy_labels_get_the_dimming(self):
@@ -1557,7 +1575,9 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             "nothing is written for a state the next visit could not restore",
         )
         ensure = self._braced_block(code, re.search(r"function ensureLabels\(\)\s*\{", code))
-        self.assertIn("if (!labelCtx) return;", ensure, "the early way out this hint speaks for")
+        self.assertIn("if (!labelContext()) return;", ensure, "the early way out this hint speaks for")
+        context = self._braced_block(code, re.search(r"function labelContext\(\)\s*\{", code))
+        self.assertIn("getContext('2d')", context, "the one place the context is asked for")
 
     # -- 90 ---------------------------------------------------------------------
     def test_card_position_is_clamped_for_the_screen_and_for_storage_apart(self):

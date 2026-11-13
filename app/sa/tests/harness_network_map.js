@@ -419,8 +419,8 @@ group('pickColor names a class for every mode and falls back to nm-nodata', () =
 // ---------------------------------------------------------------------------
 // 11. readMapPrefs — one key, and every field decided on its own
 //
-// Three fields: ``mode``, ``card`` and ``labels``.
-// Every assertion here names all three, because the point of the shape is that a
+// Three fields: ``mode``, ``card`` and ``labels``, the last one trusted only under the
+// version marker ``v: 2``.  Every assertion here names all three, because the point of the shape is that a
 // broken one may not cost the other two.  The round trip of the writer keeps its own
 // group below (16), where E2 put it: no new group, the count stays what E4a left.
 // ---------------------------------------------------------------------------
@@ -445,14 +445,46 @@ group('readMapPrefs reads its own key and decides every field of the preferences
     };
   }
 
-  const good = store({ [KEY]: JSON.stringify({ mode: 'filling', labels: true }) });
-  assert.deepStrictEqual(readMapPrefs(good), { mode: 'filling', card: null, labels: true }, 'the stored fields must come back, and the one that was never stored takes its default');
+  const good = store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', labels: false }) });
+  assert.deepStrictEqual(readMapPrefs(good), { mode: 'filling', card: null, labels: false }, 'the stored fields must come back, and the one that was never stored takes its default');
   assert.deepStrictEqual(good.asked, [KEY], 'the map must read its own key and nothing else');
   assert.ok(!good.asked.includes('stormwater-results-v2-preferences'), 'the map must not read the Results V2 key');
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: '{"mode":"validity","labels":false}' })),
-    { mode: 'validity', card: null, labels: false },
+    readMapPrefs(store({ [KEY]: '{"v":2,"mode":"validity","labels":true}' })),
+    { mode: 'validity', card: null, labels: true },
     'the second mode must come back too'
+  );
+
+  // The names are on unless the reader turned them off under the marker.  The unmarked
+  // shape stored ``labels: false`` on every gesture while the names were off by default,
+  // so that false is not a choice: it gives the default and keeps its mode.
+  assert.deepStrictEqual(readMapPrefs(store({})).labels, true, 'nothing stored: the names are on');
+  assert.deepStrictEqual(
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', card: null, labels: false }) })),
+    { mode: 'filling', card: null, labels: false },
+    'a false stored under the marker is a choice and must be kept'
+  );
+  assert.deepStrictEqual(
+    readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling', card: null, labels: false }) })),
+    { mode: 'filling', card: null, labels: true },
+    'a false stored without the marker must give the default, and the mode must stay'
+  );
+  assert.deepStrictEqual(
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 1, mode: 'validity', labels: false }) })),
+    { mode: 'validity', card: null, labels: true },
+    'only the current marker counts'
+  );
+  ['yes', 0, 1, null].forEach(labels => {
+    assert.deepStrictEqual(
+      readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', labels: labels }) })),
+      { mode: 'filling', card: null, labels: true },
+      `a stored ${JSON.stringify(labels)} is not a boolean and must give the default, even under the marker`
+    );
+  });
+  assert.deepStrictEqual(
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling' }) })),
+    { mode: 'filling', card: null, labels: true },
+    'a marked object without the field must give the default'
   );
 
   // The shape every reader of the map has in their browser today, from before the card
@@ -461,42 +493,42 @@ group('readMapPrefs reads its own key and decides every field of the preferences
   // fallback would reset the mode of every existing reader.
   assert.deepStrictEqual(
     readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling' }) })),
-    { mode: 'filling', card: null, labels: false },
+    { mode: 'filling', card: null, labels: true },
     'the old {mode} shape must survive, with card and labels defaulted'
   );
   // ...and the shape E2 writes, from before the names existed: the card stands and only
   // ``labels`` defaults.
   assert.deepStrictEqual(
     readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling', card: { left: 40, top: 30 } }) })),
-    { mode: 'filling', card: { left: 40, top: 30 }, labels: false },
+    { mode: 'filling', card: { left: 40, top: 30 }, labels: true },
     'the {mode, card} shape must survive, with labels defaulted'
   );
   // All three at once, and then each of them broken on its own: a bad mode may not cost
   // the position or the names, and a bad position may not cost the other two.
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling', card: { left: 40, top: 30 }, labels: true }) })),
-    { mode: 'filling', card: { left: 40, top: 30 }, labels: true },
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', card: { left: 40, top: 30 }, labels: false }) })),
+    { mode: 'filling', card: { left: 40, top: 30 }, labels: false },
     'all three stored fields must come back'
   );
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'rainbow', card: { left: 5, top: 5 }, labels: true }) })),
-    { mode: 'recommendation', card: { left: 5, top: 5 }, labels: true },
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'rainbow', card: { left: 5, top: 5 }, labels: false }) })),
+    { mode: 'recommendation', card: { left: 5, top: 5 }, labels: false },
     'an unknown mode must take neither the position nor the names with it'
   );
-  // ``labels`` is true and nothing else is: a string and a number are not a flag.
+  // ``labels`` is a boolean and nothing else is: a string and a number are not a flag.
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: JSON.stringify({ labels: 'yes' }) })),
-    { mode: 'recommendation', card: null, labels: false },
-    'a string must not pass for true'
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, labels: 'no' }) })),
+    { mode: 'recommendation', card: null, labels: true },
+    'a string must not pass for false'
   );
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: JSON.stringify({ labels: 1 }) })),
-    { mode: 'recommendation', card: null, labels: false },
-    'a number must not pass for true'
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, labels: 0 }) })),
+    { mode: 'recommendation', card: null, labels: true },
+    'a number must not pass for false'
   );
 
   // Broken, unknown, missing, absent and throwing: five ways to fail, one whole shape.
-  const whole = { mode: 'recommendation', card: null, labels: false };
+  const whole = { mode: 'recommendation', card: null, labels: true };
   assert.deepStrictEqual(readMapPrefs(store({ [KEY]: '{mode: filling' })), whole, 'broken JSON must give the whole default');
   assert.deepStrictEqual(readMapPrefs(store({ [KEY]: '"filling"' })), whole, 'a value that is not an object must give the whole default');
   assert.deepStrictEqual(readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'rainbow' }) })), whole, 'an unknown mode must give the whole default');
@@ -518,8 +550,8 @@ group('readMapPrefs reads its own key and decides every field of the preferences
     null
   ].forEach(card => {
     assert.deepStrictEqual(
-      readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling', card: card, labels: true }) })),
-      { mode: 'filling', card: null, labels: true },
+      readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', card: card, labels: false }) })),
+      { mode: 'filling', card: null, labels: false },
       `an unusable card (${JSON.stringify(card)}) must give card: null and keep the mode and the names`
     );
   });
@@ -747,16 +779,20 @@ group('writeMapPrefs stores the whole object and survives a round trip', () => {
   }
 
   const store = memory();
-  const written = { mode: 'filling', card: { left: 40, top: 30 }, labels: true };
+  const written = { mode: 'filling', card: { left: 40, top: 30 }, labels: false };
   writeMapPrefs(store, written);
   assert.deepStrictEqual(Object.keys(store.values), [KEY], 'the writer must use the map key and no other');
-  assert.deepStrictEqual(readMapPrefs(store), written, 'all three fields must survive the round trip');
+  assert.strictEqual(JSON.parse(store.values[KEY]).v, 2, 'every write must carry the version marker');
+  assert.deepStrictEqual(readMapPrefs(store), written, 'all three fields must survive the round trip, a false included');
+  const on = memory();
+  writeMapPrefs(on, { mode: 'filling', card: null, labels: true });
+  assert.deepStrictEqual(readMapPrefs(on), { mode: 'filling', card: null, labels: true }, 'and a true as well');
 
   // The mode is validated on the way out, not on the way in: a value the switch does
   // not know lands on the default and the two fields beside it are untouched.
   const unknown = memory();
-  writeMapPrefs(unknown, { mode: 'rainbow', card: { left: 5, top: 5 }, labels: true });
-  assert.deepStrictEqual(readMapPrefs(unknown), { mode: 'recommendation', card: { left: 5, top: 5 }, labels: true }, 'a mode off the list must read back as the default');
+  writeMapPrefs(unknown, { mode: 'rainbow', card: { left: 5, top: 5 }, labels: false });
+  assert.deepStrictEqual(readMapPrefs(unknown), { mode: 'recommendation', card: { left: 5, top: 5 }, labels: false }, 'a mode off the list must read back as the default');
 
   const noCard = memory();
   writeMapPrefs(noCard, { mode: 'validity', card: null, labels: false });
@@ -766,7 +802,10 @@ group('writeMapPrefs stores the whole object and survives a round trip', () => {
   // stored JSON has to stay a whole object or the next read would have to guess.
   const partial = memory();
   writeMapPrefs(partial, { mode: 'validity' });
-  assert.deepStrictEqual(readMapPrefs(partial), { mode: 'validity', card: null, labels: false }, 'a missing field is written as its default');
+  assert.deepStrictEqual(readMapPrefs(partial), { mode: 'validity', card: null, labels: true }, 'a missing field is written as its default');
+  const odd = memory();
+  writeMapPrefs(odd, { mode: 'validity', card: null, labels: 'no' });
+  assert.strictEqual(JSON.parse(odd.values[KEY]).labels, true, 'a names flag that is not a boolean is written as the default');
 
   // A preference is not worth an error: neither a storage that refuses to write nor a
   // missing one may throw out of the module.

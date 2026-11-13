@@ -148,12 +148,24 @@
   const DEFAULT_MODE = 'recommendation';
   /** D7 - the map opens on the recommendation of the model, not on a hydraulic number. */
 
-  const DEFAULT_LABELS = false;
+  const DEFAULT_LABELS = true;
   /**
-   * D20 - the names of the elements start hidden.
+   * The names of the elements start shown.
    *
-   * A drawing that opens with six hundred names written over it is unreadable before
-   * the reader has done anything, and the gesture that brings them back is one button.
+   * The map is read by its names - a pipe is found by the name the SWMM file gives
+   * it - and the placement already keeps a crowded view legible: it drops a name that
+   * finds no room and hides the whole layer below the density and gap thresholds.
+   * Turning them off is one button, and that choice is remembered.
+   */
+
+  const PREFS_VERSION = 2;
+  /**
+   * The shape of the stored preferences, written as ``v`` with every save.
+   *
+   * Version 1 carried no marker and stored ``labels: false`` on every gesture - a mode
+   * switch or a card drag wrote it while the names were off by default - so a stored
+   * false without the marker is not a choice anybody made.  ``readMapPrefs`` trusts the
+   * stored ``labels`` only under this version; ``mode`` and ``card`` are read either way.
    */
 
   const NO_DATA_CLASS = 'nm-nodata';
@@ -688,7 +700,9 @@
     // replaces was a bug the users already have in their storage: {"mode":"filling"} is
     // what every earlier reader of the map wrote, and a missing ``card`` or
     // ``labels`` must cost the default of that one field, never the remembered
-    // mode - just as a broken card may not cost the names beside it.
+    // mode - just as a broken card may not cost the names beside it.  ``labels`` counts
+    // only as a boolean written under PREFS_VERSION (see there); anything else is the
+    // default.
     const stored = parsed.card;
     const usable =
       Boolean(stored) &&
@@ -701,7 +715,7 @@
     return {
       mode: isMode(parsed.mode) ? parsed.mode : DEFAULT_MODE,
       card: usable ? { left: stored.left, top: stored.top } : null,
-      labels: parsed.labels === true
+      labels: parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : DEFAULT_LABELS
     };
   }
 
@@ -718,13 +732,15 @@
    * it (``savePrefs``).  A writer per gesture is how "turn the names on, switch the
    * colouring, reload, names gone" happens: the last write wins and it carried one
    * field - and it is exactly how the dragged position of the card would disappear on
-   * the next click of the mode switch.  All three fields travel together.
+   * the next click of the mode switch.  All three fields travel together, with the
+   * PREFS_VERSION marker that makes the stored ``labels`` a choice.
    */
   function writeMapPrefs(storageLike, prefs) {
     if (!storageLike || typeof storageLike.setItem !== 'function') return;
     const value = prefs && typeof prefs === 'object' ? prefs : {};
+    const labels = typeof value.labels === 'boolean' ? value.labels : DEFAULT_LABELS;
     try {
-      storageLike.setItem(PREFS_KEY, JSON.stringify({ mode: value.mode, card: value.card || null, labels: value.labels === true }));
+      storageLike.setItem(PREFS_KEY, JSON.stringify({ v: PREFS_VERSION, mode: value.mode, card: value.card || null, labels: labels }));
     } catch (err) {
       /* a full or blocked storage costs the preference and nothing else */
     }
@@ -1064,9 +1080,14 @@
     // The only writers are the drag itself and settleCardPos at the end of it.
     let cardPos = prefs.card;
     // The one read feeds both fields.  Without this line the map has no source for "the
-    // names were on when I left": the button would start off and the stored true would
-    // reach nothing at all.
+    // names were off when I left", nor for the default.
     let labelsOn = prefs.labels;
+    // A browser with no 2D context cannot build a single name, so the names start off
+    // there - the refusal toggleLabels applies to the gesture, made silently, before the
+    // button is painted and without a write: no hint on a page nobody touched yet, and
+    // no stored false the reader never chose.  Asked here and not in rescale, because
+    // the panel may be hidden and the drawing not built for a long while.
+    if (labelsOn && !labelContext()) labelsOn = false;
     let dimmed = [];
     const linkClass = [];  // index of a drawn link -> the colour class it carries now
 
@@ -1284,13 +1305,28 @@
     }
 
     /**
+     * The 2D context the names are measured with, made on the first call and kept - or
+     * null for a browser that hands none back.  Needs no drawing: start-up asks it before
+     * one exists.
+     */
+    function labelContext() {
+      if (!labelCanvas) {
+        labelCanvas = document.createElement('canvas');
+        labelCtx = typeof labelCanvas.getContext === 'function' ? labelCanvas.getContext('2d') : null;
+      }
+      return labelCtx;
+    }
+
+    /**
      * Build the <text> of every element, once, together with the layer that measures
      * them.  Idempotent, and guarded by ``labelsBuilt`` rather than by the length of a
      * list: on a payload with no nodes the length never stops being zero and this would
      * run on every wheel click and every step of a pan, which is the hot path.
      *
      * Lazy on purpose: at the cap of 6000 elements building the names in ensureDrawn
-     * would be thousands of DOM nodes nobody asked for, the names being off by default.
+     * would be thousands of DOM nodes for a reader who turned them off.  With the names
+     * on, the first rescale of a visible panel builds them; a hidden panel measures 0x0
+     * and rescale walks out before this call, so the build waits for the reveal.
      *
      * This is the only place in the module that measures text, and the only one allowed
      * to call getComputedStyle.  The font is read **per variant** - the upright
@@ -1307,11 +1343,7 @@
      */
     function ensureLabels() {
       if (labelsBuilt || !drawing) return;
-      if (!labelCanvas) {
-        labelCanvas = document.createElement('canvas');
-        labelCtx = typeof labelCanvas.getContext === 'function' ? labelCanvas.getContext('2d') : null;
-      }
-      if (!labelCtx) return;
+      if (!labelContext()) return;
 
       const probes = { node: svgNode('text', null, 'nm-label'), poly: svgNode('text', null, 'nm-label nm-label-poly') };
       drawing.labelGroup.appendChild(probes.node);
@@ -1485,8 +1517,8 @@
       // size, never position).  placeLabelsNow reads the rectangle fresh instead.
       lastView = { pxPerUnit: pxPerUnit, radiusPx: radiusPx, crowded: crowded };
 
-      // The preference came back as true and nobody pressed the button, so this is the
-      // only place that can build the names at all.
+      // The names are on from the start - the default or a stored true - and nobody
+      // pressed the button, so this is the only place that can build them at all.
       if (labelsOn && !labelsBuilt) ensureLabels();
 
       // Synchronous, with the viewBox and with the symbols: a transform written in the
