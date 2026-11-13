@@ -1,13 +1,10 @@
 {% extends "base.html" %}
-{% load sa_query %}
-{% load crispy_forms_tags %}
 
 {% block title %} Analysis {% endblock %}
 
 {% block content %}
 
 <!-- Upload Form Section -->
-{% if not show_results %}
 <div class="row mb-4 justify-content-center">
     <div class="col-lg-8 col-xl-6">
         {% if analysis_error %}
@@ -123,129 +120,5 @@
         </div>
     </div>
 </div>
-{% endif %}
 
-{% if show_results %}
-<!-- Analysis Results Header -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="alert alert-success" role="alert">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h4 class="alert-heading mb-1">
-                        <i class="fas fa-check-circle"></i> Analysis Complete
-                    </h4>
-                    <p class="mb-0">
-                        <strong>Session:</strong> {{ session.id }} |
-                        <strong>Created:</strong> {{ session.created_at|date:"Y-m-d H:i" }} |
-                        <strong>Status:</strong> {{ session.status|title }}
-                    </p>
-                </div>
-                <div>
-                    <a href="{% url 'sa:analysis' %}" class="btn btn-outline-success">
-                        <i class="fas fa-plus"></i> New Analysis
-                    </a>
-                    <a href="{% url 'sa:history' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-history"></i> View History
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Data Tables - Only show when we have data -->
-{% if data %}
-<div class="bootstrap-snippet mt-3">
-    <div class="tab-content">
-        <div class="accordion" id="accordionMenu">
-            {% for dataset_name, dataset in data.items %}
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading{{ dataset_name|slugify }}">
-                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ dataset_name|slugify }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ dataset_name|slugify }}">
-                            <strong>{{ dataset_name }}</strong>
-                        </button>
-                    </h2>
-                    <div id="collapse{{ dataset_name|slugify }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading{{ dataset_name|slugify }}">
-                        <div class="accordion-body scrollable-accordion-body">
-                            <div class="scrollable-table-container">
-                                <table class="table table-hover data-table">
-                                    <thead>
-                                        <tr>
-                                            {% for key in dataset.0.keys %}
-                                            <th class="center-text">{{ key }}</th>
-                                            {% endfor %}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for item in dataset %}
-                                        <tr>
-                                            {% if session %}
-                                                <!-- Results with clickable links -->
-                                                {% for key, value in item.items %}
-                                                <td class="center-text">
-                                                    {% if forloop.first %}
-                                                        <!-- First column is clickable -->
-                                                        {% if "Conduits" in dataset_name %}
-                                                            <a href="{% url 'sa:conduit_detail' session.id value %}" class="text-decoration-none fw-bold text-primary">
-                                                                <i class="fas fa-external-link-alt me-1"></i>{{ value }}
-                                                            </a>
-                                                        {% elif "Nodes" in dataset_name or "Subcatchments" in dataset_name %}
-                                                            {% with href=panel_links|dict_get:dataset_name|dict_get:value %}{% if href %}<a href="{{ href }}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-external-link-alt me-1"></i>{{ value }}</a>{% else %}{{ value }}{% endif %}{% endwith %}
-                                                        {% else %}
-                                                            {{ value }}
-                                                        {% endif %}
-                                                    {% else %}
-                                                        <!-- Format numeric values -->
-                                                        {% if key == "Recommendation" %}
-                                                            <span class="badge bg-primary">{{ value }}</span>
-                                                        {% elif value|floatformat %}
-                                                            <span class="text-monospace">{{ value|floatformat:3 }}</span>
-                                                        {% else %}
-                                                            {{ value }}
-                                                        {% endif %}
-                                                    {% endif %}
-                                                </td>
-                                                {% endfor %}
-                                            {% else %}
-                                                <!-- Demo data - plain text -->
-                                                {% for key, value in item.items %}
-                                                <td class="center-text {% if forloop.first %}sticky-cell{% endif %}">
-                                                    {% if forloop.first %}
-                                                        <span class="fw-bold text-muted">{{ value }}</span>
-                                                    {% else %}
-                                                        {% if value|floatformat %}
-                                                            <span class="text-monospace">{{ value|floatformat:3 }}</span>
-                                                        {% else %}
-                                                            {{ value }}
-                                                        {% endif %}
-                                                    {% endif %}
-                                                </td>
-                                                {% endfor %}
-                                            {% endif %}
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endif %}
-
-{% endblock %}
-
-{% block extra_js %}
-    {# The .data-table exists only under the same `data` guard, so the plain GET form #}
-    {# does not download ~300 kB of jQuery + DataTables it has nothing to enhance. #}
-    {% if data %}
-    {# Both deferred, so they run before main.js. #}
-    <script src="https://code.jquery.com/jquery-3.5.1.js" integrity="sha384-/LjQZzcpTzaYn7qWqRIWYC5l8FWEZ2bIHIz0D73Uzba4pShEcdLdZyZkI4Kv676E" crossorigin="anonymous" defer></script>
-    <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.js" integrity="sha384-9jwHdz3xcZ/aQmgwzEl+IfbIibihtBOx76/CoExUWGC11Nb4blmMdE8y2edqF9EF" crossorigin="anonymous" defer></script>
-    {% endif %}
 {% endblock %}
