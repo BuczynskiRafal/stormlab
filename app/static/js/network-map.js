@@ -159,6 +159,17 @@
   const NO_DATA_CLASS = 'nm-nodata';
   /** No results row, no usable value: a grey the three modes share. */
 
+  const FOCUS_RING_CLASS = 'nm-focus-ring';
+  /**
+   * The focus ring of the drawing, set by the script and never by ``:focus-visible``.
+   *
+   * The <svg> is the one Tab stop of the map, so a click focuses it too.  Browsers
+   * disagree on what that means: Chromium paints its own ``:focus`` ring on a clicked
+   * SVG, and turns ``:focus-visible`` on at the first arrow key after the click.  The
+   * ring is therefore decided once, when the focus arrives - from the keyboard it is
+   * drawn, from a pointer it is not - and taken away on blur and on the next press.
+   */
+
   /**
    * The nine recommendation codes of the model, each with the class that paints it
    * and the label the legend shows.
@@ -1138,6 +1149,10 @@
     let cardDrag = null;
     let gesture = null;
     let hintTimer = null;
+    // Whether the last input on the page was a key rather than a pointer press: the one
+    // fact FOCUS_RING_CLASS is decided on.  True until a pointer says otherwise, so a
+    // focus that arrives without either still shows where it is.
+    let keyboardInput = true;
 
     // Labels.  All of it closure state: the <text> elements are built once
     // and lazily, the layer that measures them with them, and the deferred placement
@@ -1261,6 +1276,12 @@
       // the drawn elements take no focus, so a key is never delivered to one of them.
       // Escape alone is handled on the document (see mapKeyAction).
       drawing.svg.addEventListener('keydown', onMapKey);
+      // The ring is decided when the focus arrives and not on every key: arrows pressed
+      // after a click leave it off.  A press on the map takes it away even though the
+      // focus stays - the reader has just shown where they are.
+      drawing.svg.addEventListener('focus', () => drawing.svg.classList.toggle(FOCUS_RING_CLASS, keyboardInput));
+      drawing.svg.addEventListener('blur', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));
+      drawing.svg.addEventListener('pointerdown', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));
       markFlooded();
       markUnanalysed();
       paint();
@@ -2682,6 +2703,16 @@
       clearSelection();
       clearLegend();
     });
+
+    // Where the next focus of the map comes from (FOCUS_RING_CLASS).  On the document and
+    // in the capture phase, so the record is written before the focus moves and no
+    // handler that stops propagation can hide an input from it.  A key held with Ctrl,
+    // Alt or Cmd is a shortcut and not navigation - Cmd+Tab to another window would
+    // otherwise bring the ring back on a map the reader clicked.
+    document.addEventListener('pointerdown', () => { keyboardInput = false; }, true);
+    document.addEventListener('keydown', event => {
+      if (!event.ctrlKey && !event.altKey && !event.metaKey) keyboardInput = true;
+    }, true);
 
     if (typeof ResizeObserver !== 'undefined') {
       // One mechanism for both cases: the observer reports the container's size when

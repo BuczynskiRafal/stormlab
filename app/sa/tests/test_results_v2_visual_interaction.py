@@ -2087,11 +2087,15 @@ class ResultsV2NetworkMapKeyboardTests(TestCase):
         self.assertNotRegex(code, r"help\.(hidden|setAttribute\('aria-hidden')", "the sentence is for everyone to read")
         css = self._code("network-map.css")
         self.assertRegex(css, r"#storm-results-v2\s+\.nm-help\s*\{")
-        self.assertRegex(css, r"#storm-results-v2\s+\.nm-svg:focus-visible\s*\{", "the one Tab stop must show its focus")
+        self.assertRegex(css, r"#storm-results-v2\s+\.nm-svg\.nm-focus-ring:focus\s*\{", "the one Tab stop must show its focus")
 
         # One keyboard listener, on the container, and every key going through the
         # functions the buttons and the wheel already use.
-        self.assertEqual(code.count("addEventListener('keydown'"), 2, "one listener on the <svg>, one for Esc on the document")
+        self.assertEqual(
+            code.count("addEventListener('keydown'"),
+            3,
+            "one listener on the <svg>, one for Esc on the document, one recording the input for the focus ring",
+        )
         self.assertIn("drawing.svg.addEventListener('keydown', onMapKey);", code)
         keys = self._block(code, r"function mapKeyAction\(event\)")
         for key in ("'ArrowLeft'", "'ArrowRight'", "'ArrowUp'", "'ArrowDown'", "'Home'", "'Enter'", "'+'", "'-'"):
@@ -2115,6 +2119,50 @@ class ResultsV2NetworkMapKeyboardTests(TestCase):
         # D11 parity: Enter opens the anchor of the card, the same one a click opens.
         self.assertIn("card.querySelector('.nm-card-open')", keys)
         self.assertEqual(code.count("createElement('a')"), 1, "there is one anchor and one way to navigate")
+
+    # -- the focus ring of the drawing ------------------------------------------
+    def test_map_focus_ring_follows_the_keyboard_only(self):
+        """The ring shows where a keyboard brought the focus, and never follows a click.
+
+        The <svg> is a Tab stop, so a click focuses it as well.  Chromium then paints its
+        own ``:focus`` ring on the SVG, and a ``:focus-visible`` rule lights up at the
+        first arrow key after the click - neither is the reader's doing.  The ring is a
+        class instead: set on ``focus`` when the last input was a key, removed on
+        ``blur`` and on a press on the map.  The input is recorded on the document in
+        the capture phase, before the focus moves, and a key held with a modifier is a
+        shortcut, not navigation.
+        """
+        code = self._code("network-map.js")
+        css = self._code("network-map.css")
+
+        self.assertIn("const FOCUS_RING_CLASS = 'nm-focus-ring';", code)
+        self.assertIn(
+            "drawing.svg.addEventListener('focus', () => drawing.svg.classList.toggle(FOCUS_RING_CLASS, keyboardInput));",
+            code,
+            "the ring is decided once, when the focus arrives",
+        )
+        self.assertIn("drawing.svg.addEventListener('blur', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));", code)
+        self.assertIn(
+            "drawing.svg.addEventListener('pointerdown', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));",
+            code,
+            "a press on a map focused from the keyboard takes the ring away",
+        )
+        self.assertIn("document.addEventListener('pointerdown', () => { keyboardInput = false; }, true);", code)
+        self.assertRegex(
+            code,
+            r"document\.addEventListener\('keydown', event => \{\s*"
+            r"if \(!event\.ctrlKey && !event\.altKey && !event\.metaKey\) keyboardInput = true;\s*\}, true\);",
+            "every key but a shortcut is recorded, in the capture phase",
+        )
+        self.assertNotIn("keyboardInput", self._block(code, r"function onMapKey\(event\)"), "keys never redecide the ring")
+
+        self.assertNotIn(".nm-svg:focus-visible", css, "the browser heuristic no longer decides the ring")
+        self.assertRegex(css, r"#storm-results-v2\s+\.nm-svg:focus\s*\{\s*outline:\s*none;\s*\}", "no default ring")
+        ring = re.search(r"#storm-results-v2\s+\.nm-svg\.nm-focus-ring:focus\s*\{([^}]*)\}", css)
+        self.assertIsNotNone(ring)
+        self.assertIn("outline: 2px solid var(--r-blue)", ring.group(1))
+        for button in (".nm-ctrl", ".nm-mode", ".nm-legend-item"):
+            self.assertRegex(css, rf"#storm-results-v2\s+{re.escape(button)}:focus-visible\s*\{{", f"{button} keeps its ring")
 
     # -- 69 ---------------------------------------------------------------------
     def test_filter_dimming_never_reaches_an_unanalysed_element(self):
