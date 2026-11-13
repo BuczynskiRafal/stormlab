@@ -130,8 +130,7 @@ class AnalysisView(LoginRequiredMixin, View):
             return redirect("sa:analysis_results", session_id=session.id)
 
         detail = f": {session.error_message}" if getattr(session, "error_message", None) else ""
-        messages.error(request, f"{error_prefix}{detail}.")
-        return self._render_form(request)
+        return self._render_form(request, error=f"{error_prefix}{detail}.")
 
     def _handle_test_file(self, request):
         """Process test file analysis on an isolated temporary copy so tracked files are never modified."""
@@ -159,8 +158,7 @@ class AnalysisView(LoginRequiredMixin, View):
             )
         except Exception as e:
             logger.error(f"Test file analysis error: {e}")
-            messages.error(request, f"Error occurred while analyzing test file: {e}")
-            return self._render_form(request)
+            return self._render_form(request, error=f"Error occurred while analyzing test file: {e}")
         finally:
             if temp_path:
                 self._cleanup_temp_file(temp_path)
@@ -192,9 +190,9 @@ class AnalysisView(LoginRequiredMixin, View):
             if temp_path:
                 self._cleanup_temp_file(temp_path)
 
-    def _render_form(self, request, form=None):
-        """Render analysis form."""
-        return render(request, self.template_name, {"swmm_form": form or SWMMModelForm()})
+    def _render_form(self, request, form=None, error: str | None = None):
+        """Render analysis form, with *error* shown above it when the analysis failed."""
+        return render(request, self.template_name, {"swmm_form": form or SWMMModelForm(), "analysis_error": error})
 
     @staticmethod
     def _create_temp_file(uploaded_file) -> str:

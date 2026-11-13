@@ -10,6 +10,9 @@
 {% if not show_results %}
 <div class="row mb-4 justify-content-center">
     <div class="col-lg-8 col-xl-6">
+        {% if analysis_error %}
+        <div class="alert alert-danger" role="alert">{{ analysis_error }}</div>
+        {% endif %}
         <div class="upload-card">
             <div class="card-header">
                 <h4 class="mb-0 text-center">
