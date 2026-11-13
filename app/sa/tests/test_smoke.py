@@ -106,8 +106,6 @@ class AuthenticatedPageTests(TestCase):
         self.assertNotContains(response, "cdn.datatables.net")
 
     def test_analysis_upload_form_does_not_serve_jquery_and_datatables(self):
-        # The .data-table on /analysis/ only exists once a run produced `data`;
-        # the bare upload form has nothing for DataTables to enhance.
         response = self.client.get(reverse("sa:analysis"))
 
         self.assertEqual(response.status_code, 200)

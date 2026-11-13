@@ -88,6 +88,13 @@ class FailedAnalysisTests(TestCase):
         self.assertContains(response, "The analysis failed: &lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;.")
         self.assertNotContains(response, "<script>alert('x')")
 
+    def test_failed_run_page_does_not_serve_jquery_and_datatables(self):
+        response = self._post_demo_with_failed_session("The network has no outfall.")
+
+        self.assertContains(response, 'id="uploadForm"')
+        self.assertNotContains(response, "code.jquery.com")
+        self.assertNotContains(response, "cdn.datatables.net")
+
     def test_message_that_ends_with_a_full_stop_gets_no_second_one(self):
         response = self._post_demo_with_failed_session("The network has no outfall.")
 

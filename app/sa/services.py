@@ -409,68 +409,6 @@ class CalculationRetrievalService:
         return list(queryset)
 
     @staticmethod
-    def format_session_data_for_template(session: CalculationSession) -> Dict[str, list]:
-        """
-        Format session data for template display.
-
-        Args:
-            session: CalculationSession instance
-
-        Returns:
-            Dict formatted for template rendering
-        """
-        conduits_data = []
-        for conduit in session.conduits.all():
-            conduits_data.append(
-                {
-                    "Name": conduit.conduit_name,
-                    "Diameter": conduit.geom1,
-                    "MaxV": conduit.max_v,
-                    "MaxQ": conduit.max_q,
-                    "Filling": conduit.filling,
-                    "Recommendation": conduit.recommendation,
-                    "InletNode": conduit.inlet_node,
-                    "OutletNode": conduit.outlet_node,
-                    "Subcatchment (model)": conduit.subcatchment,
-                    "Category": conduit.sbc_category,
-                }
-            )
-
-        nodes_data = []
-        for node in session.nodes.all():
-            nodes_data.append(
-                {
-                    "Name": node.node_name,
-                    "MaxDepth": node.max_depth,
-                    "InvertElev": node.invert_elevation,
-                    "MaxNodeDepth": node.max_water_depth,
-                    "HoursFlooded": node.hours_flooded,
-                    "TotalFloodVol": node.flood_volume,
-                    "Subcatchment": node.subcatchment,
-                    "Category": node.sbc_category,
-                }
-            )
-
-        subcatchments_data = []
-        for subcatchment in session.subcatchments.all():
-            subcatchments_data.append(
-                {
-                    "Name": subcatchment.subcatchment_name,
-                    "Area": subcatchment.area,
-                    "PercImperv": subcatchment.perc_imperv,
-                    "PercSlope": subcatchment.perc_slope,
-                    "Outlet": subcatchment.outlet,
-                    "Category": subcatchment.category,
-                }
-            )
-
-        return {
-            "Conduits Data": conduits_data,
-            "Nodes Data": nodes_data,
-            "Subcatchments Data": subcatchments_data,
-        }
-
-    @staticmethod
     def panel_links(
         session: CalculationSession,
         conduits_qs: list[ConduitData] | None = None,
@@ -478,11 +416,9 @@ class CalculationRetrievalService:
     ) -> dict[str, dict[str, str]]:
         """Map node and subcatchment names to conduit-panel hrefs.
 
-        Returns two nested dicts keyed by the dataset name used in
-        ``format_session_data_for_template`` (``"Nodes Data"`` / ``"Subcatchments
-        Data"``).  Each inner dict maps an element name to a ready-made ``href``
-        pointing to the conduit panel that shows that element, with the matching
-        fragment anchor.
+        Returns two nested dicts keyed ``"Nodes Data"`` and ``"Subcatchments Data"``.
+        Each inner dict maps an element name to a ready-made ``href`` pointing to the
+        conduit panel that shows that element, with the matching fragment anchor.
 
         Two queries at most: one for conduits, one for subcatchments (or zero if passed).
         """
