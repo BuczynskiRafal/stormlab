@@ -29,9 +29,3 @@ def querystring(context, **overrides) -> str:
     query = {key: value for key, value in params.items() if value not in (None, "")}
     encoded = urlencode(query)
     return f"?{encoded}" if encoded else ""
-
-
-@register.filter
-def dict_get(mapping, key):
-    """Safe dictionary lookup for chained access in templates."""
-    return mapping.get(key) if isinstance(mapping, dict) else None

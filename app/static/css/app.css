@@ -173,10 +173,6 @@ body {
     height: 50px;
 }
 
-.center-text {
-    text-align: center;
-}
-
 *,:after,:before {
     box-sizing: border-box;
 }
@@ -251,60 +247,9 @@ h5, h6 {
     margin-bottom: 0.75rem;
 }
 
-.table-striped tbody tr:nth-of-type(odd) {
-    background-color: var(--tint-row);
-}
-
 .table-hover tbody tr:hover {
     background-color: var(--water-050);
     cursor: pointer;
-}
-
-.scrollable-table-container {
-    overflow-x: auto;
-    position: relative;
-    cursor: grab;
-}
-
-.scrollable-table-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.scrollable-table-container::-webkit-scrollbar-thumb {
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
-}
-
-.scrollable-table-container::-webkit-scrollbar-thumb:hover {
-    border: 0px solid transparent;
-    border-radius: 6px;
-}
-
-.scrollable-table-container:active {
-    cursor: grabbing;
-    user-select: none;
-}
-
-.scrollable-table-container::before {
-    content: "↔ Przeciągnij aby przewinąć";
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    color: white;
-    font-weight: 500;
-    z-index: 1000;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.scrollable-table-container:hover::before {
-    opacity: 1;
-}
-
-.scrollable-table-container.hide-badge::before {
-    opacity: 0;
 }
 
 th {
@@ -367,33 +312,6 @@ tbody tr:nth-child(odd) {
     background-color: var(--tint-row);
 }
 
-.table-container {
-    overflow: auto;
-    position: relative;
-}
-
-.table-container thead th {
-    position: sticky;
-    top: 0;
-    color: var(--text);
-    z-index: 3;
-}
-
-.table-container thead {
-    z-index: 3;
-    background-color: var(--slate-200);
-}
-
-.sticky-cell {
-    position: sticky;
-    left: 0;
-    background-color: var(--surface-1);
-    color: var(--text);
-    z-index: 10;
-    border-right: 1px solid var(--rule-soft);
-    overflow: hidden;
-}
-
 p {
     margin-top: 0;
     margin-bottom: 0rem;
@@ -425,42 +343,6 @@ a {
 .accordion-item .accordion-body {
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
-}
-
-.accordion-item .scrollable-accordion-body {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .scrollable-table-container {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .table {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-    overflow: hidden;
-}
-
-.accordion-item .table thead th:first-child {
-    border-top-left-radius: 12px;
-}
-
-.accordion-item .table thead th:last-child {
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .table tbody td {
-    border-radius: 0;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-}
-
-.accordion-item .table thead th:not(:first-child):not(:last-child) {
-    border-radius: 0;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
 }
 
 #sessionsTable {
@@ -560,28 +442,6 @@ a {
 
 .accordion-body {
     position: relative;
-}
-
-.scrollable-accordion-body {
-    position: relative;
-}
-
-.scrollable-table-container .table thead th {
-    color: var(--text);
-}
-
-.scrollable-table-container .table th:first-child,
-
-.accordion-item.header-sticky .scrollable-table-container .table thead th {
-    z-index: 9;
-}
-
-.accordion-item.header-sticky .scrollable-table-container .table thead th:first-child {
-    z-index: 10;
-}
-
-.scrollable-table-container .table thead th[style*="top"] {
-    position: sticky;
 }
 
 .accordion-header.sticky .accordion-button {
@@ -1015,7 +875,7 @@ a.card:hover {
 
 .card-header {
     /* Pasmo nagłówka: chłodny gradient odcina nagłówek od białej karty.
-       background-color stoi obok gradientu jako wartość realna (klony i starsze
+       background-color stoi obok gradientu jako wartość realna (starsze
        przeglądarki czytają samo tło). */
     background-color: var(--slate-band-top);
     background-image: linear-gradient(to bottom, var(--slate-band-top) 0%, var(--slate-band-bottom) 100%);
@@ -1098,10 +958,7 @@ table thead {
 }
 
 .table thead th {
-    /* Pasmo slate, ale PŁASKIE, nie gradientowe: klon nagłówka
-       w main.js kopiuje wyłącznie computedStyle(th).backgroundColor, więc gradient
-       zostałby w oryginale, a klon dostałby samą barwę - dwa różne nagłówki.
-       check_tables.py pilnuje, że background-image tu jest `none`. */
+    /* Pasmo slate, ale PŁASKIE, nie gradientowe. */
     background-color: var(--slate-200);
     background-image: none;
     color: var(--ink);
@@ -1125,8 +982,7 @@ thead th:not(:where(.conduit-page *)) {
        (0,1,0), które ustawia color: #fff - stąd !important na obu własnościach. */
     background-color: var(--slate-200) !important;
     /* Bootstrap nie ustawia background-image; ta deklaracja gasi gradienty warstwy
-       bazowej, żeby computedStyle(th).backgroundColor klonu nagłówka (main.js) był
-       nieprzezroczysty. */
+       bazowej, żeby nagłówek tabeli miał jednolite, nieprzezroczyste tło. */
     background-image: none !important;
     color: var(--ink) !important;
 }
@@ -1169,17 +1025,6 @@ thead th:not(:where(.conduit-page *)) {
     background-color: var(--slate-200);
 }
 
-/* Striped rows - the zebra runs the full width, first column included */
-.table-striped tbody tr:nth-of-type(odd) td,
-.table-striped tbody tr:nth-of-type(odd) td:first-child {
-    background-color: var(--tint-row);
-}
-
-.table-striped tbody tr:nth-of-type(even) td,
-.table-striped tbody tr:nth-of-type(even) td:first-child {
-    background-color: var(--surface-0);
-}
-
 /* Hover state - one wash across the row */
 .table-hover tbody tr:hover td,
 .table-hover tbody tr:hover td:first-child {
@@ -1203,71 +1048,6 @@ thead th:not(:where(.conduit-page *)) {
 .table a:hover {
     color: var(--water-600);
     text-decoration: underline;
-}
-
-/* Scrollable container refinements */
-.scrollable-table-container {
-    border-radius: var(--radius-md);
-    border: 1px solid var(--slate-500);
-    box-shadow: var(--shadow-1);
-    background-color: var(--surface-0);
-}
-
-/* Remove sticky positioning from old styles */
-.scrollable-table-container .table thead th {
-    position: relative;
-    top: auto;
-    z-index: auto;
-    box-shadow: none;
-}
-
-.scrollable-table-container .table th:first-child,
-.scrollable-table-container .table td:first-child {
-    position: relative;
-    left: auto;
-    z-index: auto;
-}
-
-.scrollable-table-container::-webkit-scrollbar {
-    height: 6px;
-}
-
-.scrollable-table-container::-webkit-scrollbar-track {
-    background: var(--surface-2);
-}
-
-.scrollable-table-container::-webkit-scrollbar-thumb {
-    background: var(--rule-strong);
-    border-radius: 3px;
-}
-
-.scrollable-table-container::-webkit-scrollbar-thumb:hover {
-    background: var(--subtle);
-}
-
-.scrollable-table-container::before {
-    background: var(--water-700);
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: var(--radius-pill);
-}
-
-/* Data Table specific */
-.data-table thead th {
-    position: relative;
-    top: auto;
-    z-index: auto;
-    box-shadow: none;
-}
-
-/* Accordion tables - ensure visible borders */
-.accordion-body .scrollable-table-container .table {
-    border: none;
-}
-
-.accordion-body .scrollable-table-container {
-    border: 1px solid var(--slate-500);
-    box-shadow: none;
 }
 
 /* ============================================================
@@ -1336,8 +1116,7 @@ thead th:not(:where(.conduit-page *)) {
     color: var(--bad);
 }
 
-/* bg-primary marks the model's recommendation on the results table - informational,
-   so it takes the accent wash rather than a status colour. */
+/* bg-primary is informational, so it takes the accent wash rather than a status colour. */
 .badge.bg-primary,
 .bg-primary {
     background-color: var(--water-100) !important;  /* bije .bg-primary Bootstrapa (utility ma !important) */

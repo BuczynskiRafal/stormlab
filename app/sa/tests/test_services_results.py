@@ -1,4 +1,4 @@
-"""Keys of the tables on the results page (``CalculationRetrievalService``)."""
+"""Persistence of the per-node results (``CalculationPersistenceService``)."""
 
 from __future__ import annotations
 
@@ -7,33 +7,9 @@ import math
 import pandas as pd
 from django.test import TestCase
 
-from sa.services import CalculationPersistenceService, CalculationRetrievalService
+from sa.services import CalculationPersistenceService
 
 from .factories import make_session, make_user
-
-
-class ResultsTableKeysTests(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user = make_user(email="keys@example.com")
-        cls.session = make_session(cls.user, n_conduits=1, n_nodes=2, n_subcatchments=1)
-
-    def test_conduit_table_names_the_model_catchment_column(self):
-        data = CalculationRetrievalService.format_session_data_for_template(self.session)
-        conduit_keys = list(data["Conduits Data"][0].keys())
-
-        # The pipeline picks one catchment per conduit for the model feature (outlet
-        # node first); the header says so instead of implying inflow.
-        self.assertIn("Subcatchment (model)", conduit_keys)
-        self.assertNotIn("Subcatchment", conduit_keys)
-
-    def test_node_table_keeps_its_direct_catchment_column(self):
-        data = CalculationRetrievalService.format_session_data_for_template(self.session)
-
-        self.assertIn("Subcatchment", data["Nodes Data"][0].keys())
-        self.assertIn("MaxNodeDepth", data["Nodes Data"][0].keys())
-        self.assertIn("HoursFlooded", data["Nodes Data"][0].keys())
-        self.assertIn("TotalFloodVol", data["Nodes Data"][0].keys())
 
 
 class NodeResultPersistenceTests(TestCase):
