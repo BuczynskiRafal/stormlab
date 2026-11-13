@@ -44,10 +44,11 @@ invalid code signatures and the system refuses to load it otherwise.
 
 1. Go to **Analysis**, pick a frost zone and choose **Try with Demo Data**. It loads the
    storm sewer network of the Rakowiec estate in Wrocław (62 conduits).
-2. On the **Map** tab, switch between recommendations, passed checks and filling.
+2. On the **Map** tab, switch between recommendations, passed checks and filling. Click a
+   conduit, node or subcatchment for its key values.
 3. Browse the conduit, node and subcatchment tables, or export them to CSV.
-4. Select a conduit to see its profile, the seven checks and the recommended action
-   with the model's score for every class.
+4. Open a conduit's details to see its profile, the seven checks and the recommended
+   action with the model's score for every class.
 5. Upload your own `.inp` file (flow units: CMS). More examples are in [`examples/`](examples/).
 
 | Filling | Conduit panel |
