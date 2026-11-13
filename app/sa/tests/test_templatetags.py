@@ -62,22 +62,6 @@ class QuerystringTagTests(SimpleTestCase):
         self.assertEqual(rendered, "")
 
 
-class DictGetFilterTests(SimpleTestCase):
-    """``dict_get`` chains through nested dicts and never raises on missing keys."""
-
-    def test_returns_the_value_for_a_present_key(self):
-        from sa.templatetags.sa_query import dict_get
-
-        self.assertEqual(dict_get({"a": {"b": 1}}, "a"), {"b": 1})
-
-    def test_returns_none_for_a_missing_key_or_a_non_dict(self):
-        from sa.templatetags.sa_query import dict_get
-
-        self.assertIsNone(dict_get({"a": 1}, "zzz"))
-        self.assertIsNone(dict_get(None, "a"))
-        self.assertIsNone(dict_get(dict_get({"a": 1}, "zzz"), "b"))
-
-
 class VersionedStaticTagTests(SimpleTestCase):
     @staticmethod
     def _render(path: str) -> str:

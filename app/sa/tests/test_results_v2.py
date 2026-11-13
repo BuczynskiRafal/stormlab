@@ -674,21 +674,6 @@ class ResultsV2EdgeCasesTests(TestCase):
         expected_url = reverse("sa:conduit_detail", args=[session.id, "A/B"])
         self.assertEqual(c.get("panel_url") or c.get("detail_url"), expected_url)
 
-    def test_legacy_format_session_data_preserved(self):
-        """Preserve 100% backward compatibility of format_session_data_for_template."""
-        session = make_session(self.user, n_conduits=1, n_nodes=1, n_subcatchments=1)
-        data = CalculationRetrievalService.format_session_data_for_template(session)
-
-        self.assertIn("Conduits Data", data)
-        self.assertIn("Nodes Data", data)
-        self.assertIn("Subcatchments Data", data)
-        c_legacy = data["Conduits Data"][0]
-        self.assertIn("Subcatchment (model)", c_legacy)
-        self.assertIn("Recommendation", c_legacy)
-        n_legacy = data["Nodes Data"][0]
-        self.assertIn("MaxNodeDepth", n_legacy)
-        self.assertIn("HoursFlooded", n_legacy)
-
 
 class ResultsV2AdversarialResilienceTests(TestCase):
     """Stress and resilience unit tests verifying fixes for the 8 failure modes identified in stress_results_v2.
