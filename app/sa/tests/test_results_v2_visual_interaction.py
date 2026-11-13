@@ -719,6 +719,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         "clampCardPos",
         "writeMapPrefs",
         "placeLabels",
+        "cardRows",
     )
     """Every name the harness calls.  Later stages *add* to this tuple; the test asks
     for a subset and never for an exact count, so stage 7 exporting one more name is
@@ -787,7 +788,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             f"the network map harness failed with exit code {result.returncode}:\n"
             f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
         )
-        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (25 / 25 PASSED)", result.stdout)
+        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (27 / 27 PASSED)", result.stdout)
 
     # -- 57 ---------------------------------------------------------------------
     def test_map_js_has_no_unsafe_patterns(self):
@@ -935,6 +936,35 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertEqual(code.count("nm:select"), 1, "nm:select may be dispatched from one place only")
         dispatch = code.index("nm:select")
         self.assertIn("kindToTab(kind)", code[dispatch : dispatch + 400])
+
+    def test_card_values_come_from_the_field_table(self):
+        """The card shows what ``cardRows`` returns, as text, and nothing it formats itself.
+
+        The formatting lives in the field table and is tested from Node; what is left
+        here is that ``buildCard`` takes it from there, puts every label and value in
+        through ``textContent`` and keeps the conduit attributes the colour modes paint
+        by on the card in every mode.
+        """
+        code = self._code("network-map.js")
+        build = self._braced_block(code, re.search(r"function buildCard\(kind, name\)", code))
+        self.assertIn("cardRows(kind, row)", build)
+        self.assertIn("term.textContent = pair[0]", build)
+        self.assertIn("value.textContent = pair[1]", build)
+        self.assertNotIn("toFixed", build, "numbers are formatted in the field table, not in buildCard")
+        self.assertNotIn("innerHTML", build)
+
+        fields = self._braced_block(code, re.search(r"const CARD_FIELDS = ", code))
+        link = fields[: fields.index("node: [")]
+        for painted in ("key: 'recommendation_label'", "format: checksText", "format: fillingText"):
+            self.assertIn(painted, link, f"the conduit card must show what a colour mode paints by ({painted})")
+        for converted in ("key: 'floodVolume'", "key: 'runoff'"):
+            entry = fields[fields.index(converted) :].split("}", 1)[0]
+            self.assertIn("factor: 1000", entry, f"{converted} is stored in millions of litres")
+
+        # A wheel over the card scrolls its list and must not reach the map.
+        wheel = self._braced_block(code, re.search(r"host\.addEventListener\('wheel', event =>", code))
+        self.assertIn("card.contains(event.target)", wheel)
+        self.assertLess(wheel.index("card.contains(event.target)"), wheel.index("showHint()"))
 
     # -- 62 ---------------------------------------------------------------------
     COLOR_CLASS_RE = re.compile(r"\bnm-(?:c|v|f)-[A-Za-z0-9_]+\b|\bnm-nodata\b")
@@ -1182,7 +1212,8 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
 
         ``.nm-canvas`` clips with ``overflow: hidden`` and ``clampCardPos`` can move a
         card but never shrink one, so the cap is what keeps a long card - and its close
-        button - reachable.  The handle declarations are the other half: on ``.nm-card``
+        button - reachable.  Inside the cap the list of values is what gives way: it
+        shrinks and scrolls, while the heading and the actions keep their height.  The handle declarations are the other half: on ``.nm-card``
         ``touch-action: none`` would stop the finger from scrolling the very card the cap
         tells it to scroll, and ``user-select: none`` would take away the copying of the
         values.
@@ -1210,6 +1241,16 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         heading_body = heading.group(1)
         for declaration in ("cursor: grab", "touch-action: none", "user-select: none"):
             self.assertIn(declaration, heading_body, f"the handle must carry {declaration}")
+        self.assertIn("flex: none", heading_body, "the heading must not shrink when the canvas is short")
+
+        self.assertIn("display: flex; flex-direction: column", card_body, "the card must be a column the list can shrink in")
+        values = re.search(r"#storm-results-v2 \.nm-card-values \{([^}]*)\}", css)
+        self.assertIsNotNone(values, "network-map.css has no rule for .nm-card-values")
+        for declaration in ("flex: 0 1 auto", "min-height:", "overflow-y: auto"):
+            self.assertIn(declaration, values.group(1), f"the list of values must shrink and scroll ({declaration})")
+        actions = re.search(r"#storm-results-v2 \.nm-card-actions \{([^}]*)\}", css)
+        self.assertIsNotNone(actions, "network-map.css has no rule for .nm-card-actions")
+        self.assertIn("flex: none", actions.group(1), "the actions must stay in view")
 
         # A leftover of a decision that no longer holds: with the handle narrowed to the
         # heading, the values keep the browser default and need no rule of their own.
