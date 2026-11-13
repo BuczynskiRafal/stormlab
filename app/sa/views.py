@@ -116,7 +116,6 @@ class AnalysisView(LoginRequiredMixin, View):
         request,
         temp_path: str,
         swmm_model: SWMMModel,
-        error_prefix: str,
     ):
         """Run SWMM analysis on *temp_path* for *swmm_model*; open the results, or return to the form on failure."""
         frost_zone = swmm_model.get_frost_zone_value()
@@ -129,9 +128,15 @@ class AnalysisView(LoginRequiredMixin, View):
         if success:
             return redirect("sa:analysis_results", session_id=session.id)
 
-        detail = f": {session.error_message}" if getattr(session, "error_message", None) else ""
-        messages.error(request, f"{error_prefix}{detail}.")
-        return self._render_form(request)
+        return self._render_form(request, error=self._failure_text(session))
+
+    @staticmethod
+    def _failure_text(session: CalculationSession) -> str:
+        """The sentence shown to the user when *session* failed, ending in exactly one full stop."""
+        detail = (session.error_message or "").strip()
+        if not detail:
+            return "The analysis failed."
+        return f"The analysis failed: {detail}" if detail.endswith((".", "!", "?")) else f"The analysis failed: {detail}."
 
     def _handle_test_file(self, request):
         """Process test file analysis on an isolated temporary copy so tracked files are never modified."""
@@ -155,12 +160,10 @@ class AnalysisView(LoginRequiredMixin, View):
                 request,
                 temp_path=temp_path,
                 swmm_model=swmm_model,
-                error_prefix="Error occurred while processing test file",
             )
         except Exception as e:
             logger.error(f"Test file analysis error: {e}")
-            messages.error(request, f"Error occurred while analyzing test file: {e}")
-            return self._render_form(request)
+            return self._render_form(request, error="The demo network could not be analysed.")
         finally:
             if temp_path:
                 self._cleanup_temp_file(temp_path)
@@ -186,15 +189,14 @@ class AnalysisView(LoginRequiredMixin, View):
                 request,
                 temp_path=temp_path,
                 swmm_model=instance,
-                error_prefix="Error occurred while saving calculation results",
             )
         finally:
             if temp_path:
                 self._cleanup_temp_file(temp_path)
 
-    def _render_form(self, request, form=None):
-        """Render analysis form."""
-        return render(request, self.template_name, {"swmm_form": form or SWMMModelForm()})
+    def _render_form(self, request, form=None, error: str | None = None):
+        """Render analysis form, with *error* shown above it when the analysis failed."""
+        return render(request, self.template_name, {"swmm_form": form or SWMMModelForm(), "analysis_error": error})
 
     @staticmethod
     def _create_temp_file(uploaded_file) -> str:
