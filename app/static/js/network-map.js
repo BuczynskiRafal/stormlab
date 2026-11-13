@@ -101,9 +101,6 @@
   const LABEL_MAX = 600;
   /** How many elements are ever offered a name, selection aside. */
 
-  const LABEL_MIN_GAP_PX = 6;
-  /** Below this screen gap between two nodes the whole group of names is hidden (E4b). */
-
   const LABEL_EPS_PX = 1e-6;
   /**
    * Touching is not colliding.
@@ -148,16 +145,39 @@
   const DEFAULT_MODE = 'recommendation';
   /** D7 - the map opens on the recommendation of the model, not on a hydraulic number. */
 
-  const DEFAULT_LABELS = false;
+  const DEFAULT_LABELS = true;
   /**
-   * D20 - the names of the elements start hidden.
+   * The names of the elements start shown.
    *
-   * A drawing that opens with six hundred names written over it is unreadable before
-   * the reader has done anything, and the gesture that brings them back is one button.
+   * The map is read by its names - a pipe is found by the name the SWMM file gives
+   * it - and the placement keeps a crowded view legible on its own: it drops a name
+   * that finds no room, and it holds the node names back while the node symbols are
+   * too dense to draw.  Turning them off is one button, and that choice is remembered.
+   */
+
+  const PREFS_VERSION = 2;
+  /**
+   * The shape of the stored preferences, written as ``v`` with every save.
+   *
+   * Version 1 carried no marker and stored ``labels: false`` on every gesture - a mode
+   * switch or a card drag wrote it while the names were off by default - so a stored
+   * false without the marker is not a choice anybody made.  ``readMapPrefs`` trusts the
+   * stored ``labels`` only under this version; ``mode`` and ``card`` are read either way.
    */
 
   const NO_DATA_CLASS = 'nm-nodata';
   /** No results row, no usable value: a grey the three modes share. */
+
+  const FOCUS_RING_CLASS = 'nm-focus-ring';
+  /**
+   * The focus ring of the drawing, set by the script and never by ``:focus-visible``.
+   *
+   * The <svg> is the one Tab stop of the map, so a click focuses it too.  Browsers
+   * disagree on what that means: Chromium paints its own ``:focus`` ring on a clicked
+   * SVG, and turns ``:focus-visible`` on at the first arrow key after the click.  The
+   * ring is therefore decided once, when the focus arrives - from the keyboard it is
+   * drawn, from a pointer it is not - and taken away on blur and on the next press.
+   */
 
   /**
    * The nine recommendation codes of the model, each with the class that paints it
@@ -220,19 +240,60 @@
   const COLLECTIONS = [['link', 'links'], ['node', 'nodes'], ['poly', 'polys']];
   /** Drawing kind and the key its elements live under in the geometry payload. */
 
+  /** Number of technical checks behind ``validation``: one colour per possible count. */
+  const CHECK_COUNT = VALIDITY_CLASSES.length - 1;
+
   /**
-   * Two or three values of the results row, shown on the selection card of each kind:
-   * ``[label, key, unit, factor]``, the factor optional.
+   * The values of the results row shown on the selection card of each kind, in order.
    *
-   * ``flood_volume`` is SWMM's Total Flood Volume in millions of litres (models.py:148),
-   * so it is multiplied by 1000 and shown in cubic metres - the conversion the flooding tooltip
-   * of the table makes.  Printed raw it reads "0.00" for a real overflow of four cubic
-   * metres, on the card of a node the map has just painted as flooded.
+   * A field is one of three shapes:
+   *
+   * - ``{label, key}`` - a text value, shown as it stands;
+   * - ``{label, key, unit, digits, factor}`` - a number with exactly *digits* decimals,
+   *   the digits of the matching table column; *factor*, optional, converts the stored
+   *   unit into the shown one;
+   * - ``{label, format}`` - a value composed from several keys of the row.
+   *
+   * Labels, units and digits are those of the table columns, so the card and "Show in
+   * table" agree; "Checks passed" and "Filling" are named after the colour modes they
+   * stand for.  The three conduit values the modes paint by (recommendation, checks
+   * passed, filling) are on the card whichever mode is on.
+   *
+   * ``floodVolume`` and ``runoff`` are SWMM volumes in millions of litres
+   * (models.py:148), so they are multiplied by 1000 and shown in cubic metres, the unit
+   * the flooding tooltip of the table uses: a real overflow of four cubic metres reads
+   * "4.0 m³" rather than "0.004".
    */
   const CARD_FIELDS = {
-    link: [['Recommendation', 'recommendation_label', ''], ['Diameter', 'diameter', 'm'], ['Length', 'length', 'm'], ['Max. velocity', 'velocity', 'm/s']],
-    node: [['Node depth', 'depth', 'm'], ['Max. water depth', 'waterDepth', 'm'], ['Flooding volume', 'floodVolume', 'm\u00b3', 1000]],
-    poly: [['Area', 'area', 'ha'], ['Imperviousness', 'impervious', '%'], ['Runoff coefficient', 'coefficient', '']]
+    link: [
+      {label: 'Recommendation', key: 'recommendation_label'},
+      {label: 'Model confidence', key: 'confidence', unit: '%', digits: 1},
+      {label: 'Checks passed', format: checksText},
+      {label: 'Filling', format: fillingText},
+      {label: 'Max. flow', key: 'flow', unit: 'm\u00b3/s', digits: 3},
+      {label: 'Max. velocity', key: 'velocity', unit: 'm/s', digits: 2},
+      {label: 'Diameter', key: 'diameter', unit: 'm', digits: 3},
+      {label: 'Slope', key: 'slope', unit: '\u2030', digits: 2},
+      {label: 'Length', key: 'length', unit: 'm', digits: 2}
+    ],
+    node: [
+      {label: 'Ground elevation', key: 'ground', unit: 'm', digits: 2},
+      {label: 'Node invert', key: 'invert', unit: 'm', digits: 2},
+      {label: 'Node depth', key: 'depth', unit: 'm', digits: 2},
+      {label: 'Max. water depth', key: 'waterDepth', unit: 'm', digits: 2},
+      {label: 'Flooding volume', key: 'floodVolume', unit: 'm\u00b3', digits: 1, factor: 1000},
+      {label: 'Flooding duration', key: 'floodHours', unit: 'h', digits: 2}
+    ],
+    poly: [
+      {label: 'Category', key: 'category'},
+      {label: 'Outlet node', key: 'outlet'},
+      {label: 'Area', key: 'area', unit: 'ha', digits: 3},
+      {label: 'Imperviousness', key: 'impervious', unit: '%', digits: 1},
+      {label: 'Slope', key: 'slope', unit: '%', digits: 2},
+      {label: 'Peak runoff', key: 'peak', unit: 'm\u00b3/s', digits: 3},
+      {label: 'Total runoff', key: 'runoff', unit: 'm\u00b3', digits: 1, factor: 1000},
+      {label: 'Runoff coefficient', key: 'coefficient', digits: 3}
+    ]
   };
 
   /**
@@ -408,6 +469,17 @@
   }
 
   /**
+   * Are the node symbols too dense to draw at this scale?  Then rescale hides them and
+   * placeLabelsNow offers none of their names.  An unusable gap - one node position, a
+   * payload without the field - is never crowded, as symbolRadiusPx gives it the ceiling.
+   */
+  function symbolsCrowded(minGap, pxPerUnit) {
+    if (!Number.isFinite(minGap) || minGap <= 0) return false;
+    if (!Number.isFinite(pxPerUnit) || pxPerUnit <= 0) return false;
+    return (minGap * pxPerUnit) / DENSITY_DIVISOR < MIN_SYMBOL_PX;
+  }
+
+  /**
    * The running reach of a pointer gesture: the largest distance from where it began,
    * never the length of its path.  A loop that comes back to its starting point stays
    * a drag, and measuring the two axes apart would turn the three-pixel move
@@ -431,6 +503,83 @@
    */
   function isDrag(dist) {
     return Number.isFinite(dist) && dist > DRAG_PX;
+  }
+
+  /** One number formatter per count of decimals, built on first use. */
+  const NUMBER_FORMATS = new Map();
+
+  /**
+   * *value* with exactly *digits* decimals and *unit* after a space, or null for
+   * anything that is not a finite number.
+   *
+   * The table formats the same way (en-GB, fixed decimals, thousands grouped), so a
+   * value reads identically on the card and in its column.  ``typeof``, not
+   * ``Number()``: ``Number(null)`` is 0 and would print a missing value as zero.
+   */
+  function formatNumber(value, digits, unit, factor) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const scaled = factor === undefined ? value : value * factor;
+    if (!Number.isFinite(scaled)) return null;
+    let format = NUMBER_FORMATS.get(digits);
+    if (!format) {
+      format = new Intl.NumberFormat('en-GB', {minimumFractionDigits: digits, maximumFractionDigits: digits});
+      NUMBER_FORMATS.set(digits, format);
+    }
+    const text = format.format(scaled);
+    return unit ? `${text} ${unit}` : text;
+  }
+
+  /**
+   * A text value of the row, or null when it is missing.  The model stores an absent
+   * category as "-" and the server an absent recommendation as an em dash; both are
+   * placeholders for "nothing", not values.
+   */
+  function formatText(value) {
+    if (typeof value !== 'string') return null;
+    const text = value.trim();
+    return text === '' || text === '-' || text === '\u2014' ? null : text;
+  }
+
+  /** "5 / 7", or null when ``validation`` is not a whole count of passed checks. */
+  function checksText(row) {
+    const passed = row.validation;
+    if (typeof passed !== 'number' || !Number.isInteger(passed)) return null;
+    if (passed < 0 || passed > CHECK_COUNT) return null;
+    return `${passed} / ${CHECK_COUNT}`;
+  }
+
+  /**
+   * Filling as a percent of the diameter with the water depth beside it:
+   * "55 % (0.330 m)", or the depth alone when the percent is not there.
+   *
+   * The server sends ``fillPercent`` as 0 when it could not compute it (no depth or no
+   * diameter), so the percent is shown only when both of its inputs are there: "0 %"
+   * on a conduit with no simulated depth would be a false reading.  No depth, no row.
+   */
+  function fillingText(row) {
+    const depth = formatNumber(row.filling, 3, 'm');
+    const computed = depth !== null && typeof row.diameter === 'number' && row.diameter > 0;
+    const percent = computed ? formatNumber(row.fillPercent, 0, '%') : null;
+    return percent !== null ? `${percent} (${depth})` : depth;
+  }
+
+  /**
+   * The rows of the selection card of *kind*: ``[label, text]`` pairs in the order of
+   * ``CARD_FIELDS``, a field whose value is missing left out.  An unknown kind or a
+   * missing row gives an empty list.
+   */
+  function cardRows(kind, row) {
+    if (!row || typeof row !== 'object') return [];
+    const fields = Object.prototype.hasOwnProperty.call(CARD_FIELDS, kind) ? CARD_FIELDS[kind] : [];
+    const rows = [];
+    fields.forEach(field => {
+      let text;
+      if (field.format) text = field.format(row);
+      else if (field.digits === undefined) text = formatText(row[field.key]);
+      else text = formatNumber(row[field.key], field.digits, field.unit, field.factor);
+      if (text !== null) rows.push([field.label, text]);
+    });
+    return rows;
   }
 
   /**
@@ -688,7 +837,9 @@
     // replaces was a bug the users already have in their storage: {"mode":"filling"} is
     // what every earlier reader of the map wrote, and a missing ``card`` or
     // ``labels`` must cost the default of that one field, never the remembered
-    // mode - just as a broken card may not cost the names beside it.
+    // mode - just as a broken card may not cost the names beside it.  ``labels`` counts
+    // only as a boolean written under PREFS_VERSION (see there); anything else is the
+    // default.
     const stored = parsed.card;
     const usable =
       Boolean(stored) &&
@@ -701,7 +852,7 @@
     return {
       mode: isMode(parsed.mode) ? parsed.mode : DEFAULT_MODE,
       card: usable ? { left: stored.left, top: stored.top } : null,
-      labels: parsed.labels === true
+      labels: parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : DEFAULT_LABELS
     };
   }
 
@@ -718,13 +869,15 @@
    * it (``savePrefs``).  A writer per gesture is how "turn the names on, switch the
    * colouring, reload, names gone" happens: the last write wins and it carried one
    * field - and it is exactly how the dragged position of the card would disappear on
-   * the next click of the mode switch.  All three fields travel together.
+   * the next click of the mode switch.  All three fields travel together, with the
+   * PREFS_VERSION marker that makes the stored ``labels`` a choice.
    */
   function writeMapPrefs(storageLike, prefs) {
     if (!storageLike || typeof storageLike.setItem !== 'function') return;
     const value = prefs && typeof prefs === 'object' ? prefs : {};
+    const labels = typeof value.labels === 'boolean' ? value.labels : DEFAULT_LABELS;
     try {
-      storageLike.setItem(PREFS_KEY, JSON.stringify({ mode: value.mode, card: value.card || null, labels: value.labels === true }));
+      storageLike.setItem(PREFS_KEY, JSON.stringify({ v: PREFS_VERSION, mode: value.mode, card: value.card || null, labels: labels }));
     } catch (err) {
       /* a full or blocked storage costs the preference and nothing else */
     }
@@ -1020,12 +1173,19 @@
     let cardDrag = null;
     let gesture = null;
     let hintTimer = null;
+    // Whether the last input on the page was a key rather than a pointer press: the one
+    // fact FOCUS_RING_CLASS is decided on.  True until a pointer says otherwise, so a
+    // focus that arrives without either still shows where it is.
+    let keyboardInput = true;
 
     // Labels.  All of it closure state: the <text> elements are built once
     // and lazily, the layer that measures them with them, and the deferred placement
     // reads the view of the frame that scheduled it instead of computing it again.
     let labelsBuilt = false;
     let labelFrame = null;
+    // Set by the names button when it turns the names on, consumed by the placement
+    // that follows: that one placement says "zoom in" if it put no name on screen.
+    let labelsJustOn = false;
     let lastView = null;
     let labelCanvas = null;
     let labelCtx = null;
@@ -1064,9 +1224,14 @@
     // The only writers are the drag itself and settleCardPos at the end of it.
     let cardPos = prefs.card;
     // The one read feeds both fields.  Without this line the map has no source for "the
-    // names were on when I left": the button would start off and the stored true would
-    // reach nothing at all.
+    // names were off when I left", nor for the default.
     let labelsOn = prefs.labels;
+    // A browser with no 2D context cannot build a single name, so the names start off
+    // there - the refusal toggleLabels applies to the gesture, made silently, before the
+    // button is painted and without a write: no hint on a page nobody touched yet, and
+    // no stored false the reader never chose.  Asked here and not in rescale, because
+    // the panel may be hidden and the drawing not built for a long while.
+    if (labelsOn && !labelContext()) labelsOn = false;
     let dimmed = [];
     const linkClass = [];  // index of a drawn link -> the colour class it carries now
 
@@ -1143,6 +1308,12 @@
       // the drawn elements take no focus, so a key is never delivered to one of them.
       // Escape alone is handled on the document (see mapKeyAction).
       drawing.svg.addEventListener('keydown', onMapKey);
+      // The ring is decided when the focus arrives and not on every key: arrows pressed
+      // after a click leave it off.  A press on the map takes it away even though the
+      // focus stays - the reader has just shown where they are.
+      drawing.svg.addEventListener('focus', () => drawing.svg.classList.toggle(FOCUS_RING_CLASS, keyboardInput));
+      drawing.svg.addEventListener('blur', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));
+      drawing.svg.addEventListener('pointerdown', () => drawing.svg.classList.remove(FOCUS_RING_CLASS));
       markFlooded();
       markUnanalysed();
       paint();
@@ -1284,13 +1455,28 @@
     }
 
     /**
+     * The 2D context the names are measured with, made on the first call and kept - or
+     * null for a browser that hands none back.  Needs no drawing: start-up asks it before
+     * one exists.
+     */
+    function labelContext() {
+      if (!labelCanvas) {
+        labelCanvas = document.createElement('canvas');
+        labelCtx = typeof labelCanvas.getContext === 'function' ? labelCanvas.getContext('2d') : null;
+      }
+      return labelCtx;
+    }
+
+    /**
      * Build the <text> of every element, once, together with the layer that measures
      * them.  Idempotent, and guarded by ``labelsBuilt`` rather than by the length of a
      * list: on a payload with no nodes the length never stops being zero and this would
      * run on every wheel click and every step of a pan, which is the hot path.
      *
      * Lazy on purpose: at the cap of 6000 elements building the names in ensureDrawn
-     * would be thousands of DOM nodes nobody asked for, the names being off by default.
+     * would be thousands of DOM nodes for a reader who turned them off.  With the names
+     * on, the first rescale of a visible panel builds them; a hidden panel measures 0x0
+     * and rescale walks out before this call, so the build waits for the reveal.
      *
      * This is the only place in the module that measures text, and the only one allowed
      * to call getComputedStyle.  The font is read **per variant** - the upright
@@ -1307,11 +1493,7 @@
      */
     function ensureLabels() {
       if (labelsBuilt || !drawing) return;
-      if (!labelCanvas) {
-        labelCanvas = document.createElement('canvas');
-        labelCtx = typeof labelCanvas.getContext === 'function' ? labelCanvas.getContext('2d') : null;
-      }
-      if (!labelCtx) return;
+      if (!labelContext()) return;
 
       const probes = { node: svgNode('text', null, 'nm-label'), poly: svgNode('text', null, 'nm-label nm-label-poly') };
       drawing.labelGroup.appendChild(probes.node);
@@ -1454,10 +1636,9 @@
 
       const radiusPx = symbolRadiusPx(data.min_gap, pxPerUnit);
       const scale = radiusPx / pxPerUnit;
-      const gap = data.min_gap;
       // Below the floor the symbols would merge into a blot; no symbol reads better
       // than a blot, and zooming in brings them back.
-      const crowded = Number.isFinite(gap) && gap > 0 && (gap * pxPerUnit) / DENSITY_DIVISOR < MIN_SYMBOL_PX;
+      const crowded = symbolsCrowded(data.min_gap, pxPerUnit);
       // The payload is walked, exactly as ``markFlooded`` walks it, instead of a second
       // list of handles kept beside ``els``: the two lists are indexed differently — one
       // by ``node.i``, the other by the order the nodes were drawn in — and a node that
@@ -1485,8 +1666,8 @@
       // size, never position).  placeLabelsNow reads the rectangle fresh instead.
       lastView = { pxPerUnit: pxPerUnit, radiusPx: radiusPx, crowded: crowded };
 
-      // The preference came back as true and nobody pressed the button, so this is the
-      // only place that can build the names at all.
+      // The names are on from the start - the default or a stored true - and nobody
+      // pressed the button, so this is the only place that can build them at all.
       if (labelsOn && !labelsBuilt) ensureLabels();
 
       // Synchronous, with the viewBox and with the symbols: a transform written in the
@@ -1499,13 +1680,12 @@
         el.setAttribute('transform', `translate(${anchor[0]} ${anchor[1]}) scale(${labelScale})`);
       });
 
-      // Three ways out, all of them hiding the whole group: the names are off, the
-      // symbols are too dense to draw at all, or two node centres are closer than
-      // LABEL_MIN_GAP_PX on screen.  A null min_gap - the auto layout - hides
-      // nothing: the culling and LABEL_MAX bound the work there.  The "zoom in" hint
-      // belongs to toggleLabels and never here: this runs on every step of a pan.
-      const gapPx = Number.isFinite(gap) ? gap * pxPerUnit : null;
-      const hide = !labelsOn || !labelsBuilt || crowded || (gapPx !== null && gapPx < LABEL_MIN_GAP_PX);
+      // Two ways out, both hiding the whole group: the names are off, or they could not
+      // be built.  Density hides nothing here: the solver keeps the names that fit, the
+      // culling and LABEL_MAX bound its work, and placeLabelsNow holds the node names
+      // back while ``crowded`` hides their symbols.  No hint from here: this runs on
+      // every step of a pan.
+      const hide = !labelsOn || !labelsBuilt;
       drawing.labelGroup.style.display = hide ? 'none' : '';
       if (hide) return;
       scheduleLabels();
@@ -1564,6 +1744,10 @@
      * Subcatchment outlines are obstacles for nobody.
      */
     function placeLabelsNow() {
+      // Read and cleared before any way out, so the hint belongs to the first placement
+      // after the gesture or to none, and never to a later pan.
+      const announce = labelsJustOn;
+      labelsJustOn = false;
       if (!drawing || !labelsBuilt || !labelsOn || !lastView) return;
       hideLabels(drawing.labelEls.node);
       hideLabels(drawing.labelEls.link);
@@ -1606,7 +1790,10 @@
       const byKey = new Map();
       let reach = 0;
 
-      (Array.isArray(data.nodes) ? data.nodes : []).forEach(node => {
+      // While ``crowded`` hides the node symbols their names are not offered at all: a
+      // name beside a symbol that is not drawn names nothing the reader can see, and it
+      // would take the room of the conduit and subcatchment names that still show.
+      (lastView.crowded || !Array.isArray(data.nodes) ? [] : data.nodes).forEach(node => {
         const anchor = labelAnchors.node[node.i];
         const el = drawing.labelEls.node[node.i];
         if (!anchor || !el) return;
@@ -1679,6 +1866,7 @@
       // just inside it, and the margin is the widest name this frame considered.
       const clip = { x1: -reach, y1: -reach, x2: rect.width + reach, y2: rect.height + reach };
       const placed = placeLabels(items, segments, { margin: 0, selected: selectedKey, clip: clip });
+      if (announce && !placed.length) showHint('Zoom in to show names');
 
       for (let n = 0; n < placed.length; n += 1) {
         const entry = placed[n];
@@ -1967,19 +2155,18 @@
      * Turn the names on or off.
      *
      * The preference is written through savePrefs, so the gesture remembers every field
-     * and not only its own.  rescale() then writes the transforms and takes one of its
-     * three ways out, and scheduleLabels() asks for the frame that places them.  The
-     * hint lives here and not in rescale(): it covers *both* ways the group can stay
-     * hidden while the names are on - the density of the symbols and the gap threshold -
-     * and on a 390x844 phone at the fitted view it is the first of them that trips, so a
-     * hint tied to the threshold alone would explain nothing on a phone.
+     * and not only its own.  rescale() then writes the transforms and shows or hides the
+     * group, and scheduleLabels() asks for the frame that places them.  The hint is
+     * decided there and not here: whether any name fits is known only once the solver
+     * has run, so turning the names on raises ``labelsJustOn`` and the placement that
+     * follows says "Zoom in to show names" if it put none on screen.  The page load
+     * never raises it.
      *
-     * There is a third way, and it is not one of those two: a browser that hands back no
-     * 2D context measures no text and so builds no name at all (ensureLabels walks out,
-     * ``labelsBuilt`` stays false).  Telling that reader to zoom in would be advice no
-     * zoom can follow, so the gesture is refused instead (F4): the button goes back off,
-     * the hint says why, and nothing is written - a stored ``labels: true`` would bring
-     * the same dead state back on the next visit.  ``labelCanvas && !labelCtx`` is the
+     * A browser that hands back no 2D context measures no text and so builds no name at
+     * all (ensureLabels walks out, ``labelsBuilt`` stays false).  Telling that reader to
+     * zoom in would be advice no zoom can follow, so the gesture is refused (F4): the
+     * button goes back off, the hint says why, and nothing is written - a stored
+     * ``labels: true`` would bring the same dead state back on the next visit.  ``labelCanvas && !labelCtx`` is the
      * precise question: ``!labelsBuilt`` is also true for a panel that is still hidden,
      * and that one does build its names on the next rescale.
      */
@@ -1993,12 +2180,10 @@
         showHint('Names are not available in this browser');
         return;
       }
+      labelsJustOn = labelsOn;
       savePrefs();
       rescale();
       scheduleLabels();
-      if (labelsOn && drawing && drawing.labelGroup.style.display === 'none') {
-        showHint('Zoom in to show names');
-      }
     }
 
     const hint = document.createElement('div');
@@ -2067,24 +2252,6 @@
     // -------------------------------------------------------------------------
     // Selection and the selection card
     // -------------------------------------------------------------------------
-
-    /**
-     * One results value, or null when the row has nothing usable under that key.
-     *
-     * *factor* converts the stored unit into the shown one (millions of litres into
-     * cubic metres) and is applied only to a finite number: a string value is passed
-     * through as it stands.
-     */
-    function formatValue(value, unit, factor) {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        const scaled = Number.isFinite(factor) && factor > 0 ? value * factor : value;
-        if (!Number.isFinite(scaled)) return null;
-        const text = Math.abs(scaled) >= 100 ? scaled.toFixed(0) : scaled.toFixed(2);
-        return unit ? `${text} ${unit}` : text;
-      }
-      if (typeof value === 'string' && value !== '') return value;
-      return null;
-    }
 
     /**
      * Put the card where ``cardPos`` says, or give it back to the stylesheet.
@@ -2319,22 +2486,26 @@
       heading.addEventListener('pointercancel', endCardDrag);
       card.appendChild(heading);
 
-      if (row) {
+      const rows = cardRows(kind, row);
+      if (rows.length) {
+        // The list is the one part of the card that scrolls when the canvas is short
+        // (network-map.css): the heading and the two actions below it stay in view.
         const values = document.createElement('dl');
         values.className = 'nm-card-values';
-        const fields = Object.prototype.hasOwnProperty.call(CARD_FIELDS, kind) ? CARD_FIELDS[kind] : [];
-        fields.forEach(field => {
-          const text = formatValue(row[field[1]], field[2], field[3]);
-          if (text === null) return;
+        rows.forEach(pair => {
           const term = document.createElement('dt');
-          term.textContent = field[0];
+          term.textContent = pair[0];
           const value = document.createElement('dd');
-          value.textContent = text;
+          value.textContent = pair[1];
           values.appendChild(term);
           values.appendChild(value);
         });
-        if (values.childNodes.length) card.appendChild(values);
+        card.appendChild(values);
       }
+      // The link (or the sentence standing for it) and the button stay together under
+      // the values, in a block that never shrinks.
+      const actions = document.createElement('div');
+      actions.className = 'nm-card-actions';
 
       // An element without a detail page is a normal state, not an error: a node that
       // ends no conduit has no panel to open.  The anchor is then not created at all —
@@ -2348,12 +2519,12 @@
         open.className = 'nm-card-open';
         open.href = href;
         open.textContent = 'Open details';
-        card.appendChild(open);
+        actions.appendChild(open);
       } else {
         const missing = document.createElement('p');
         missing.className = 'nm-card-none';
         missing.textContent = 'No detail page for this element.';
-        card.appendChild(missing);
+        actions.appendChild(missing);
       }
 
       const toTable = document.createElement('button');
@@ -2369,7 +2540,8 @@
           detail: { kind: kindToTab(kind), name: name }
         }));
       });
-      card.appendChild(toTable);
+      actions.appendChild(toTable);
+      card.appendChild(actions);
 
       // Right after the <svg> in the DOM, so that one Tab out of the map reaches the
       // card and not the floating view controls.  The card is positioned absolutely
@@ -2401,6 +2573,8 @@
     // -------------------------------------------------------------------------
 
     host.addEventListener('wheel', event => {
+      // A wheel over the card scrolls its values and is no gesture of the map.
+      if (card && card.contains(event.target)) return;
       const action = wheelAction(event);
       if (!action.zoom) {
         // Nothing is cancelled and nothing moves: the wheel still belongs to whatever
@@ -2576,6 +2750,16 @@
       clearLegend();
     });
 
+    // Where the next focus of the map comes from (FOCUS_RING_CLASS).  On the document and
+    // in the capture phase, so the record is written before the focus moves and no
+    // handler that stops propagation can hide an input from it.  A key held with Ctrl,
+    // Alt or Cmd is a shortcut and not navigation - Cmd+Tab to another window would
+    // otherwise bring the ring back on a map the reader clicked.
+    document.addEventListener('pointerdown', () => { keyboardInput = false; }, true);
+    document.addEventListener('keydown', event => {
+      if (!event.ctrlKey && !event.altKey && !event.metaKey) keyboardInput = true;
+    }, true);
+
     if (typeof ResizeObserver !== 'undefined') {
       // One mechanism for both cases: the observer reports the container's size when
       // it starts observing (the map tab is active on load) and again when the panel
@@ -2701,10 +2885,14 @@
     return null;
   }
 
-  /** node before link before subcatchment, whatever the input order was. */
+  /**
+   * Conduit before node before subcatchment, whatever the input order was.  The map is
+   * read by conduit - the recommendations and the tables are keyed on it - so a pipe
+   * name wins a collision against the name of a node.
+   */
   function kindRank(kind) {
-    if (kind === 'node') return 0;
-    if (kind === 'link') return 1;
+    if (kind === 'link') return 0;
+    if (kind === 'node') return 1;
     return 2;
   }
 
@@ -2896,7 +3084,7 @@
    *    The obstacles are node disks, conduit segments and the labels already placed.
    * 3. **One total order, written once.**  The selected element first — named by
    *    ``opts.selected``, a compound key, not by a flag in ``items`` — then ``kind``
-   *    (node 0, link 1, poly 2), then ``i`` ascending.  The input order means
+   *    (link 0, node 1, poly 2), then ``i`` ascending.  The input order means
    *    nothing: this function sorts for itself, or ``opts.max`` and determinism would
    *    say two different things about a shuffled input.  Sorting on the key as a
    *    string is forbidden, 'link:12' standing lexicographically before 'node:3'.
@@ -3020,5 +3208,5 @@
     };
   }
 
-  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels};
+  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded};
 })();
