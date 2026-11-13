@@ -116,10 +116,9 @@ class AnalysisView(LoginRequiredMixin, View):
         request,
         temp_path: str,
         swmm_model: SWMMModel,
-        success_msg: str,
         error_prefix: str,
     ):
-        """Run SWMM analysis on *temp_path* for *swmm_model* and render the appropriate response."""
+        """Run SWMM analysis on *temp_path* for *swmm_model*; open the results, or return to the form on failure."""
         frost_zone = swmm_model.get_frost_zone_value()
         session, success = AnalysisService.analyze_file(
             user=request.user,
@@ -128,8 +127,7 @@ class AnalysisView(LoginRequiredMixin, View):
             swmm_model=swmm_model,
         )
         if success:
-            messages.success(request, success_msg)
-            return self._render_success(request, session)
+            return redirect("sa:analysis_results", session_id=session.id)
 
         detail = f": {session.error_message}" if getattr(session, "error_message", None) else ""
         messages.error(request, f"{error_prefix}{detail}.")
@@ -157,7 +155,6 @@ class AnalysisView(LoginRequiredMixin, View):
                 request,
                 temp_path=temp_path,
                 swmm_model=swmm_model,
-                success_msg="Test file analysis completed successfully!",
                 error_prefix="Error occurred while processing test file",
             )
         except Exception as e:
@@ -189,7 +186,6 @@ class AnalysisView(LoginRequiredMixin, View):
                 request,
                 temp_path=temp_path,
                 swmm_model=instance,
-                success_msg="Analysis completed successfully!",
                 error_prefix="Error occurred while saving calculation results",
             )
         finally:
@@ -199,22 +195,6 @@ class AnalysisView(LoginRequiredMixin, View):
     def _render_form(self, request, form=None):
         """Render analysis form."""
         return render(request, self.template_name, {"swmm_form": form or SWMMModelForm()})
-
-    def _render_success(self, request, session):
-        """Render successful analysis results."""
-        data = CalculationRetrievalService.format_session_data_for_template(session)
-        panel_links = CalculationRetrievalService.panel_links(session)
-        return render(
-            request,
-            self.template_name,
-            {
-                "swmm_form": SWMMModelForm(),
-                "data": data,
-                "session": session,
-                "show_results": True,
-                "panel_links": panel_links,
-            },
-        )
 
     @staticmethod
     def _create_temp_file(uploaded_file) -> str:
