@@ -720,6 +720,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         "writeMapPrefs",
         "placeLabels",
         "cardRows",
+        "symbolsCrowded",
     )
     """Every name the harness calls.  Later stages *add* to this tuple; the test asks
     for a subset and never for an exact count, so stage 7 exporting one more name is
@@ -1469,6 +1470,55 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertNotIn("savePrefs", line, "and writes nothing")
 
     # -- 85 ---------------------------------------------------------------------
+    def test_names_hide_only_when_off_and_node_names_wait_for_their_symbols(self):
+        """The names are kept as far as they fit, never hidden all at once by density.
+
+        The group of names goes down only when the names are off or could not be built:
+        the solver already drops a name with no room, so one close pair of nodes may not
+        cost every other name.  While ``crowded`` hides the node symbols, the node names
+        are not offered to the solver - a name beside a symbol that is not drawn names
+        nothing - and the conduit and subcatchment names keep showing.
+        """
+        code = self._code("network-map.js")
+
+        self.assertNotIn("LABEL_MIN_GAP_PX", code, "no screen gap hides the names any more")
+        rescale = self._braced_block(code, re.search(r"function rescale\(\)\s*\{", code))
+        self.assertIn("const hide = !labelsOn || !labelsBuilt;", rescale)
+        self.assertIn("const crowded = symbolsCrowded(data.min_gap, pxPerUnit);", rescale)
+        self.assertNotIn("showHint", rescale, "rescale runs on every step of a pan")
+
+        place = self._braced_block(code, re.search(r"function placeLabelsNow\(\)\s*\{", code))
+        self.assertIn("(lastView.crowded || !Array.isArray(data.nodes) ? [] : data.nodes).forEach(", place)
+        self.assertIn("hideLabels(drawing.labelEls.node)", place, "a node name placed before stays down")
+
+    def test_conduit_names_are_placed_before_node_names(self):
+        """The map is read by conduit, so a pipe name wins a collision against a node name."""
+        code = self._code("network-map.js")
+        rank = self._braced_block(code, re.search(r"function kindRank\(kind\)\s*\{", code))
+        self.assertIn("if (kind === 'link') return 0;", rank)
+        self.assertIn("if (kind === 'node') return 1;", rank)
+        self.assertIn("return 2;", rank)
+
+    def test_zoom_hint_follows_the_placement_after_the_button(self):
+        """The hint "Zoom in to show names" is said only when the gesture placed no name.
+
+        Whether a name fits is known once the solver ran, in the deferred placement, so
+        the names button raises a flag and that placement reads it - cleared first, so a
+        later pan can never say it, and never raised by the page load.  No second frame
+        is asked for: ``scheduleLabels`` stays the only requester.
+        """
+        code = self._code("network-map.js")
+        toggle = self._braced_block(code, re.search(r"function toggleLabels\(\)\s*\{", code))
+        place = self._braced_block(code, re.search(r"function placeLabelsNow\(\)\s*\{", code))
+
+        self.assertNotIn("Zoom in to show names", toggle)
+        self.assertIn("labelsJustOn = labelsOn;", toggle)
+        self.assertEqual(code.count("labelsJustOn = labelsOn;"), 1, "only the button raises the flag")
+        self.assertLess(place.index("labelsJustOn = false;"), place.index("return;"), "cleared before any way out")
+        self.assertIn("if (announce && !placed.length) showHint('Zoom in to show names');", place)
+        self.assertEqual(code.count("Zoom in to show names"), 1)
+        self.assertEqual(code.count("requestAnimationFrame("), 1)
+
     def test_lazy_labels_get_the_dimming(self):
         """Names born after ``ensureDrawn`` catch up with both reasons to be faded.
 

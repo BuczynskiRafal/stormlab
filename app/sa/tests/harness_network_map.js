@@ -38,16 +38,18 @@ const {
   writeMapPrefs,
   clampCardPos,
   placeLabels,
-  cardRows
+  cardRows,
+  symbolsCrowded
 } = nm;
 
-// The exported surface is a contract: twenty-one names, including clampCardPos and
+// The exported surface is a contract: twenty-two names, including clampCardPos and
 // writeMapPrefs (the selection card can be dragged and the preferences have a second
 // field), outletPath (the outline of a subcatchment's outlet line), placeLabels
-// (the placement solver) and cardRows (the values of the selection card).
+// (the placement solver), cardRows (the values of the selection card) and
+// symbolsCrowded (the density that hides the node symbols and their names).
 // A name that quietly stops being exported takes its whole group with it and the run
 // would still end green without this line.
-assert.strictEqual(Object.keys(nm).length, 21, 'network-map.js must export exactly twenty-one names');
+assert.strictEqual(Object.keys(nm).length, 22, 'network-map.js must export exactly twenty-two names');
 
 let passed = 0;
 
@@ -199,9 +201,9 @@ group('outletPath draws the line only for a usable pair of points', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. symbolRadiusPx — five regimes, and every unusable min_gap
+// 5. symbolRadiusPx and symbolsCrowded — five regimes, and every unusable min_gap
 // ---------------------------------------------------------------------------
-group('symbolRadiusPx covers the five regimes and every unusable min_gap', () => {
+group('symbolRadiusPx and symbolsCrowded cover the five regimes and every unusable min_gap', () => {
   // Crowded: a third of the gap is below the floor, so the caller is told 1.5 px and
   // hides the symbols rather than drawing a blot.
   near(symbolRadiusPx(1, 2), 1.5, 1e-12, 'a crowded network must clamp to the floor');
@@ -220,6 +222,21 @@ group('symbolRadiusPx covers the five regimes and every unusable min_gap', () =>
   });
   [null, 0, -1, NaN, Infinity].forEach(scale => {
     near(symbolRadiusPx(2, scale), 3.5, 1e-12, `an unusable pxPerUnit (${String(scale)}) must give the ceiling`);
+  });
+
+  // symbolsCrowded is the same floor read as a yes or no: crowded hides the node
+  // symbols, and with them the node names, which are then not offered to the solver.
+  // The closest pair of the demo network is 0.3883 units apart: crowded at the 8.4 px
+  // per unit of a 1280x720 window, not at the 12.3 of a 1440x900 one.
+  assert.strictEqual(symbolsCrowded(1, 2), true, 'a third of the gap below the floor is crowded');
+  assert.strictEqual(symbolsCrowded(2, 2.25), false, 'exactly at the floor the symbols are still drawn');
+  assert.strictEqual(symbolsCrowded(0.3883, 8.4), true, 'the demo network at 1280x720 hides its node names');
+  assert.strictEqual(symbolsCrowded(0.3883, 12.31), false, 'and shows them at 1440x900');
+  [null, undefined, 0, -3, NaN, Infinity, 'x'].forEach(gap => {
+    assert.strictEqual(symbolsCrowded(gap, 4), false, `an unusable min_gap (${String(gap)}) is never crowded`);
+  });
+  [null, 0, -1, NaN, Infinity].forEach(scale => {
+    assert.strictEqual(symbolsCrowded(2, scale), false, `an unusable pxPerUnit (${String(scale)}) is never crowded`);
   });
 });
 
@@ -927,7 +944,7 @@ function refPlace(items, segments, opts) {
   const polyAnchors = ['C'].concat(plainAnchors);
 
   const list = items.slice().map(item => Object.assign({}, item, { r: item.r > 0 ? item.r : 0 }));
-  const rank = kind => (kind === 'node' ? 0 : kind === 'link' ? 1 : 2);
+  const rank = kind => (kind === 'link' ? 0 : kind === 'node' ? 1 : 2);
   list.sort((a, b) => (rank(a.kind) - rank(b.kind)) || (a.i - b.i));
 
   const disks = list.filter(item => item.kind === 'node' && item.r > 0);
@@ -1210,8 +1227,8 @@ group('placeLabels respects opts.max', () => {
   const capped = agree('a cap of 600', scene.shuffled, [], { max: 600 });
   assert.strictEqual(capped.length, 600, 'the cap is a cap, whatever order the input came in');
   const expected = [];
-  for (let n = 0; n < 500; n += 1) expected.push(`node:${n}`);
-  for (let n = 0; n < 100; n += 1) expected.push(`link:${n}`);
+  for (let n = 0; n < 500; n += 1) expected.push(`link:${n}`);
+  for (let n = 0; n < 100; n += 1) expected.push(`node:${n}`);
   assert.deepStrictEqual(capped.map(entry => entry.key), expected, 'the cap keeps the head of the comparator, not the head of the input');
 });
 
@@ -1220,15 +1237,15 @@ group('placeLabels lifts opts.selected out of opts.max', () => {
   const scene = spacedScene();
   const plain = agree('a cap of 600', scene.shuffled, [], { max: 600 });
 
-  const lifted = agree('a selection past the cap', scene.shuffled, [], { max: 600, selected: 'link:499' });
+  const lifted = agree('a selection past the cap', scene.shuffled, [], { max: 600, selected: 'node:499' });
   assert.strictEqual(lifted.length, 601, 'the selected element is exempt from the cap');
-  assert.strictEqual(lifted[0].key, 'link:499', 'the selected element comes first');
+  assert.strictEqual(lifted[0].key, 'node:499', 'the selected element comes first');
   assert.deepStrictEqual(lifted.slice(1), plain, 'the selection must push nobody out');
 
-  const inside = agree('a selection already inside the cap', scene.shuffled, [], { max: 600, selected: 'node:5' });
+  const inside = agree('a selection already inside the cap', scene.shuffled, [], { max: 600, selected: 'link:5' });
   assert.strictEqual(inside.length, 600, 'a selection that already fitted does not add an entry');
-  assert.strictEqual(inside[0].key, 'node:5', 'it only moves to the front');
-  assert.deepStrictEqual(inside.slice(1), plain.filter(entry => entry.key !== 'node:5'), 'and nothing else moves');
+  assert.strictEqual(inside[0].key, 'link:5', 'it only moves to the front');
+  assert.deepStrictEqual(inside.slice(1), plain.filter(entry => entry.key !== 'link:5'), 'and nothing else moves');
 
   const nobody = agree('a selection matching nothing', scene.shuffled, [], { max: 600, selected: 'node:99999' });
   assert.deepStrictEqual(nobody, plain, 'a selection matching no key is ignored without complaint');
@@ -1267,8 +1284,28 @@ group('placeLabels puts a subcatchment name on its centroid', () => {
   ];
   assert.deepStrictEqual(
     agree('a cap of two', mixed, [], { max: 2 }).map(entry => entry.key),
-    ['node:0', 'link:0'],
+    ['link:0', 'node:0'],
     'a subcatchment name is the first thing a cap drops'
+  );
+
+  // A conduit and a node competing for the same room: the conduit is placed first
+  // (kindRank link = 0), so it keeps its first anchor and the node takes what is left,
+  // whatever the order of the input.  Neither carries an obstacle of its own here, so
+  // the only thing deciding is the order.
+  const rivals = [
+    { key: 'node:0', kind: 'node', i: 0, x: 0, y: 0, r: 0, w: 50, h: 16 },
+    { key: 'link:0', kind: 'link', i: 0, x: 0, y: 0, r: 0, w: 50, h: 16 }
+  ];
+  const contest = agree('a conduit and a node on one point', rivals, [], {});
+  assert.deepStrictEqual(contest[0], { key: 'link:0', dx: 0, dy: -8 }, 'the conduit takes E, its first anchor');
+  assert.strictEqual(contest[1].key, 'node:0', 'the node comes second');
+  assert.notDeepStrictEqual({ dx: contest[1].dx, dy: contest[1].dy }, { dx: 0, dy: -8 }, 'and has to move');
+  assert.deepStrictEqual(agree('the same pair reversed', rivals.slice().reverse(), [], {}), contest, 'the input order decides nothing');
+  // Room for one name only: the node loses it.
+  assert.deepStrictEqual(
+    agree('a conduit and a node with one anchor', rivals, [], { anchors: ['E'] }).map(entry => entry.key),
+    ['link:0'],
+    'when only one name fits, it is the conduit name'
   );
 
   // opts.anchors replaces the eight fallback positions, never the rule: a caller who
