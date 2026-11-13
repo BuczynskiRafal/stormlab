@@ -159,13 +159,14 @@
    137.2 px against 107.4 px on 390x844, where the close button ended up 34.7 px above
    the top edge and could not be clicked.  20px is twice the 10px the card is inset by,
    so the cap holds before the first drag as well, while left: 10px / bottom: 10px are
-   still what places it.  What it costs is written here too: a card with more content
-   than room scrolls inside itself, and the buttons at its bottom - "Open details",
-   "Show in table" - are then reached by scrolling the card, with its own scrollbar as
-   the only sign that there is more.  The alternatives are worse: the overflow is
-   vertical, so a narrower card does not help, and giving the padding back undoes the
-   inset of stage E1. */
-#storm-results-v2 .nm-card { position: absolute; left: 10px; bottom: 10px; z-index: 4; max-width: min(260px, calc(100% - 20px)); max-height: calc(100% - 20px); overflow-y: auto; padding: 10px 30px 10px 12px; border: 1px solid var(--r-line); border-radius: 10px; background: var(--r-white); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12); pointer-events: auto; }
+   still what places it.  A card with more content than room gives the room up from
+   its list of values: the card is a column in which the heading and the actions
+   ("Open details", "Show in table") keep their height and the list shrinks and
+   scrolls inside itself, down to about two rows.  Only on a canvas too short even for
+   that does the card as a whole scroll (overflow-y: auto below).  The alternatives
+   are worse: the overflow is vertical, so a narrower card does not help, and giving
+   the padding back undoes the inset of stage E1. */
+#storm-results-v2 .nm-card { display: flex; flex-direction: column; position: absolute; left: 10px; bottom: 10px; z-index: 4; max-width: min(260px, calc(100% - 20px)); max-height: calc(100% - 20px); overflow-y: auto; padding: 10px 30px 10px 12px; border: 1px solid var(--r-line); border-radius: 10px; background: var(--r-white); box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12); pointer-events: auto; }
 #storm-results-v2 .nm-card-close { position: absolute; top: 4px; right: 6px; width: 22px; height: 22px; padding: 0; border: 0; background: none; color: var(--r-muted); font-size: 16px; line-height: 1; cursor: pointer; }
 /* The heading, and only the heading, is the handle the card is dragged by.
    The three declarations belong here and nowhere else: touch-action: none on .nm-card
@@ -173,11 +174,14 @@
    and user-select: none there would take away the copying of the values, which is the
    one thing a reader does with them.  On a <p> that holds nothing but a name, both are
    free. */
-#storm-results-v2 .nm-card-name { margin: 0 0 6px; color: var(--r-ink); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; cursor: grab; touch-action: none; user-select: none; }
+#storm-results-v2 .nm-card-name { flex: none; margin: 0 0 6px; color: var(--r-ink); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; cursor: grab; touch-action: none; user-select: none; }
 #storm-results-v2 .nm-card-name:active { cursor: grabbing; }
-#storm-results-v2 .nm-card-values { display: grid; grid-template-columns: auto auto; gap: 2px 12px; margin: 0 0 8px; color: var(--r-muted); font-size: 12px; }
+/* The second column takes what the labels leave and wraps a long value (a category
+   key) instead of widening the card past its cap. */
+#storm-results-v2 .nm-card-values { flex: 0 1 auto; min-height: 32px; overflow-y: auto; overscroll-behavior: contain; display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: start; gap: 2px 12px; margin: 0 0 8px; color: var(--r-muted); font-size: 12px; }
 #storm-results-v2 .nm-card-values dt { margin: 0; }
-#storm-results-v2 .nm-card-values dd { margin: 0; color: var(--r-ink); text-align: right; }
+#storm-results-v2 .nm-card-values dd { margin: 0; color: var(--r-ink); text-align: right; overflow-wrap: anywhere; }
+#storm-results-v2 .nm-card-actions { flex: none; }
 #storm-results-v2 .nm-card-none { margin: 0 0 8px; color: var(--r-muted); font-size: 12px; }
 #storm-results-v2 .nm-card-open { display: inline-block; margin: 0 10px 0 0; color: var(--r-blue); font-size: 12px; font-weight: 600; }
 #storm-results-v2 .nm-card-table { padding: 4px 10px; border: 1px solid var(--r-line); border-radius: 8px; background: var(--r-white); color: var(--r-ink); font-size: 12px; cursor: pointer; }
