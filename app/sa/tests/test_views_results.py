@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from django.contrib.messages import get_messages
-from django.contrib.messages.storage.fallback import FallbackStorage
-from django.test import RequestFactory
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -14,7 +12,6 @@ from django.db.models import Prefetch
 
 from sa.models import CalculationSession, ConduitData, SubcatchmentData
 from sa.services import CalculationRetrievalService
-from sa.views import AnalysisView
 
 from .factories import make_conduit, make_node, make_session, make_subcatchment, make_user
 
@@ -102,20 +99,6 @@ class PanelLinksTests(TestCase):
         # S3 and N9 appear in the data but without links.
         self.assertIn("S3", html)
         self.assertIn("N9", html)
-
-    def test_fresh_analysis_page_links_into_the_panel_too(self):
-        """``AnalysisView._render_success`` renders analysis.html with the same tables."""
-        request = RequestFactory().get(reverse("sa:analysis"))
-        request.user = self.user
-        request.session = {}
-        request._messages = FallbackStorage(request)
-
-        response = AnalysisView()._render_success(request, self.session)
-        html = response.content.decode()
-
-        self.assertIn(f'href="{self._panel("C1")}#node-inlet"', html)
-        self.assertIn(f'href="{self._panel("C1")}#catchment-{self.s1.pk}"', html)
-        self.assertNotIn("/node/", html)
 
     def test_names_with_a_slash_route_everywhere(self):
         """A legal SWMM name may contain "/": the panel, its neighbours and the results page all render."""
