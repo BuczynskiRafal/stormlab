@@ -37,16 +37,19 @@ const {
   readMapPrefs,
   writeMapPrefs,
   clampCardPos,
-  placeLabels
+  placeLabels,
+  cardRows,
+  symbolsCrowded
 } = nm;
 
-// The exported surface is a contract: twenty names, including clampCardPos and
+// The exported surface is a contract: twenty-two names, including clampCardPos and
 // writeMapPrefs (the selection card can be dragged and the preferences have a second
-// field), outletPath (the outline of a subcatchment's outlet line) and placeLabels
-// (the placement solver).
+// field), outletPath (the outline of a subcatchment's outlet line), placeLabels
+// (the placement solver), cardRows (the values of the selection card) and
+// symbolsCrowded (the density that hides the node symbols and their names).
 // A name that quietly stops being exported takes its whole group with it and the run
 // would still end green without this line.
-assert.strictEqual(Object.keys(nm).length, 20, 'network-map.js must export exactly twenty names');
+assert.strictEqual(Object.keys(nm).length, 22, 'network-map.js must export exactly twenty-two names');
 
 let passed = 0;
 
@@ -198,9 +201,9 @@ group('outletPath draws the line only for a usable pair of points', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. symbolRadiusPx — five regimes, and every unusable min_gap
+// 5. symbolRadiusPx and symbolsCrowded — five regimes, and every unusable min_gap
 // ---------------------------------------------------------------------------
-group('symbolRadiusPx covers the five regimes and every unusable min_gap', () => {
+group('symbolRadiusPx and symbolsCrowded cover the five regimes and every unusable min_gap', () => {
   // Crowded: a third of the gap is below the floor, so the caller is told 1.5 px and
   // hides the symbols rather than drawing a blot.
   near(symbolRadiusPx(1, 2), 1.5, 1e-12, 'a crowded network must clamp to the floor');
@@ -219,6 +222,21 @@ group('symbolRadiusPx covers the five regimes and every unusable min_gap', () =>
   });
   [null, 0, -1, NaN, Infinity].forEach(scale => {
     near(symbolRadiusPx(2, scale), 3.5, 1e-12, `an unusable pxPerUnit (${String(scale)}) must give the ceiling`);
+  });
+
+  // symbolsCrowded is the same floor read as a yes or no: crowded hides the node
+  // symbols, and with them the node names, which are then not offered to the solver.
+  // The closest pair of the demo network is 0.3883 units apart: crowded at the 8.4 px
+  // per unit of a 1280x720 window, not at the 12.3 of a 1440x900 one.
+  assert.strictEqual(symbolsCrowded(1, 2), true, 'a third of the gap below the floor is crowded');
+  assert.strictEqual(symbolsCrowded(2, 2.25), false, 'exactly at the floor the symbols are still drawn');
+  assert.strictEqual(symbolsCrowded(0.3883, 8.4), true, 'the demo network at 1280x720 hides its node names');
+  assert.strictEqual(symbolsCrowded(0.3883, 12.31), false, 'and shows them at 1440x900');
+  [null, undefined, 0, -3, NaN, Infinity, 'x'].forEach(gap => {
+    assert.strictEqual(symbolsCrowded(gap, 4), false, `an unusable min_gap (${String(gap)}) is never crowded`);
+  });
+  [null, 0, -1, NaN, Infinity].forEach(scale => {
+    assert.strictEqual(symbolsCrowded(2, scale), false, `an unusable pxPerUnit (${String(scale)}) is never crowded`);
   });
 });
 
@@ -419,8 +437,8 @@ group('pickColor names a class for every mode and falls back to nm-nodata', () =
 // ---------------------------------------------------------------------------
 // 11. readMapPrefs — one key, and every field decided on its own
 //
-// Three fields: ``mode``, ``card`` and ``labels``.
-// Every assertion here names all three, because the point of the shape is that a
+// Three fields: ``mode``, ``card`` and ``labels``, the last one trusted only under the
+// version marker ``v: 2``.  Every assertion here names all three, because the point of the shape is that a
 // broken one may not cost the other two.  The round trip of the writer keeps its own
 // group below (16), where E2 put it: no new group, the count stays what E4a left.
 // ---------------------------------------------------------------------------
@@ -445,14 +463,46 @@ group('readMapPrefs reads its own key and decides every field of the preferences
     };
   }
 
-  const good = store({ [KEY]: JSON.stringify({ mode: 'filling', labels: true }) });
-  assert.deepStrictEqual(readMapPrefs(good), { mode: 'filling', card: null, labels: true }, 'the stored fields must come back, and the one that was never stored takes its default');
+  const good = store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', labels: false }) });
+  assert.deepStrictEqual(readMapPrefs(good), { mode: 'filling', card: null, labels: false }, 'the stored fields must come back, and the one that was never stored takes its default');
   assert.deepStrictEqual(good.asked, [KEY], 'the map must read its own key and nothing else');
   assert.ok(!good.asked.includes('stormwater-results-v2-preferences'), 'the map must not read the Results V2 key');
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: '{"mode":"validity","labels":false}' })),
-    { mode: 'validity', card: null, labels: false },
+    readMapPrefs(store({ [KEY]: '{"v":2,"mode":"validity","labels":true}' })),
+    { mode: 'validity', card: null, labels: true },
     'the second mode must come back too'
+  );
+
+  // The names are on unless the reader turned them off under the marker.  The unmarked
+  // shape stored ``labels: false`` on every gesture while the names were off by default,
+  // so that false is not a choice: it gives the default and keeps its mode.
+  assert.deepStrictEqual(readMapPrefs(store({})).labels, true, 'nothing stored: the names are on');
+  assert.deepStrictEqual(
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', card: null, labels: false }) })),
+    { mode: 'filling', card: null, labels: false },
+    'a false stored under the marker is a choice and must be kept'
+  );
+  assert.deepStrictEqual(
+    readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling', card: null, labels: false }) })),
+    { mode: 'filling', card: null, labels: true },
+    'a false stored without the marker must give the default, and the mode must stay'
+  );
+  assert.deepStrictEqual(
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 1, mode: 'validity', labels: false }) })),
+    { mode: 'validity', card: null, labels: true },
+    'only the current marker counts'
+  );
+  ['yes', 0, 1, null].forEach(labels => {
+    assert.deepStrictEqual(
+      readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', labels: labels }) })),
+      { mode: 'filling', card: null, labels: true },
+      `a stored ${JSON.stringify(labels)} is not a boolean and must give the default, even under the marker`
+    );
+  });
+  assert.deepStrictEqual(
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling' }) })),
+    { mode: 'filling', card: null, labels: true },
+    'a marked object without the field must give the default'
   );
 
   // The shape every reader of the map has in their browser today, from before the card
@@ -461,42 +511,42 @@ group('readMapPrefs reads its own key and decides every field of the preferences
   // fallback would reset the mode of every existing reader.
   assert.deepStrictEqual(
     readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling' }) })),
-    { mode: 'filling', card: null, labels: false },
+    { mode: 'filling', card: null, labels: true },
     'the old {mode} shape must survive, with card and labels defaulted'
   );
   // ...and the shape E2 writes, from before the names existed: the card stands and only
   // ``labels`` defaults.
   assert.deepStrictEqual(
     readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling', card: { left: 40, top: 30 } }) })),
-    { mode: 'filling', card: { left: 40, top: 30 }, labels: false },
+    { mode: 'filling', card: { left: 40, top: 30 }, labels: true },
     'the {mode, card} shape must survive, with labels defaulted'
   );
   // All three at once, and then each of them broken on its own: a bad mode may not cost
   // the position or the names, and a bad position may not cost the other two.
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling', card: { left: 40, top: 30 }, labels: true }) })),
-    { mode: 'filling', card: { left: 40, top: 30 }, labels: true },
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', card: { left: 40, top: 30 }, labels: false }) })),
+    { mode: 'filling', card: { left: 40, top: 30 }, labels: false },
     'all three stored fields must come back'
   );
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'rainbow', card: { left: 5, top: 5 }, labels: true }) })),
-    { mode: 'recommendation', card: { left: 5, top: 5 }, labels: true },
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'rainbow', card: { left: 5, top: 5 }, labels: false }) })),
+    { mode: 'recommendation', card: { left: 5, top: 5 }, labels: false },
     'an unknown mode must take neither the position nor the names with it'
   );
-  // ``labels`` is true and nothing else is: a string and a number are not a flag.
+  // ``labels`` is a boolean and nothing else is: a string and a number are not a flag.
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: JSON.stringify({ labels: 'yes' }) })),
-    { mode: 'recommendation', card: null, labels: false },
-    'a string must not pass for true'
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, labels: 'no' }) })),
+    { mode: 'recommendation', card: null, labels: true },
+    'a string must not pass for false'
   );
   assert.deepStrictEqual(
-    readMapPrefs(store({ [KEY]: JSON.stringify({ labels: 1 }) })),
-    { mode: 'recommendation', card: null, labels: false },
-    'a number must not pass for true'
+    readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, labels: 0 }) })),
+    { mode: 'recommendation', card: null, labels: true },
+    'a number must not pass for false'
   );
 
   // Broken, unknown, missing, absent and throwing: five ways to fail, one whole shape.
-  const whole = { mode: 'recommendation', card: null, labels: false };
+  const whole = { mode: 'recommendation', card: null, labels: true };
   assert.deepStrictEqual(readMapPrefs(store({ [KEY]: '{mode: filling' })), whole, 'broken JSON must give the whole default');
   assert.deepStrictEqual(readMapPrefs(store({ [KEY]: '"filling"' })), whole, 'a value that is not an object must give the whole default');
   assert.deepStrictEqual(readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'rainbow' }) })), whole, 'an unknown mode must give the whole default');
@@ -518,8 +568,8 @@ group('readMapPrefs reads its own key and decides every field of the preferences
     null
   ].forEach(card => {
     assert.deepStrictEqual(
-      readMapPrefs(store({ [KEY]: JSON.stringify({ mode: 'filling', card: card, labels: true }) })),
-      { mode: 'filling', card: null, labels: true },
+      readMapPrefs(store({ [KEY]: JSON.stringify({ v: 2, mode: 'filling', card: card, labels: false }) })),
+      { mode: 'filling', card: null, labels: false },
       `an unusable card (${JSON.stringify(card)}) must give card: null and keep the mode and the names`
     );
   });
@@ -747,16 +797,20 @@ group('writeMapPrefs stores the whole object and survives a round trip', () => {
   }
 
   const store = memory();
-  const written = { mode: 'filling', card: { left: 40, top: 30 }, labels: true };
+  const written = { mode: 'filling', card: { left: 40, top: 30 }, labels: false };
   writeMapPrefs(store, written);
   assert.deepStrictEqual(Object.keys(store.values), [KEY], 'the writer must use the map key and no other');
-  assert.deepStrictEqual(readMapPrefs(store), written, 'all three fields must survive the round trip');
+  assert.strictEqual(JSON.parse(store.values[KEY]).v, 2, 'every write must carry the version marker');
+  assert.deepStrictEqual(readMapPrefs(store), written, 'all three fields must survive the round trip, a false included');
+  const on = memory();
+  writeMapPrefs(on, { mode: 'filling', card: null, labels: true });
+  assert.deepStrictEqual(readMapPrefs(on), { mode: 'filling', card: null, labels: true }, 'and a true as well');
 
   // The mode is validated on the way out, not on the way in: a value the switch does
   // not know lands on the default and the two fields beside it are untouched.
   const unknown = memory();
-  writeMapPrefs(unknown, { mode: 'rainbow', card: { left: 5, top: 5 }, labels: true });
-  assert.deepStrictEqual(readMapPrefs(unknown), { mode: 'recommendation', card: { left: 5, top: 5 }, labels: true }, 'a mode off the list must read back as the default');
+  writeMapPrefs(unknown, { mode: 'rainbow', card: { left: 5, top: 5 }, labels: false });
+  assert.deepStrictEqual(readMapPrefs(unknown), { mode: 'recommendation', card: { left: 5, top: 5 }, labels: false }, 'a mode off the list must read back as the default');
 
   const noCard = memory();
   writeMapPrefs(noCard, { mode: 'validity', card: null, labels: false });
@@ -766,7 +820,10 @@ group('writeMapPrefs stores the whole object and survives a round trip', () => {
   // stored JSON has to stay a whole object or the next read would have to guess.
   const partial = memory();
   writeMapPrefs(partial, { mode: 'validity' });
-  assert.deepStrictEqual(readMapPrefs(partial), { mode: 'validity', card: null, labels: false }, 'a missing field is written as its default');
+  assert.deepStrictEqual(readMapPrefs(partial), { mode: 'validity', card: null, labels: true }, 'a missing field is written as its default');
+  const odd = memory();
+  writeMapPrefs(odd, { mode: 'validity', card: null, labels: 'no' });
+  assert.strictEqual(JSON.parse(odd.values[KEY]).labels, true, 'a names flag that is not a boolean is written as the default');
 
   // A preference is not worth an error: neither a storage that refuses to write nor a
   // missing one may throw out of the module.
@@ -887,7 +944,7 @@ function refPlace(items, segments, opts) {
   const polyAnchors = ['C'].concat(plainAnchors);
 
   const list = items.slice().map(item => Object.assign({}, item, { r: item.r > 0 ? item.r : 0 }));
-  const rank = kind => (kind === 'node' ? 0 : kind === 'link' ? 1 : 2);
+  const rank = kind => (kind === 'link' ? 0 : kind === 'node' ? 1 : 2);
   list.sort((a, b) => (rank(a.kind) - rank(b.kind)) || (a.i - b.i));
 
   const disks = list.filter(item => item.kind === 'node' && item.r > 0);
@@ -1170,8 +1227,8 @@ group('placeLabels respects opts.max', () => {
   const capped = agree('a cap of 600', scene.shuffled, [], { max: 600 });
   assert.strictEqual(capped.length, 600, 'the cap is a cap, whatever order the input came in');
   const expected = [];
-  for (let n = 0; n < 500; n += 1) expected.push(`node:${n}`);
-  for (let n = 0; n < 100; n += 1) expected.push(`link:${n}`);
+  for (let n = 0; n < 500; n += 1) expected.push(`link:${n}`);
+  for (let n = 0; n < 100; n += 1) expected.push(`node:${n}`);
   assert.deepStrictEqual(capped.map(entry => entry.key), expected, 'the cap keeps the head of the comparator, not the head of the input');
 });
 
@@ -1180,15 +1237,15 @@ group('placeLabels lifts opts.selected out of opts.max', () => {
   const scene = spacedScene();
   const plain = agree('a cap of 600', scene.shuffled, [], { max: 600 });
 
-  const lifted = agree('a selection past the cap', scene.shuffled, [], { max: 600, selected: 'link:499' });
+  const lifted = agree('a selection past the cap', scene.shuffled, [], { max: 600, selected: 'node:499' });
   assert.strictEqual(lifted.length, 601, 'the selected element is exempt from the cap');
-  assert.strictEqual(lifted[0].key, 'link:499', 'the selected element comes first');
+  assert.strictEqual(lifted[0].key, 'node:499', 'the selected element comes first');
   assert.deepStrictEqual(lifted.slice(1), plain, 'the selection must push nobody out');
 
-  const inside = agree('a selection already inside the cap', scene.shuffled, [], { max: 600, selected: 'node:5' });
+  const inside = agree('a selection already inside the cap', scene.shuffled, [], { max: 600, selected: 'link:5' });
   assert.strictEqual(inside.length, 600, 'a selection that already fitted does not add an entry');
-  assert.strictEqual(inside[0].key, 'node:5', 'it only moves to the front');
-  assert.deepStrictEqual(inside.slice(1), plain.filter(entry => entry.key !== 'node:5'), 'and nothing else moves');
+  assert.strictEqual(inside[0].key, 'link:5', 'it only moves to the front');
+  assert.deepStrictEqual(inside.slice(1), plain.filter(entry => entry.key !== 'link:5'), 'and nothing else moves');
 
   const nobody = agree('a selection matching nothing', scene.shuffled, [], { max: 600, selected: 'node:99999' });
   assert.deepStrictEqual(nobody, plain, 'a selection matching no key is ignored without complaint');
@@ -1227,8 +1284,28 @@ group('placeLabels puts a subcatchment name on its centroid', () => {
   ];
   assert.deepStrictEqual(
     agree('a cap of two', mixed, [], { max: 2 }).map(entry => entry.key),
-    ['node:0', 'link:0'],
+    ['link:0', 'node:0'],
     'a subcatchment name is the first thing a cap drops'
+  );
+
+  // A conduit and a node competing for the same room: the conduit is placed first
+  // (kindRank link = 0), so it keeps its first anchor and the node takes what is left,
+  // whatever the order of the input.  Neither carries an obstacle of its own here, so
+  // the only thing deciding is the order.
+  const rivals = [
+    { key: 'node:0', kind: 'node', i: 0, x: 0, y: 0, r: 0, w: 50, h: 16 },
+    { key: 'link:0', kind: 'link', i: 0, x: 0, y: 0, r: 0, w: 50, h: 16 }
+  ];
+  const contest = agree('a conduit and a node on one point', rivals, [], {});
+  assert.deepStrictEqual(contest[0], { key: 'link:0', dx: 0, dy: -8 }, 'the conduit takes E, its first anchor');
+  assert.strictEqual(contest[1].key, 'node:0', 'the node comes second');
+  assert.notDeepStrictEqual({ dx: contest[1].dx, dy: contest[1].dy }, { dx: 0, dy: -8 }, 'and has to move');
+  assert.deepStrictEqual(agree('the same pair reversed', rivals.slice().reverse(), [], {}), contest, 'the input order decides nothing');
+  // Room for one name only: the node loses it.
+  assert.deepStrictEqual(
+    agree('a conduit and a node with one anchor', rivals, [], { anchors: ['E'] }).map(entry => entry.key),
+    ['link:0'],
+    'when only one name fits, it is the conduit name'
   );
 
   // opts.anchors replaces the eight fallback positions, never the rule: a caller who
@@ -1248,7 +1325,90 @@ group('placeLabels puts a subcatchment name on its centroid', () => {
   );
 });
 
+// ---------------------------------------------------------------------------
+// 17. cardRows - the values of the selection card, labelled as the table labels them
+// ---------------------------------------------------------------------------
+group('cardRows lists the card values in order, in table units and digits', () => {
+  const conduit = {
+    recommendation_label: 'Increase diameter', recommendation: 'diameter_increase', confidence: 87.46,
+    validation: 5, filling: 0.33, diameter: 0.6, fillPercent: 55, flow: 0.0042, velocity: 1.234,
+    slope: 3.5, length: 1245.371, detail_url: '/x/'
+  };
+  assert.deepStrictEqual(cardRows('link', conduit), [
+    ['Recommendation', 'Increase diameter'],
+    ['Model confidence', '87.5 %'],
+    ['Checks passed', '5 / 7'],
+    ['Filling', '55 % (0.330 m)'],
+    ['Max. flow', '0.004 m\u00b3/s'],
+    ['Max. velocity', '1.23 m/s'],
+    ['Diameter', '0.600 m'],
+    ['Slope', '3.50 \u2030'],
+    ['Length', '1,245.37 m']
+  ], 'every conduit value, with the digits of its table column and no rounding to whole metres');
+
+  const node = { ground: 245.3, invert: 243, depth: 2.3, waterDepth: 0.5, floodVolume: 0.004, floodHours: 0.01 };
+  assert.deepStrictEqual(cardRows('node', node), [
+    ['Ground elevation', '245.30 m'],
+    ['Node invert', '243.00 m'],
+    ['Node depth', '2.30 m'],
+    ['Max. water depth', '0.50 m'],
+    ['Flooding volume', '4.0 m\u00b3'],
+    ['Flooding duration', '0.01 h']
+  ], 'the flooding volume is converted from millions of litres into cubic metres');
+
+  const catchment = {
+    category: 'urban_weakly_impervious', outlet: 'J1', area: 1.2345, impervious: 45.25, slope: 3.5,
+    peak: 0.31, runoff: 0.1234, coefficient: 0.456
+  };
+  assert.deepStrictEqual(cardRows('poly', catchment), [
+    ['Category', 'urban_weakly_impervious'],
+    ['Outlet node', 'J1'],
+    ['Area', '1.235 ha'],
+    ['Imperviousness', '45.3 %'],
+    ['Slope', '3.50 %'],
+    ['Peak runoff', '0.310 m\u00b3/s'],
+    ['Total runoff', '123.4 m\u00b3'],
+    ['Runoff coefficient', '0.456']
+  ], 'the total runoff is converted like the flooding volume');
+});
+
+group('cardRows leaves a missing value out and composes the filling from what is there', () => {
+  const labels = rows => rows.map(pair => pair[0]);
+  const filling = row => {
+    const found = cardRows('link', row).find(pair => pair[0] === 'Filling');
+    return found ? found[1] : null;
+  };
+
+  // A tiny value keeps its digits instead of reading as zero.
+  assert.deepStrictEqual(cardRows('link', { flow: 0.004 }), [['Max. flow', '0.004 m\u00b3/s']]);
+
+  // The percent is sent as 0 when it could not be computed, so it needs its inputs.
+  assert.strictEqual(filling({ filling: 0.33, diameter: 0.6, fillPercent: 55 }), '55 % (0.330 m)');
+  assert.strictEqual(filling({ filling: 0.33, fillPercent: 0 }), '0.330 m', 'no diameter: the depth alone');
+  assert.strictEqual(filling({ diameter: 0.6, fillPercent: 0 }), null, 'no depth: no filling at all, not a false 0 %');
+  assert.strictEqual(filling({ filling: 0, diameter: 0.6, fillPercent: 0 }), '0 % (0.000 m)', 'a dry conduit is a real zero');
+  assert.strictEqual(filling({ filling: 0.33, diameter: 0.6 }), '0.330 m', 'no percent sent: the depth alone');
+
+  // Checks passed is a whole count between 0 and 7.
+  assert.deepStrictEqual(cardRows('link', { validation: 0 }), [['Checks passed', '0 / 7']]);
+  assert.deepStrictEqual(cardRows('link', { validation: 7 }), [['Checks passed', '7 / 7']]);
+  [null, undefined, 8, -1, 2.5, '5'].forEach(value => {
+    assert.deepStrictEqual(cardRows('link', { validation: value }), [], `validation ${String(value)} is not a count`);
+  });
+
+  // null, a string where a number belongs, NaN and the placeholders of an absent text
+  // leave the row out; zero is a value.
+  assert.deepStrictEqual(labels(cardRows('node', { ground: null, invert: '243', depth: NaN, waterDepth: 0, floodVolume: Infinity })), ['Max. water depth']);
+  assert.deepStrictEqual(cardRows('poly', { category: '-', outlet: '' }), []);
+  assert.deepStrictEqual(cardRows('link', { recommendation_label: '\u2014', confidence: null }), []);
+
+  // Nothing to show at all.
+  assert.deepStrictEqual(cardRows('link', null), []);
+  assert.deepStrictEqual(cardRows('pump', { flow: 1 }), [], 'an unknown kind has no fields');
+  assert.deepStrictEqual(cardRows('toString', { flow: 1 }), [], 'an inherited member is not a kind');
+});
+
 console.log('------------------------------------------------------------');
-console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 25 PASSED)`);
+console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 27 PASSED)`);
 console.log('------------------------------------------------------------');
-assert.strictEqual(passed, 25, 'every group must have run');
+assert.strictEqual(passed, 27, 'every group must have run');

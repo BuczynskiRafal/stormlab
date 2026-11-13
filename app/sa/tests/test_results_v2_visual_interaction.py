@@ -719,6 +719,8 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         "clampCardPos",
         "writeMapPrefs",
         "placeLabels",
+        "cardRows",
+        "symbolsCrowded",
     )
     """Every name the harness calls.  Later stages *add* to this tuple; the test asks
     for a subset and never for an exact count, so stage 7 exporting one more name is
@@ -787,7 +789,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             f"the network map harness failed with exit code {result.returncode}:\n"
             f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
         )
-        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (25 / 25 PASSED)", result.stdout)
+        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (27 / 27 PASSED)", result.stdout)
 
     # -- 57 ---------------------------------------------------------------------
     def test_map_js_has_no_unsafe_patterns(self):
@@ -935,6 +937,35 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertEqual(code.count("nm:select"), 1, "nm:select may be dispatched from one place only")
         dispatch = code.index("nm:select")
         self.assertIn("kindToTab(kind)", code[dispatch : dispatch + 400])
+
+    def test_card_values_come_from_the_field_table(self):
+        """The card shows what ``cardRows`` returns, as text, and nothing it formats itself.
+
+        The formatting lives in the field table and is tested from Node; what is left
+        here is that ``buildCard`` takes it from there, puts every label and value in
+        through ``textContent`` and keeps the conduit attributes the colour modes paint
+        by on the card in every mode.
+        """
+        code = self._code("network-map.js")
+        build = self._braced_block(code, re.search(r"function buildCard\(kind, name\)", code))
+        self.assertIn("cardRows(kind, row)", build)
+        self.assertIn("term.textContent = pair[0]", build)
+        self.assertIn("value.textContent = pair[1]", build)
+        self.assertNotIn("toFixed", build, "numbers are formatted in the field table, not in buildCard")
+        self.assertNotIn("innerHTML", build)
+
+        fields = self._braced_block(code, re.search(r"const CARD_FIELDS = ", code))
+        link = fields[: fields.index("node: [")]
+        for painted in ("key: 'recommendation_label'", "format: checksText", "format: fillingText"):
+            self.assertIn(painted, link, f"the conduit card must show what a colour mode paints by ({painted})")
+        for converted in ("key: 'floodVolume'", "key: 'runoff'"):
+            entry = fields[fields.index(converted) :].split("}", 1)[0]
+            self.assertIn("factor: 1000", entry, f"{converted} is stored in millions of litres")
+
+        # A wheel over the card scrolls its list and must not reach the map.
+        wheel = self._braced_block(code, re.search(r"host\.addEventListener\('wheel', event =>", code))
+        self.assertIn("card.contains(event.target)", wheel)
+        self.assertLess(wheel.index("card.contains(event.target)"), wheel.index("showHint()"))
 
     # -- 62 ---------------------------------------------------------------------
     COLOR_CLASS_RE = re.compile(r"\bnm-(?:c|v|f)-[A-Za-z0-9_]+\b|\bnm-nodata\b")
@@ -1182,7 +1213,8 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
 
         ``.nm-canvas`` clips with ``overflow: hidden`` and ``clampCardPos`` can move a
         card but never shrink one, so the cap is what keeps a long card - and its close
-        button - reachable.  The handle declarations are the other half: on ``.nm-card``
+        button - reachable.  Inside the cap the list of values is what gives way: it
+        shrinks and scrolls, while the heading and the actions keep their height.  The handle declarations are the other half: on ``.nm-card``
         ``touch-action: none`` would stop the finger from scrolling the very card the cap
         tells it to scroll, and ``user-select: none`` would take away the copying of the
         values.
@@ -1210,6 +1242,16 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         heading_body = heading.group(1)
         for declaration in ("cursor: grab", "touch-action: none", "user-select: none"):
             self.assertIn(declaration, heading_body, f"the handle must carry {declaration}")
+        self.assertIn("flex: none", heading_body, "the heading must not shrink when the canvas is short")
+
+        self.assertIn("display: flex; flex-direction: column", card_body, "the card must be a column the list can shrink in")
+        values = re.search(r"#storm-results-v2 \.nm-card-values \{([^}]*)\}", css)
+        self.assertIsNotNone(values, "network-map.css has no rule for .nm-card-values")
+        for declaration in ("flex: 0 1 auto", "min-height:", "overflow-y: auto"):
+            self.assertIn(declaration, values.group(1), f"the list of values must shrink and scroll ({declaration})")
+        actions = re.search(r"#storm-results-v2 \.nm-card-actions \{([^}]*)\}", css)
+        self.assertIsNotNone(actions, "network-map.css has no rule for .nm-card-actions")
+        self.assertIn("flex: none", actions.group(1), "the actions must stay in view")
 
         # A leftover of a decision that no longer holds: with the handle narrowed to the
         # heading, the values keep the browser default and need no rule of their own.
@@ -1398,18 +1440,85 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertIn("savePrefs();", self._braced_block(code, re.search(r"function setMode\(next\)\s*\{", code)))
 
     # -- 84 ---------------------------------------------------------------------
-    def test_labels_off_by_default(self):
-        """D20 - a map opens without its names on it.
+    def test_labels_on_by_default(self):
+        """A map opens with its names on it, and an earlier stored false does not count.
 
-        Six hundred names written over a drawing nobody has touched yet is not a map,
-        and the gesture that brings them back is a single button.
+        The stored ``labels`` is trusted only under the version marker: the unmarked
+        shape wrote ``labels: false`` on every gesture while the names were off by
+        default, so it says nothing about a choice.  A browser that cannot measure text
+        starts with the names off, before the button is painted and without a write -
+        the refusal ``toggleLabels`` makes, minus the hint (test 89).
         """
         code = self._code("network-map.js")
 
-        self.assertIn("const DEFAULT_LABELS = false;", code)
+        self.assertIn("const DEFAULT_LABELS = true;", code)
+        self.assertIn("const PREFS_VERSION = 2;", code)
         self.assertIn("labels: DEFAULT_LABELS", code, "the reader must fall back on that constant")
+        self.assertIn(
+            "parsed.v === PREFS_VERSION && typeof parsed.labels === 'boolean' ? parsed.labels : DEFAULT_LABELS",
+            code,
+            "a stored names flag counts only as a boolean under the marker",
+        )
+        self.assertRegex(code, r"JSON\.stringify\(\{\s*v: PREFS_VERSION,", "every write carries the marker")
+
+        refusal = "if (labelsOn && !labelContext()) labelsOn = false;"
+        self.assertIn(refusal, code, "no 2D context: the names start off")
+        self.assertLess(code.index("let labelsOn = prefs.labels;"), code.index(refusal))
+        self.assertLess(code.index(refusal), code.index("updateLabelButton();"), "decided before the button is painted")
+        line = code[code.index(refusal) : code.index("\n", code.index(refusal))]
+        self.assertNotIn("showHint", line, "a page nobody touched gets no hint")
+        self.assertNotIn("savePrefs", line, "and writes nothing")
 
     # -- 85 ---------------------------------------------------------------------
+    def test_names_hide_only_when_off_and_node_names_wait_for_their_symbols(self):
+        """The names are kept as far as they fit, never hidden all at once by density.
+
+        The group of names goes down only when the names are off or could not be built:
+        the solver already drops a name with no room, so one close pair of nodes may not
+        cost every other name.  While ``crowded`` hides the node symbols, the node names
+        are not offered to the solver - a name beside a symbol that is not drawn names
+        nothing - and the conduit and subcatchment names keep showing.
+        """
+        code = self._code("network-map.js")
+
+        self.assertNotIn("LABEL_MIN_GAP_PX", code, "no screen gap hides the names any more")
+        rescale = self._braced_block(code, re.search(r"function rescale\(\)\s*\{", code))
+        self.assertIn("const hide = !labelsOn || !labelsBuilt;", rescale)
+        self.assertIn("const crowded = symbolsCrowded(data.min_gap, pxPerUnit);", rescale)
+        self.assertNotIn("showHint", rescale, "rescale runs on every step of a pan")
+
+        place = self._braced_block(code, re.search(r"function placeLabelsNow\(\)\s*\{", code))
+        self.assertIn("(lastView.crowded || !Array.isArray(data.nodes) ? [] : data.nodes).forEach(", place)
+        self.assertIn("hideLabels(drawing.labelEls.node)", place, "a node name placed before stays down")
+
+    def test_conduit_names_are_placed_before_node_names(self):
+        """The map is read by conduit, so a pipe name wins a collision against a node name."""
+        code = self._code("network-map.js")
+        rank = self._braced_block(code, re.search(r"function kindRank\(kind\)\s*\{", code))
+        self.assertIn("if (kind === 'link') return 0;", rank)
+        self.assertIn("if (kind === 'node') return 1;", rank)
+        self.assertIn("return 2;", rank)
+
+    def test_zoom_hint_follows_the_placement_after_the_button(self):
+        """The hint "Zoom in to show names" is said only when the gesture placed no name.
+
+        Whether a name fits is known once the solver ran, in the deferred placement, so
+        the names button raises a flag and that placement reads it - cleared first, so a
+        later pan can never say it, and never raised by the page load.  No second frame
+        is asked for: ``scheduleLabels`` stays the only requester.
+        """
+        code = self._code("network-map.js")
+        toggle = self._braced_block(code, re.search(r"function toggleLabels\(\)\s*\{", code))
+        place = self._braced_block(code, re.search(r"function placeLabelsNow\(\)\s*\{", code))
+
+        self.assertNotIn("Zoom in to show names", toggle)
+        self.assertIn("labelsJustOn = labelsOn;", toggle)
+        self.assertEqual(code.count("labelsJustOn = labelsOn;"), 1, "only the button raises the flag")
+        self.assertLess(place.index("labelsJustOn = false;"), place.index("return;"), "cleared before any way out")
+        self.assertIn("if (announce && !placed.length) showHint('Zoom in to show names');", place)
+        self.assertEqual(code.count("Zoom in to show names"), 1)
+        self.assertEqual(code.count("requestAnimationFrame("), 1)
+
     def test_lazy_labels_get_the_dimming(self):
         """Names born after ``ensureDrawn`` catch up with both reasons to be faded.
 
@@ -1557,7 +1666,9 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             "nothing is written for a state the next visit could not restore",
         )
         ensure = self._braced_block(code, re.search(r"function ensureLabels\(\)\s*\{", code))
-        self.assertIn("if (!labelCtx) return;", ensure, "the early way out this hint speaks for")
+        self.assertIn("if (!labelContext()) return;", ensure, "the early way out this hint speaks for")
+        context = self._braced_block(code, re.search(r"function labelContext\(\)\s*\{", code))
+        self.assertIn("getContext('2d')", context, "the one place the context is asked for")
 
     # -- 90 ---------------------------------------------------------------------
     def test_card_position_is_clamped_for_the_screen_and_for_storage_apart(self):
