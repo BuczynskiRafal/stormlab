@@ -12,6 +12,7 @@ import swmmio as sw
 
 from .conduits import ConduitFeatureEngineeringService, RecommendationService
 from .enums import RecommendationCategory
+from .inp_structure import check_file_structure
 from .nodes import NodeFeatureEngineeringService
 from .predictor import GNN_CONFIG, _LazyModelProxy, get_gnn_recommendation, get_recommendation, gnn_enabled, recommendation
 from .round import max_slope, min_slope  # Re-export for backwards compatibility
@@ -55,6 +56,9 @@ class DataManager(sw.Model):
     """
 
     def __init__(self, inp_file_path: str, crs: Optional[str] = None, include_rpt: bool = True, zone: float = 1.2):
+        # A model without conduits or subcatchments, or with a link to an undefined node,
+        # would otherwise fail inside swmmio with a bare KeyError or a pandas message.
+        check_file_structure(inp_file_path)
         super().__init__(inp_file_path, crs=crs, include_rpt=include_rpt)
         self._frost_zone: float = zone
         self.frost_zone = zone

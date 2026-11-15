@@ -18,7 +18,8 @@ from django.utils import timezone
 
 from accounts.models import User
 from .models import CalculationSession, ConduitData, NodeData, SessionGeometry, SubcatchmentData, SWMMModel
-from .core.data import DataManager
+from .core.data import DataManager, RecommendationModelUnavailable
+from .core.errors import AnalysisInputError, unexpected_failure_message
 from .core.geometry import NETMAP_MAX_ELEMENTS, NETMAP_MAX_POINTS, extract_geometry
 from .core.predictor import get_model_metadata
 from .core.round import max_depth_value, max_filling, max_velocity_value, min_velocity_value
@@ -111,12 +112,20 @@ class AnalysisService:
             with DataManager(file_path, zone=frost_zone) as model:
                 success = CalculationPersistenceService.save_calculation_results(session, model)
                 return session, success
-        except Exception as e:
+        except AnalysisInputError as error:
+            # A problem with the model, worded for the user (see sa.core.errors).
+            logger.warning("Analysis of session %s refused the model: %s", session.id, error)
+            message = str(error)
+        except RecommendationModelUnavailable as error:
             logger.exception("Analysis of session %s failed", session.id)
-            session.status = "failed"
-            session.error_message = str(e)
-            session.save()
-            return session, False
+            message = str(error)
+        except Exception:
+            logger.exception("Analysis of session %s failed", session.id)
+            message = unexpected_failure_message(session.id)
+        session.status = "failed"
+        session.error_message = message
+        session.save()
+        return session, False
 
 
 class CalculationPersistenceService:
@@ -204,10 +213,10 @@ class CalculationPersistenceService:
                 logger.info(f"Successfully saved calculation results for session {session.id}")
                 return True
 
-        except Exception as e:
+        except Exception:
             logger.exception("Saving the results of session %s failed", session.id)
             session.status = "failed"
-            session.error_message = str(e)
+            session.error_message = unexpected_failure_message(session.id)
             session.save()
             return False
 

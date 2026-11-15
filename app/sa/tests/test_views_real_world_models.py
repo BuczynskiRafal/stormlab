@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -130,3 +131,89 @@ class DiameterOutsideTheCriteriaTests(RealWorldUploadTestCase):
                 self.assertContains(page, "not assessed")
                 self.assertContains(page, "Ø outside 0.20–2.00 m")
                 self.assertNotContains(page, "No change required by the design rules")
+
+
+class FailureMessageTests(RealWorldUploadTestCase):
+    """A failed run explains itself in plain words: no exception text, no paths, no placeholders."""
+
+    def assert_failed_with(self, response, expected: str) -> CalculationSession:
+        session = CalculationSession.objects.get(user=self.user)
+        self.assertEqual(session.status, "failed")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(session.error_message, expected)
+        self.assertContains(response, "The analysis failed: ")
+        page = response.content.decode()
+        for leak in ("/tmp", ".rpt", "%s", "Traceback", "KeyError"):
+            self.assertNotIn(leak, page)
+            self.assertNotIn(leak, session.error_message)
+        return session
+
+    def test_a_conduit_to_an_undefined_node_is_named(self):
+        text = demo_text().replace("K21              C7               C1", "K21              C7               JX")
+
+        with self.assertLogs("sa.services", level="WARNING"):
+            response = self.upload(text)
+
+        self.assert_failed_with(response, "These links refer to a node the model does not define: K21 → JX.")
+
+    def test_a_file_with_options_only_says_it_has_no_conduits(self):
+        with self.assertLogs("sa.services", level="WARNING"):
+            response = self.upload(demo_text().split("[EVAPORATION]")[0])
+
+        self.assert_failed_with(response, "The model has no conduits; StormLab assesses the conduits of a storm sewer network.")
+
+    def test_a_model_without_subcatchments_says_what_is_required(self):
+        text = demo_text()
+        for section in ("SUBCATCHMENTS", "SUBAREAS", "INFILTRATION", "TAGS", "Polygons"):
+            text = without_section(text, section)
+
+        with self.assertLogs("sa.services", level="WARNING"):
+            response = self.upload(text)
+
+        self.assert_failed_with(
+            response,
+            "The model has no subcatchments; StormLab analyses networks loaded by rainfall runoff "
+            "and needs at least one subcatchment.",
+        )
+
+    def test_an_input_error_of_the_engine_is_shown_with_the_elements_it_names(self):
+        weir = "[WEIRS]\nW1  J3  O1  TRANSVERSE  0.5  3.33  NO  0  0\n\n[XSECTIONS]\nW1  RECT_OPEN  1  1  0  0\n"
+        text = demo_text().replace("[XSECTIONS]\n", weir, 1)
+
+        with self.assertLogs("sa.services", level="WARNING"):
+            response = self.upload(text)
+
+        self.assert_failed_with(
+            response,
+            "SWMM could not run the model: ERROR 133: Node J3 has more than one outlet link; "
+            "ERROR 139: Regulator W1 is the outlet of a non-storage node.",
+        )
+
+    def test_an_unexpected_error_gives_the_analysis_number_and_logs_the_traceback(self):
+        with (
+            mock.patch("sa.core.data.DataManager.feature_engineering", side_effect=KeyError("MaxDPerc")),
+            self.assertLogs("sa.services", level="ERROR") as logs,
+        ):
+            response = self.upload(demo_text())
+
+        session = CalculationSession.objects.get(user=self.user)
+        self.assert_failed_with(
+            response,
+            "The analysis stopped because of an unexpected error in the application. "
+            f"Please report it, quoting analysis number {session.id}.",
+        )
+        self.assertNotIn("MaxDPerc", response.content.decode())
+        self.assertIn("MaxDPerc", "\n".join(logs.output))
+        self.assertIn("Traceback", "\n".join(logs.output))
+
+    def test_a_report_that_cannot_be_read_back_is_an_unexpected_error(self):
+        with (
+            mock.patch("sa.core.data.DataManager._join_node_report_results", side_effect=ValueError("bad report")),
+            self.assertLogs("sa.services", level="ERROR") as logs,
+        ):
+            response = self.upload(demo_text())
+
+        session = CalculationSession.objects.get(user=self.user)
+        self.assertIn(f"analysis number {session.id}", session.error_message)
+        self.assertNotIn("bad report", response.content.decode())
+        self.assertIn("SimulationReportError", "\n".join(logs.output))
