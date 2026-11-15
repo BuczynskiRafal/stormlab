@@ -1621,7 +1621,6 @@ footer {
     display: flex;
     align-items: flex-start;
     gap: 0.65rem;
-    max-width: 72rem;
     width: 100%;
     margin: 0 auto;
     padding: 0.7rem 0.85rem 0.7rem 1rem;
