@@ -1,0 +1,359 @@
+/*
+ * method.css - components of the Method page (/method/).
+ * Loaded after app.css and docs.css; the page layout, headings, tables and the
+ * table of contents come from docs.css. Only tokens declared in app.css are used.
+ */
+
+/* ============================================================
+   TABLE DETAILS
+   ============================================================ */
+
+.docs-table th.method-num,
+.docs-table td.method-num {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    white-space: nowrap;
+}
+
+.method-features td:first-child {
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+/* Definition lists keep the measure of the running text. */
+.docs-section .docs-dl {
+    max-width: 72ch;
+}
+
+/* A sentence that belongs to the chart above it, not to the running text. */
+.docs-section p.method-figure-note {
+    margin-top: -0.9rem;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: var(--muted);
+}
+
+/* ============================================================
+   DIVISION OF THE DATA: one bar, three parts in proportion
+   ============================================================ */
+
+.method-split {
+    display: flex;
+    gap: 3px;
+    margin: 1rem 0 1.5rem;
+    max-width: 72ch;
+}
+
+.method-split-part {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--slate-300);
+    background-color: var(--surface-0);
+}
+
+.method-split-part:first-child {
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.method-split-part:last-child {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Widths follow the number of conduits: 63,824 / 21,968 / 21,456. */
+.method-split-part--train {
+    flex: 59.5 1 0;
+    border-color: var(--water-300);
+    background-color: var(--water-100);
+}
+
+.method-split-part--val {
+    flex: 20.5 1 0;
+    background-color: var(--water-050);
+}
+
+.method-split-part--test {
+    flex: 20 1 0;
+    background-color: var(--surface-2);
+}
+
+.method-split-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+.method-split-value {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+/* ============================================================
+   DOT PLOT: one value per row on a shared axis
+   ============================================================ */
+
+.method-dots {
+    --dots-label: 13.5rem;
+    --dots-value: 3.2rem;
+    margin: 1rem 0 1.5rem;
+    max-width: 72ch;
+    padding: 0.9rem 1.1rem 0.7rem;
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-0);
+}
+
+.method-dots-row,
+.method-dots-axis {
+    display: grid;
+    grid-template-columns: var(--dots-label) minmax(0, 1fr) var(--dots-value);
+    align-items: center;
+    column-gap: 0.9rem;
+}
+
+.method-dots-row {
+    min-height: 2rem;
+}
+
+.method-dots-row--reference {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px dashed var(--rule-soft);
+}
+
+.method-dots-label {
+    font-size: 0.9rem;
+    line-height: 1.3;
+    color: var(--text);
+}
+
+.method-dots-row--served .method-dots-label {
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.method-tag {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.05rem 0.45rem;
+    border: 1px solid var(--water-300);
+    border-radius: var(--radius-pill);
+    background-color: var(--water-100);
+    color: var(--water-700);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: 0.08em;
+}
+
+/* The track carries four gridlines at 0, 1/3, 2/3 and 1 of its width, matching
+   the four labels of the axis below. */
+.method-dots-track {
+    position: relative;
+    height: 1.25rem;
+    background-image:
+        linear-gradient(to right, var(--rule-soft) 1px, transparent 1px),
+        linear-gradient(to left, var(--rule-soft) 1px, transparent 1px);
+    background-size: calc(100% / 3) 100%, 100% 100%;
+    background-repeat: repeat-x, no-repeat;
+}
+
+.method-dots-track::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top: 1px solid var(--rule-soft);
+}
+
+.method-dots-dot {
+    position: absolute;
+    top: 50%;
+    left: calc(var(--at) * 100%);
+    width: 11px;
+    height: 11px;
+    border: 2px solid var(--surface-0);
+    border-radius: 50%;
+    background-color: var(--slate-500);
+    transform: translate(-50%, -50%);
+    box-sizing: content-box;
+}
+
+.method-dots-row--served .method-dots-dot {
+    background-color: var(--water-700);
+}
+
+.method-dots-row--reference .method-dots-dot {
+    background-color: var(--surface-0);
+    border-color: var(--slate-500);
+    width: 9px;
+    height: 9px;
+}
+
+.method-dots-value {
+    font-family: var(--font-mono);
+    font-size: 0.86rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--ink);
+}
+
+.method-dots-row--served .method-dots-value {
+    font-weight: 600;
+}
+
+.method-dots-axis {
+    margin-top: 0.2rem;
+}
+
+/* Labels are centred on their gridlines, so the scale overhangs the track by
+   half a label on each side. */
+.method-dots-scale {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 -1.2rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+.method-dots-scale span {
+    width: 2.4rem;
+    text-align: center;
+}
+
+/* ============================================================
+   REASONS: a list in which every item opens with its claim
+   ============================================================ */
+
+.docs-section ul.method-reasons {
+    list-style: none;
+    padding-left: 0;
+}
+
+.method-reasons li {
+    margin-bottom: 0.9rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--water-300);
+}
+
+.method-reasons li strong {
+    display: block;
+    margin-bottom: 0.1rem;
+}
+
+/* ============================================================
+   NARROW SCREENS
+   ============================================================ */
+
+@media (max-width: 640px) {
+    .method-dots {
+        --dots-label: 8.5rem;
+        --dots-value: 2.9rem;
+        padding: 0.8rem 0.8rem 0.6rem;
+    }
+
+    .method-dots-row {
+        min-height: 2.5rem;
+    }
+
+    .method-dots-label {
+        font-size: 0.84rem;
+    }
+
+    .method-tag {
+        display: table;
+        margin: 0.15rem 0 0;
+    }
+
+    /* Four labels do not fit under a short track: keep the two ends. */
+    .method-dots-scale span:nth-child(2),
+    .method-dots-scale span:nth-child(3) {
+        visibility: hidden;
+    }
+
+    .method-split {
+        flex-direction: column;
+    }
+
+    .method-split-part,
+    .method-split-part:first-child,
+    .method-split-part:last-child {
+        flex: 0 0 auto;
+        border-radius: var(--radius-sm);
+    }
+
+    /* Prose tables: three columns of sentences do not fit a phone, so every row
+       becomes a block and the later cells carry their column name. */
+    .method-stack {
+        border: none;
+        box-shadow: none;
+    }
+
+    .method-stack thead {
+        display: none;
+    }
+
+    .method-stack tbody tr {
+        display: block;
+        margin-bottom: 0.75rem;
+        padding: 0.8rem 0.9rem;
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-md);
+        background-color: var(--surface-0);
+    }
+
+    .method-stack tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .docs-table.method-stack td,
+    .docs-table.method-stack td.method-num {
+        display: block;
+        padding: 0;
+        border: none;
+        text-align: left;
+        white-space: normal;
+    }
+
+    .method-stack td:first-child {
+        margin-bottom: 0.35rem;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .method-stack td[data-label] {
+        margin-top: 0.35rem;
+    }
+
+    .method-stack td[data-label]::before {
+        content: attr(data-label);
+        display: inline-block;
+        min-width: 4.6rem;
+        margin-right: 0.5rem;
+        font-family: var(--font-body);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+}
+
+@media print {
+    .method-dots,
+    .method-split-part {
+        break-inside: avoid;
+    }
+}

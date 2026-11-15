@@ -1,0 +1,36 @@
+{% load static %}
+<figure class="method-graph" data-method-graph data-src="{% static 'data/method-graph.json' %}">
+    <div class="method-graph__controls" data-method-graph-controls hidden>
+        <div class="method-graph__field">
+            <label class="method-graph__label" for="method-graph-conduit">Conduit</label>
+            <select class="method-graph__select" id="method-graph-conduit" data-method-graph-select></select>
+        </div>
+        <fieldset class="method-graph__steps">
+            <legend class="method-graph__label">Graph steps</legend>
+            <div class="method-graph__toggle">
+                <label class="method-graph__step">
+                    <input type="radio" name="method-graph-steps" value="1" data-method-graph-steps>
+                    <span>One step</span>
+                </label>
+                <label class="method-graph__step">
+                    <input type="radio" name="method-graph-steps" value="2" data-method-graph-steps checked>
+                    <span>Two steps</span>
+                </label>
+            </div>
+        </fieldset>
+    </div>
+    <div class="method-graph__body">
+        <div class="method-graph__map" data-method-graph-map>
+            <svg class="method-graph__svg" data-method-graph-svg role="group" aria-label="Map of the Rakowiec network"></svg>
+        </div>
+        <div class="method-graph__readout" data-method-graph-readout hidden></div>
+    </div>
+    <p class="method-graph__fallback" data-method-graph-fallback>
+        The interactive map of the network could not be shown here. For each conduit it highlights the conduits upstream
+        of it whose values the model averages, one and two graph steps away; conduits downstream are never read.
+    </p>
+    <figcaption class="method-graph__caption">
+        Rakowiec, Wrocław: 62 conduits. Select a conduit to see which conduits the model reads for it. Weights are those
+        of the aggregation the application computes for this network.
+    </figcaption>
+</figure>

@@ -1,0 +1,714 @@
+{% extends "base.html" %}
+{% load static %}
+{% load sa_static %}
+
+{% block title %}Method{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% versioned_static 'css/docs.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'css/method.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'css/method-figures.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'css/method-graph.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="docs-container">
+    <div class="docs-grid">
+        <aside class="docs-sidebar">
+            <nav class="docs-nav" aria-label="On this page">
+                <div class="docs-nav-heading" id="docs-nav-heading">Contents</div>
+                <ul class="docs-nav-list" aria-labelledby="docs-nav-heading">
+                    <li><a class="docs-nav-link" href="#problem">The problem</a></li>
+                    <li><a class="docs-nav-link" href="#pipeline">One analysis, end to end</a></li>
+                    <li><a class="docs-nav-link" href="#graph">A network as a graph</a></li>
+                    <li><a class="docs-nav-link indent" href="#reads">What the model reads</a></li>
+                    <li><a class="docs-nav-link indent" href="#features">Conduit features</a></li>
+                    <li><a class="docs-nav-link" href="#model">The model</a></li>
+                    <li><a class="docs-nav-link" href="#data">Data</a></li>
+                    <li><a class="docs-nav-link" href="#training">Training</a></li>
+                    <li><a class="docs-nav-link" href="#experiments">Experiments</a></li>
+                    <li><a class="docs-nav-link" href="#results">Results</a></li>
+                    <li><a class="docs-nav-link indent" href="#rakowiec">Rakowiec case study</a></li>
+                    <li><a class="docs-nav-link indent" href="#classifier">Catchment classifier</a></li>
+                    <li><a class="docs-nav-link" href="#why">Why it works</a></li>
+                    <li><a class="docs-nav-link" href="#distinctive">What sets it apart</a></li>
+                    <li><a class="docs-nav-link" href="#limits">Limits</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <article class="docs-content">
+            <header class="docs-header">
+                <h1>How the recommendations are made</h1>
+                <p class="docs-lead">
+                    The method behind the application: how a sewer network becomes a graph,
+                    what the model reads from it, how it was trained and tested, and why
+                    the approach holds up.
+                </p>
+                <ul class="docs-meta">
+                    <li class="docs-chip">Conduit graph</li>
+                    <li class="docs-chip">66 physical features</li>
+                    <li class="docs-chip">2 graph steps</li>
+                    <li class="docs-chip">5 runs averaged</li>
+                    <li class="docs-chip">107,248 training and test conduits</li>
+                </ul>
+            </header>
+
+            <section id="problem" class="docs-section">
+                <h2>The problem</h2>
+                <p>
+                    A hydrodynamic simulation tells a designer what happens in a storm sewer
+                    network: where conduits run full, where manholes flood, where the flow is
+                    too slow to keep a pipe clean. Design criteria turn those results into
+                    verdicts, conduit by conduit. Neither says what to do about it.
+                </p>
+                <p>
+                    The answer rarely lies in the failing conduit alone. A pipe that overflows
+                    may be too small, or may be paying for an oversized catchment that a
+                    retention tank upstream would tame. A diameter can be reduced only if
+                    nothing wider drains into it. A conduit with too little cover and too
+                    little slope calls for one decision, not two. Choosing an action means
+                    reading the conduit together with what flows into it.
+                </p>
+                <p>
+                    StormLab learns that reading from assessed networks. For every conduit it
+                    returns a probability for each of nine actions: no change, a larger or
+                    smaller diameter, a steeper or gentler slope, a deeper invert, a retention
+                    tank, infiltration, or a pumping station. It narrows down where to look
+                    and what kind of intervention to consider. Sizing the intervention and
+                    checking it by a new simulation remain the designer's work.
+                </p>
+            </section>
+
+            <section id="pipeline" class="docs-section">
+                <h2>One analysis, end to end</h2>
+                <p>
+                    An analysis starts from a SWMM input file and ends with stored results.
+                    The simulation is the only source of hydraulics: the models never estimate
+                    a flow or a water level, they interpret the ones the engine computed.
+                </p>
+                {% include "sa/method/_fig_pipeline.html" %}
+                <ol>
+                    <li><strong>Upload.</strong> The file is scanned before the engine sees it.
+                        A model must be self-contained: constructs that would make SWMM read or
+                        write other files are rejected.</li>
+                    <li><strong>Simulation.</strong> EPA SWMM 5.2 runs on a temporary copy, with
+                        the routing method, time steps and rainfall declared in the file.</li>
+                    <li><strong>Verification.</strong> Each conduit is checked against seven
+                        design criteria. The verdicts are shown to the user; the recommendation
+                        model does not read them.</li>
+                    <li><strong>Catchment categories.</strong> Land-cover categories come from the
+                        model's tags; subcatchments without a tag are classified from their
+                        parameters and runoff.</li>
+                    <li><strong>Recommendation.</strong> The network is rebuilt as a graph of
+                        conduits, each described by 66 physical quantities, and the graph model
+                        scores the nine actions.</li>
+                    <li><strong>Results.</strong> Everything is saved per analysis and shown on
+                        the map, in the tables and in the panel of each conduit.</li>
+                </ol>
+            </section>
+
+            <section id="graph" class="docs-section">
+                <h2>A network as a graph of conduits</h2>
+                <p>
+                    A sewer network is usually drawn as manholes joined by pipes. The decisions,
+                    however, concern the pipes. StormLab therefore turns the drawing inside
+                    out: every conduit becomes a node of the graph, and two conduits are linked
+                    when the first ends in the manhole where the second begins. Edges point
+                    with the flow, towards the outfall.
+                </p>
+                {% include "sa/method/_fig_conduit_graph.html" %}
+                <p>
+                    On this graph the model takes two <em>graph steps</em>. In each step a
+                    conduit combines its own description with a weighted average over the
+                    conduits that drain into it: itself, the conduits one link upstream and,
+                    with a smaller weight, those two links upstream. Before normalisation the
+                    weights stand in the ratio 1&nbsp;:&nbsp;2&nbsp;:&nbsp;0.5; each row then
+                    sums to one. Two steps chained reach four links upstream.
+                </p>
+                <p>
+                    Information travels with the water and never against it. What happens
+                    downstream still reaches the model, but through the simulation: backwater
+                    shows up in the water levels and surcharge times of the conduit itself.
+                </p>
+
+                <h3 id="reads">What the model reads for one conduit</h3>
+                <p>
+                    The figure below uses the network of the Rakowiec estate, the one loaded
+                    by <strong>Try with Demo Data</strong>. The weights are not an
+                    illustration: they are the aggregation the application computes for this
+                    network, exported by the same code that serves the model.
+                </p>
+                {% include "sa/method/_receptive_field.html" %}
+                <p>
+                    Conduits at the head of a branch have nothing upstream and are assessed on
+                    their own description alone. In the test data they carry about a fifth of
+                    the weight, which bounds what any use of context can add.
+                </p>
+
+                <h3 id="features">What the model knows about a conduit</h3>
+                <p>
+                    Each conduit is described by 66 numbers taken from the input file and the
+                    simulation report. They are physical quantities in their own units, not
+                    scores and not verdicts: the model sees that the water stood 0.4&nbsp;m
+                    above the ground, not that a check failed.
+                </p>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table method-stack method-features">
+                        <thead>
+                            <tr><th>Group</th><th class="method-num">Features</th><th>Content</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Geometry</td><td class="method-num" data-label="Features">17</td>
+                                <td>Diameter, length, roughness, barrels, offsets, inverts and slope;
+                                    ground level, invert depth, cover and manhole depth at both ends</td>
+                            </tr>
+                            <tr>
+                                <td>Hydraulic state</td><td class="method-num" data-label="Features">19</td>
+                                <td>Peak flow and velocity, filling and flow relative to full-pipe
+                                    capacity, hours of surcharge, peak water levels and flooding of
+                                    the manholes at both ends</td>
+                            </tr>
+                            <tr>
+                                <td>Freeboard</td><td class="method-num" data-label="Features">2</td>
+                                <td>Ground level minus peak water level at each end; negative when
+                                    water reached the surface</td>
+                            </tr>
+                            <tr>
+                                <td>Catchment and rainfall</td><td class="method-num" data-label="Features">8</td>
+                                <td>Land-cover category at the inlet; area, imperviousness, width and
+                                    slope of everything upstream; depth, duration and peak intensity
+                                    of the rainfall</td>
+                            </tr>
+                            <tr>
+                                <td>Design requirements</td><td class="method-num" data-label="Features">8</td>
+                                <td>Required cover, frost depth, depth and filling limits, velocity
+                                    limits, and the slope limits that follow for this conduit</td>
+                            </tr>
+                            <tr>
+                                <td>Receiving water</td><td class="method-num" data-label="Features">1</td>
+                                <td>Fixed water level at the outfall, where one is declared</td>
+                            </tr>
+                            <tr>
+                                <td>Indicators</td><td class="method-num" data-label="Features">11</td>
+                                <td>Facts about the network and the file: an outfall conduit, a
+                                    non-positive slope, a value the file does not provide</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    A quantity the file does not provide is replaced by its mean in the
+                    training data, and the matching indicator tells the model that it was.
+                </p>
+            </section>
+
+            <section id="model" class="docs-section">
+                <h2>The model</h2>
+                <p>
+                    The network is small by design. The input is normalised with statistics of
+                    the training data; two graph steps of 64 units follow, each with layer
+                    normalisation and dropout; a final layer turns the result into nine
+                    probabilities per conduit.
+                </p>
+                {% include "sa/method/_fig_model.html" %}
+                <p>
+                    In one graph step the model adds two terms: the conduit's own features
+                    passed through one weight matrix, and the weighted average over its inflow
+                    neighbourhood passed through another. Keeping the two apart lets the model
+                    compare a conduit with what feeds it, for instance its diameter with the
+                    diameters upstream.
+                </p>
+                <p>
+                    The same weights are applied to every conduit of every network. Nothing in
+                    the model depends on the number of conduits or on the layout, so a model
+                    trained on networks of some twenty conduits can assess a network of sixty
+                    or six hundred.
+                </p>
+                <ul class="docs-stats">
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Parameters per run</span>
+                        <span class="docs-stat-value">17,742</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Hidden units</span>
+                        <span class="docs-stat-value">64</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Dropout</span>
+                        <span class="docs-stat-value">0.2</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Runs averaged</span>
+                        <span class="docs-stat-value">5</span>
+                    </li>
+                </ul>
+                <p>
+                    The application serves five training runs of this model that differ only
+                    in their random seed, and averages their probabilities. The score shown in
+                    a conduit's panel is that average. The five files are described by one
+                    specification; if any of them is missing the application refuses to serve
+                    a partial ensemble.
+                </p>
+            </section>
+
+            <section id="data" class="docs-section">
+                <h2>Data</h2>
+                <p>
+                    The recommendation model was trained and tested on 5,056 SWMM models of
+                    gravity storm sewer networks with 107,248 conduits, about 21 per network.
+                    The models belong to 266 network families. A family is one network layout
+                    with all its design variants and rainfall scenarios: 216 families of
+                    varied layout, from single chains to branched and irregular trees, and 50
+                    families of flat, densely built-up terrain with small diameters.
+                </p>
+                <dl class="docs-dl">
+                    <dt>Diameters</dt><dd><span class="docs-value">0.2 to 2.0 m</span></dd>
+                    <dt>Slopes</dt><dd><span class="docs-value">0.2 to 150 ‰</span></dd>
+                    <dt>Roughness</dt><dd><span class="docs-value">n = 0.010, 0.013, 0.016</span></dd>
+                    <dt>Design rainfall</dt>
+                    <dd>four events:
+                        <span class="docs-value">60 min, 23.2 mm</span>;
+                        <span class="docs-value">120 min, 26.8 mm</span>;
+                        <span class="docs-value">120 min, 33.4 mm</span>;
+                        <span class="docs-value">135 min, 52.3 mm</span></dd>
+                    <dt>Routing</dt><dd>dynamic wave, <span class="docs-value">5 s</span> step</dd>
+                </dl>
+                <p>
+                    The set is deliberately rich in trouble. Depending on the group of
+                    networks, 15 to 27% of conduits have a flooded inlet manhole and 55 to 74%
+                    run under pressure at some point of the event.
+                </p>
+
+                <h3>What a label is</h3>
+                <p>
+                    Every conduit carries an assessment: how strongly each of the nine actions
+                    is supported for it, as shares that sum to one. The action with the
+                    highest support is the <em>main action</em>. Every action with a support
+                    of at least 0.2 is <em>admissible</em>. In 8.4% of conduits two actions
+                    share the top support; these conduits take part in training and are
+                    judged on admissibility, not on a single right answer. A small share of
+                    conduits (0.3%) has no assessment: they stay in the graph as neighbours
+                    and are left out of the loss.
+                </p>
+
+                <h3>Dividing the data</h3>
+                <p>
+                    Networks of one family resemble each other, so a family goes into exactly
+                    one part. When the data were divided by file instead, 4.1% of test
+                    conduits had a near-duplicate in the training part; divided by family,
+                    none has.
+                </p>
+                <div class="method-split" role="img"
+                     aria-label="Training 162 families, 63,824 conduits. Validation 53 families, 21,968 conduits. Test 51 families, 21,456 conduits.">
+                    <div class="method-split-part method-split-part--train">
+                        <span class="method-split-name">Training</span>
+                        <span class="method-split-value">162 families · 63,824 conduits</span>
+                    </div>
+                    <div class="method-split-part method-split-part--val">
+                        <span class="method-split-name">Validation</span>
+                        <span class="method-split-value">53 · 21,968</span>
+                    </div>
+                    <div class="method-split-part method-split-part--test">
+                        <span class="method-split-name">Test</span>
+                        <span class="method-split-value">51 · 21,456</span>
+                    </div>
+                </div>
+                <p>
+                    The training part fits the weights, the validation part chooses the
+                    settings, and the test part gives the reported results.
+                </p>
+            </section>
+
+            <section id="training" class="docs-section">
+                <h2>Training</h2>
+                <dl class="docs-dl">
+                    <dt>Objective</dt>
+                    <dd>cross-entropy between the predicted probabilities and the support
+                        shares of the assessment, so the model is rewarded for spreading
+                        probability over admissible alternatives</dd>
+                    <dt>Weighting</dt>
+                    <dd>every family counts the same, every network within a family the same,
+                        every conduit within a network the same; no class weights</dd>
+                    <dt>Optimiser</dt>
+                    <dd>Adam, learning rate <span class="docs-value">0.001</span>; one network
+                        per step, networks reshuffled every epoch</dd>
+                    <dt>Stopping</dt>
+                    <dd>at most <span class="docs-value">150</span> epochs; training stops when
+                        the validation loss has not improved for
+                        <span class="docs-value">15</span> epochs and the best weights are kept</dd>
+                    <dt>Settings</dt>
+                    <dd>width, dropout and learning rate chosen from eight combinations by
+                        three-fold cross-validation with whole families held out</dd>
+                    <dt>Runs</dt>
+                    <dd>five, with different random seeds</dd>
+                </dl>
+                <p>
+                    The reference models went through the same procedure on the same division
+                    of the data, so the comparisons below differ in one thing at a time.
+                </p>
+            </section>
+
+            <section id="experiments" class="docs-section">
+                <h2>Experiments</h2>
+                <p>
+                    The served model is the outcome of a series of experiments: 33
+                    configurations and 213 training runs in the final series alone. Each
+                    question was posed before the runs, with a threshold for calling a
+                    difference real. Differences are reported with 95% intervals obtained by
+                    resampling whole families.
+                </p>
+
+                <h3>Which way should information flow?</h3>
+                <p>
+                    The same model was trained reading the inflow side, the outflow side or
+                    both, with a reach of one, two or four links per step. The chart shows
+                    the variants that decide the question.
+                </p>
+                <div class="method-dots" role="img"
+                     aria-label="Test accuracy by direction and reach. Inflow side, two links: 0.893. Inflow side, one link: 0.885. Both sides, one link: 0.883. Outflow side, four links: 0.877. Outflow side, two links: 0.871. Outflow side, one link: 0.858. No neighbours: 0.876.">
+                    <div class="method-dots-row method-dots-row--served">
+                        <span class="method-dots-label">Inflow side, 2 links <span class="method-tag">served</span></span>
+                        <span class="method-dots-track"><span class="method-dots-dot" style="--at: 0.8833"></span></span>
+                        <span class="method-dots-value">0.893</span>
+                    </div>
+                    <div class="method-dots-row">
+                        <span class="method-dots-label">Inflow side, 1 link</span>
+                        <span class="method-dots-track"><span class="method-dots-dot" style="--at: 0.75"></span></span>
+                        <span class="method-dots-value">0.885</span>
+                    </div>
+                    <div class="method-dots-row">
+                        <span class="method-dots-label">Both sides, 1 link</span>
+                        <span class="method-dots-track"><span class="method-dots-dot" style="--at: 0.7167"></span></span>
+                        <span class="method-dots-value">0.883</span>
+                    </div>
+                    <div class="method-dots-row">
+                        <span class="method-dots-label">Outflow side, 4 links</span>
+                        <span class="method-dots-track"><span class="method-dots-dot" style="--at: 0.6167"></span></span>
+                        <span class="method-dots-value">0.877</span>
+                    </div>
+                    <div class="method-dots-row">
+                        <span class="method-dots-label">Outflow side, 2 links</span>
+                        <span class="method-dots-track"><span class="method-dots-dot" style="--at: 0.5167"></span></span>
+                        <span class="method-dots-value">0.871</span>
+                    </div>
+                    <div class="method-dots-row">
+                        <span class="method-dots-label">Outflow side, 1 link</span>
+                        <span class="method-dots-track"><span class="method-dots-dot" style="--at: 0.3"></span></span>
+                        <span class="method-dots-value">0.858</span>
+                    </div>
+                    <div class="method-dots-row method-dots-row--reference">
+                        <span class="method-dots-label">No neighbours (MLP)</span>
+                        <span class="method-dots-track"><span class="method-dots-dot" style="--at: 0.6"></span></span>
+                        <span class="method-dots-value">0.876</span>
+                    </div>
+                    <div class="method-dots-axis" aria-hidden="true">
+                        <span></span>
+                        <span class="method-dots-scale"><span>0.84</span><span>0.86</span><span>0.88</span><span>0.90</span></span>
+                        <span></span>
+                    </div>
+                </div>
+                <p class="method-figure-note">
+                    Test accuracy of the main action, mean of five runs. The axis starts at
+                    0.84 to make the differences visible.
+                </p>
+                <p>
+                    Reading the inflow side wins. Reading the outflow side is no better than
+                    reading no neighbours at all, however far it reaches. The preference for
+                    two links over one was settled on the validation part and is small.
+                </p>
+
+                <h3>Does the graph add anything beyond the neighbours' numbers?</h3>
+                <p>
+                    A plain neural network (MLP) that sees one conduit at a time reaches 0.876.
+                    Handing it summary statistics of the conduit's neighbourhood raises it to
+                    0.886. The graph model reaches 0.893: 1.73 percentage points above the
+                    plain network (95% interval 0.96 to 2.45) and 0.80 above the network with
+                    neighbourhood statistics (0.07 to 1.64). Most of the benefit of context
+                    can be had from simple summaries; the graph adds a smaller, measurable
+                    remainder on top.
+                </p>
+
+                <h3>What else was tried</h3>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table method-stack">
+                        <thead>
+                            <tr><th>Question</th><th>Finding</th><th>Decision</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Should the model read the verdicts of the design checks?</td>
+                                <td data-label="Finding">With them accuracy is higher by 5.8 points (MLP) and 7.0
+                                    (graph model), because the model can repeat the verdicts
+                                    instead of reading the hydraulics</td>
+                                <td data-label="Decision">Verdicts removed from the input</td>
+                            </tr>
+                            <tr>
+                                <td>Normalised scores or physical quantities?</td>
+                                <td data-label="Finding">Scores clipped to a fixed range saturate: one flow score sat at
+                                    its ceiling for 62% of conduits. Physical quantities change
+                                    accuracy within noise (+1.05 points, interval includes zero)
+                                    but lose no information</td>
+                                <td data-label="Decision">66 physical quantities</td>
+                            </tr>
+                            <tr>
+                                <td>One right answer or shares of support?</td>
+                                <td data-label="Finding">Training on support shares lowers the Brier score by 0.09 for
+                                    both models</td>
+                                <td data-label="Decision">Support shares</td>
+                            </tr>
+                            <tr>
+                                <td>Which normalisation between the graph steps?</td>
+                                <td data-label="Finding">With batch normalisation, macro-F1 varied between runs by
+                                    ±0.083; with layer normalisation by ±0.003</td>
+                                <td data-label="Decision">Layer normalisation</td>
+                            </tr>
+                            <tr>
+                                <td>How to normalise inputs that never vary in training?</td>
+                                <td data-label="Finding">Dividing by a near-zero spread made an earlier model answer
+                                    <em>retention tank</em> for all 62 conduits of Rakowiec</td>
+                                <td data-label="Decision">Constant inputs are centred, not rescaled</td>
+                            </tr>
+                            <tr>
+                                <td>Do explicit margins to the design limits help?</td>
+                                <td data-label="Finding">13 added features: +0.43 points (MLP), &minus;1.02 (graph model)</td>
+                                <td data-label="Decision">Not adopted</td>
+                            </tr>
+                            <tr>
+                                <td>Does an extra loss term for agreement along a flow path help?</td>
+                                <td data-label="Finding">No difference distinguishable from zero</td>
+                                <td data-label="Decision">Not adopted</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    The first row matters most for reading every other number on this page.
+                    A model that is shown the verdicts scores higher and learns less. The
+                    served model has to recognise an overloaded or badly laid conduit from
+                    flows, levels and geometry.
+                </p>
+            </section>
+
+            <section id="results" class="docs-section">
+                <h2>Results</h2>
+                <p>
+                    Results on the test part: 51 families, 21,456 conduits. Values are means
+                    of five runs, each trained anew for the evaluation. Every family
+                    counts the same. Conduits in which two actions share the top support
+                    (8.6% of the test part) have no single right answer and are left out of
+                    accuracy.
+                </p>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
+                            <tr><th>Measure</th><th>Graph model</th><th>MLP + neighbourhood</th><th>MLP</th><th>Simple rule</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Accuracy (main action)</td><td><strong>0.893</strong></td><td>0.886</td><td>0.876</td><td>0.331</td></tr>
+                            <tr><td>Macro-F1 (nine actions)</td><td><strong>0.814</strong></td><td>0.813</td><td>0.805</td><td>0.203</td></tr>
+                            <tr><td>Brier score (lower is better)</td><td><strong>0.053</strong></td><td>0.056</td><td>0.061</td><td>n/a</td></tr>
+                            <tr><td>Accuracy, five runs averaged</td><td><strong>0.907</strong></td><td>0.893</td><td>0.884</td><td>n/a</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    <em>MLP + neighbourhood</em> is the plain network given summary statistics
+                    of each conduit's neighbours. The spread between runs is 0.009 for the
+                    graph model and 0.008 for the MLP. The simple rule needs no training: a conduit with a flooded inlet
+                    gets a retention tank if its catchment is at least half impervious and a
+                    larger diameter otherwise; every other conduit is left as it is.
+                </p>
+
+                <h3>Where the graph helps</h3>
+                <p>
+                    The clearest case is a conduit narrower than the widest conduit draining
+                    into it. Whether its diameter may be reduced depends on the neighbours,
+                    which the plain network cannot see: it wrongly proposes a reduction for
+                    32.2% of such conduits that need no change, the graph model for 0.9%.
+                    The graph model is also better at telling <em>deeper invert</em> from
+                    <em>steeper slope</em> and at recognising conduits that need nothing. It
+                    is not better for retention tanks and larger diameters, where the
+                    conduit's own flooding and catchment already decide.
+                </p>
+
+                <h3>How far to trust a score</h3>
+                <p>
+                    Where the five runs agree on the main action, which covers 84% of the
+                    test weight, the averaged answer is right in 95.8% of cases. Where they
+                    disagree it is right in 63.7%. A recommendation with a high score is
+                    therefore strong evidence; two actions with similar scores are a genuine
+                    choice between alternatives. Rare actions are found less often than they
+                    occur: the model recovers 61% of the conduits assessed as needing a
+                    pumping station and 48% of those assessed for infiltration.
+                </p>
+
+                <h3 id="rakowiec">Case study: Rakowiec, Wrocław</h3>
+                <p>
+                    The models were applied without further training to a model of an
+                    existing network: 62 conduits of 0.30 to 0.60&nbsp;m and 37 subcatchments,
+                    loaded with a 120-minute design rainfall of 26.8&nbsp;mm. The
+                    recommendations were compared with a designer's assessment that names,
+                    for each conduit, the main action and the admissible ones.
+                </p>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
+                            <tr><th>Model</th><th>Same main action</th><th>Within admissible actions</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Graph model</td><td><strong>52 / 62</strong></td><td>57 / 62</td></tr>
+                            <tr><td>MLP with neighbourhood statistics</td><td>54 / 62</td><td>60 / 62</td></tr>
+                            <tr><td>MLP</td><td>50 / 62</td><td>57 / 62</td></tr>
+                            <tr><td>Simple rule</td><td>28 / 62</td><td>51 / 62</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    Of the ten conduits where the graph model departs from the designer, four
+                    are a trade-off between retention and a steeper slope, and three more are
+                    close calls in the assessment itself. The five runs disagree on the main
+                    action for 16 of the 62 conduits, which is why close scores should be
+                    read as alternatives. On a single network the three learned models are
+                    within a few conduits of each other; the case study shows that the method
+                    transfers to a network it was not built on, and is not a validation on
+                    real networks at large.
+                </p>
+
+                <h3 id="classifier">Catchment classifier</h3>
+                <p>
+                    Subcatchments without a land-cover tag are classified by a small network:
+                    twelve inputs, two layers of 32 units, twelve categories, 1,893
+                    parameters. Seven inputs are parameters of the subcatchment
+                    (imperviousness, slope, roughness and depression storage of the pervious
+                    and impervious parts, share of impervious area without storage); five are
+                    results of the simulation (runoff coefficient and, per hectare,
+                    infiltration, impervious runoff, total runoff and peak runoff).
+                </p>
+                <p>
+                    It was trained on 2,400 catchments, 200 of each category, each simulated
+                    under the four design rainfalls, and divided by catchment into 1,680 for
+                    training, 360 for validation and 360 for the test.
+                </p>
+                <ul class="docs-stats">
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Test accuracy</span>
+                        <span class="docs-stat-value">0.857</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Macro-F1</span>
+                        <span class="docs-stat-value">0.852</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Attainable accuracy</span>
+                        <span class="docs-stat-value">0.867</span>
+                    </li>
+                    <li class="docs-stat">
+                        <span class="docs-stat-label">Rakowiec</span>
+                        <span class="docs-stat-value">34 / 37 catchments</span>
+                    </li>
+                </ul>
+                <p>
+                    Neighbouring categories overlap in their parameter ranges, most of all
+                    rural and weakly or moderately impervious urban catchments, so no
+                    classifier can exceed about 0.867 on this set; the model comes within one
+                    point of that bound. Imperviousness and slope carry most of the decision:
+                    shuffling them lowers accuracy by 41 and 27 points.
+                </p>
+            </section>
+
+            <section id="why" class="docs-section">
+                <h2>Why it works</h2>
+                <ul class="method-reasons">
+                    <li>
+                        <strong>The physics is computed, not learned.</strong>
+                        Flows, water levels and flooding come from the hydrodynamic simulation.
+                        The model has the narrower job of interpreting a hydraulic state, which
+                        a network of under 18 thousand parameters can learn from 64 thousand
+                        training conduits.
+                    </li>
+                    <li>
+                        <strong>The graph follows the cause.</strong>
+                        What a gravity conduit carries is decided upstream of it. Reading the
+                        inflow side gives the model the context a designer would look at, and
+                        the experiments confirm the direction: the outflow side adds nothing.
+                    </li>
+                    <li>
+                        <strong>The decision is local, the evidence is not.</strong>
+                        Each action applies to one conduit, so the task is posed per conduit.
+                        The evidence for it, such as the diameters and loads of the inflows,
+                        lies a few links away, which is exactly the reach of two graph steps.
+                    </li>
+                    <li>
+                        <strong>One set of weights for every conduit.</strong>
+                        The model learns a rule for a conduit in its neighbourhood, not a map
+                        of a particular network. That is what lets it move from the training
+                        networks to a network of another size and layout.
+                    </li>
+                    <li>
+                        <strong>The input is physical.</strong>
+                        Metres, cubic metres per second and hours mean the same in every
+                        network. The model is not shown the verdicts of the checks, so it
+                        cannot score well by repeating them.
+                    </li>
+                    <li>
+                        <strong>Design questions have more than one answer.</strong>
+                        Training on shares of support, and judging on admissible actions,
+                        matches how the problem is posed in practice and yields probabilities
+                        that can be read as such.
+                    </li>
+                </ul>
+            </section>
+
+            <section id="distinctive" class="docs-section">
+                <h2>What sets the project apart</h2>
+                <ul>
+                    <li><strong>Conduits as nodes.</strong> Graph models of pipe networks usually
+                        place nodes at junctions. Here the unit of decision is the unit of the
+                        graph, and the edges carry the flow direction.</li>
+                    <li><strong>Context measured, not assumed.</strong> The graph model is compared
+                        with a network that sees no neighbours and with one that sees their
+                        summary statistics, all trained alike. The page reports what the graph
+                        adds over each, including where it adds nothing.</li>
+                    <li><strong>Honest division of the data.</strong> Whole network families are
+                        held out, and uncertainty is computed over families, not over conduits
+                        that resemble each other.</li>
+                    <li><strong>Alternatives instead of a verdict.</strong> Labels and outputs are
+                        distributions over actions; an answer counts as correct in the main
+                        action and, separately, within the admissible ones.</li>
+                    <li><strong>A model that cannot lean on the checks.</strong> The seven verdicts
+                        are computed and shown, yet kept out of the model's input at a known
+                        cost in headline accuracy.</li>
+                    <li><strong>The served model is the tested model.</strong> The application
+                        builds the graph and the features with the same package the experiments
+                        used. Reference outputs for the demo network are stored with the code,
+                        and the test suite fails if the served model stops reproducing them.</li>
+                    <li><strong>Negative results are kept.</strong> Margin features, a path
+                        consistency loss and the outflow direction did not help and are
+                        reported as such.</li>
+                </ul>
+            </section>
+
+            <section id="limits" class="docs-section">
+                <h2>Limits</h2>
+                <p>
+                    Accuracy here means agreement with the assessments the model was trained
+                    on. It does not show that a recommended action is feasible or sufficient:
+                    that takes a new simulation of the modified network. The model names the
+                    kind of action, not its size, and each action concerns one conduit.
+                    Networks unlike the training data (other routing methods, outfalls with a
+                    fixed water level, conduits with no catchment above them, multi-barrel
+                    conduits) deserve extra caution. The full list is on the
+                    <a href="{% url 'sa:about' %}#limitations">About</a> page.
+                </p>
+            </section>
+        </article>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% versioned_static 'js/docs.js' %}" defer></script>
+<script src="{% versioned_static 'js/method-graph.js' %}" defer></script>
+{% endblock %}

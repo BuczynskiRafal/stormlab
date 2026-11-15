@@ -80,6 +80,12 @@ class AboutView(TemplateView):
     template_name = "sa/about.html"
 
 
+class MethodView(TemplateView):
+    """Method page: how the recommendation model is built, trained and evaluated."""
+
+    template_name = "sa/method.html"
+
+
 # =============================================================================
 # Analysis Views
 # =============================================================================
