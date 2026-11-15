@@ -335,6 +335,26 @@ class HistoryView(LoginRequiredMixin, ListView):
         reap_stale_work()
         return super().get(request, *args, **kwargs)
 
+    def paginate_queryset(self, queryset, page_size):
+        """Like ``ListView``'s, but a page past the end shows the last page and junk shows the first.
+
+        A stale link (``?page=3`` after deleting the sessions on page 3) or a hand-edited
+        one would otherwise answer 404.
+        """
+        paginator = self.get_paginator(
+            queryset, page_size, orphans=self.get_paginate_orphans(), allow_empty_first_page=self.get_allow_empty()
+        )
+        raw = self.kwargs.get(self.page_kwarg) or self.request.GET.get(self.page_kwarg) or "1"
+        if raw == "last":
+            number = paginator.num_pages
+        else:
+            try:
+                number = int(raw)
+            except (TypeError, ValueError):
+                number = 1
+        page = paginator.page(min(max(number, 1), paginator.num_pages))
+        return paginator, page, page.object_list, page.has_other_pages()
+
     def get_paginate_by(self, queryset):
         per_page = self.request.GET.get("per_page")
         if per_page is None:
