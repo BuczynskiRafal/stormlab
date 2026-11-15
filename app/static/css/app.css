@@ -1668,6 +1668,13 @@ footer {
     padding-right: 0.5rem;
 }
 
+/* The same component above the analysis form, for an analysis that failed; it is not
+   dismissible, so the text keeps the padding on both sides. */
+.site-message.analysis-error {
+    margin-bottom: 1rem;
+    padding-right: 1rem;
+}
+
 .site-message .btn-close {
     position: static;
     flex: none;

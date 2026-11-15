@@ -8,7 +8,11 @@
 <div class="row mb-4 justify-content-center">
     <div class="col-lg-8 col-xl-6">
         {% if analysis_error %}
-        <div class="alert alert-danger" role="alert">{{ analysis_error }}</div>
+        {# Why the analysis just submitted failed: the message strip's component (base.html), here above the form it belongs to. #}
+        <div class="site-message site-message--error analysis-error" role="alert">
+            <i class="site-message-icon fas fa-circle-exclamation" aria-hidden="true"></i>
+            <p class="site-message-text">{{ analysis_error }}</p>
+        </div>
         {% endif %}
         <div class="upload-card">
             <div class="card-header">

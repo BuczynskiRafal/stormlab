@@ -77,7 +77,8 @@ class FailedAnalysisTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f"The analysis failed: {UNAVAILABLE_MESSAGE}.")
-        self.assertContains(response, 'class="alert alert-danger" role="alert"')
+        self.assertContains(response, 'class="site-message site-message--error analysis-error" role="alert"')
+        self.assertNotContains(response, "alert-danger")
         self.assertContains(response, 'id="uploadForm"')
         self.assertEqual(CalculationSession.objects.get(user=self.user).status, "failed")
         self.assertEqual(list(get_messages(response.wsgi_request)), [])
@@ -105,12 +106,12 @@ class FailedAnalysisTests(TestCase):
     def test_message_that_ends_with_a_full_stop_gets_no_second_one(self):
         response = self._post_demo_with_failed_session("The network has no outfall.")
 
-        self.assertContains(response, "The analysis failed: The network has no outfall.</div>")
+        self.assertContains(response, "The analysis failed: The network has no outfall.</p>")
 
     def test_failure_without_a_message_is_still_announced(self):
         response = self._post_demo_with_failed_session("")
 
-        self.assertContains(response, "The analysis failed.</div>")
+        self.assertContains(response, "The analysis failed.</p>")
 
     def test_unexpected_error_shows_a_fixed_sentence_and_no_exception_text(self):
         failure = FileNotFoundError("/srv/stormlab/private/network.inp")
@@ -120,7 +121,7 @@ class FailedAnalysisTests(TestCase):
         ):
             response = self.client.post(reverse("sa:analysis"), {"use_test_file": "true", "zone": 1})
 
-        self.assertContains(response, "The demo network could not be analysed.</div>")
+        self.assertContains(response, "The demo network could not be analysed.</p>")
         self.assertNotContains(response, "/srv/stormlab")
         self.assertIn("/srv/stormlab/private/network.inp", "\n".join(logs.output))
 
