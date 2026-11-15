@@ -1752,8 +1752,64 @@ function runMapFixtureTests() {
   console.log('✓ Stage 7 passed: nm:select highlights and scrolls, the highlight survives every render, rv2:filterchange lists what is on screen.');
 }
 
+/**
+ * Third fixture: the tab survives a visit to the conduit panel.
+ *
+ * The page stores its tab per session in sessionStorage and in the URL fragment; Back to
+ * Results of the panel comes back with that fragment, and the page opens on it.  A
+ * fragment naming the map on a page without one, or naming nothing, is ignored.
+ */
+function runTabMemoryTests() {
+  console.log('------------------------------------------------------------');
+  console.log('Third fixture: the tab named in the URL fragment');
+  console.log('------------------------------------------------------------');
+
+  function boot(hash) {
+    const doc = new MockDocument();
+    const root = new MockElement('DIV', 'storm-results-v2');
+    doc.body.appendChild(root);
+    root.innerHTML = workspaceMarkup({});
+    const dataScript = new MockElement('SCRIPT', 'results-v2-data');
+    dataScript.textContent = JSON.stringify(generateMockSessionData());
+    doc.body.appendChild(dataScript);
+    const stored = new Map();
+    const replaced = [];
+    global.document = doc;
+    global.window = {
+      addEventListener: () => {},
+      matchMedia: () => ({ matches: false }),
+      ResizeObserver: class { observe() {} },
+      location: { hash: hash },
+      sessionStorage: { getItem: k => stored.get(k) || null, setItem: (k, v) => stored.set(k, String(v)) },
+      history: { replaceState: (state, title, url) => replaced.push(url) }
+    };
+    global.ResizeObserver = global.window.ResizeObserver;
+    global.localStorage = { getItem: () => null, setItem: () => {} };
+    eval(fs.readFileSync(path.resolve(__dirname, '../../static/js/results-v2.js'), 'utf8'));
+    const selected = () => root.querySelectorAll('[data-tab]').filter(t => t.getAttribute('aria-selected') === 'true').map(t => t.id);
+    return { root, stored, replaced, selected };
+  }
+
+  const nodes = boot('#nodes');
+  assert.deepStrictEqual(nodes.selected(), ['r-tab-nodes'], 'the fragment must open its tab');
+  assert.strictEqual(nodes.root.querySelector('#r-row-count').textContent.trim(), '4 of 4 nodes', 'and render its table');
+  assert.strictEqual(nodes.stored.get('stormlab-results-tab-42'), 'nodes', 'the open tab is remembered at once');
+  nodes.root.querySelector('#r-tab-catchments').click();
+  assert.strictEqual(nodes.stored.get('stormlab-results-tab-42'), 'catchments', 'a change of tab is remembered');
+  assert.strictEqual(nodes.replaced[nodes.replaced.length - 1], '#catchments', 'and written to the URL fragment');
+  assert.strictEqual(nodes.root.querySelector('#r-tab-catchments').tabIndex, 0, 'the selected tab is the tab stop');
+  assert.strictEqual(nodes.root.querySelector('#r-tab-nodes').tabIndex, -1, 'the others are reached with the arrows');
+
+  ['#map', '#nothing', '', '#toString'].forEach(hash => {
+    const page = boot(hash);
+    assert.deepStrictEqual(page.selected(), ['r-tab-conduits'], `fragment ${JSON.stringify(hash)} must leave the default tab`);
+  });
+  console.log('✓ Tab memory passed: the fragment opens its tab, every change is remembered.');
+}
+
 runEmpiricalTests();
 runMapFixtureTests();
+runTabMemoryTests();
 
 console.log('------------------------------------------------------------');
 console.log('ALL EMPIRICAL ACCEPTANCE CRITERIA VERIFIED (8 / 8 PASSED)');

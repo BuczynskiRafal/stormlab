@@ -203,6 +203,34 @@
       }
     })();
     let currentTab = mapAvailable ? 'map' : 'conduits';
+    // A tab named in the URL fragment (Back to Results of the conduit panel sends the
+    // one the reader left) opens instead of the default; the map tab only with a map.
+    const tabStoreKey = 'stormlab-results-tab-' + (rawData.session?.id ?? '');
+    const wantedTab = (function () {
+      try {
+        const hash = typeof window !== 'undefined' && window.location ? String(window.location.hash || '') : '';
+        const name = hash.replace(/^#/, '');
+        return TABS.includes(name) && (name !== 'map' || mapAvailable) ? name : null;
+      } catch (_) {
+        return null;
+      }
+    })();
+    if (wantedTab) {
+      currentTab = wantedTab;
+      if (TYPES.includes(wantedTab)) active = wantedTab;
+    }
+
+    /** Remember the tab for this session, and keep it in the URL for a reload. */
+    function rememberTab(k) {
+      try {
+        window.sessionStorage.setItem(tabStoreKey, k);
+      } catch (_) {}
+      try {
+        if (window.history && typeof window.history.replaceState === 'function' && window.location) {
+          window.history.replaceState(null, '', '#' + k);
+        }
+      } catch (_) {}
+    }
     // The element the map asked the table to show, as ``{kind, name}`` — ``kind`` is a
     // tab key, because a name is unique inside one collection and nowhere else.  The
     // state lives here and the class .r-row-hl is derived from it on every render:
@@ -896,6 +924,7 @@
       // panel is derived from it, and nothing else fixes it afterwards.
       if (TYPES.includes(k)) active = k;
       applyTabState(k);
+      rememberTab(k);
       // On a phone the tab row scrolls sideways; keep the chosen tab on screen.
       const chosen = $(`#r-tab-${k}`);
       if (chosen && typeof chosen.scrollIntoView === 'function') {
@@ -1223,6 +1252,9 @@
 
     renderAll();
     applyTabState(currentTab);
+    // Stored at once, so a panel opened before any tab change returns to this tab and
+    // not to one remembered from an earlier visit.
+    rememberTab(currentTab);
 
     if (overflowArea && window.ResizeObserver) {
       new ResizeObserver(updateOverflow).observe(overflowArea);
