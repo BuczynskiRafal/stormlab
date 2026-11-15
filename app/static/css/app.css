@@ -589,6 +589,16 @@ a {
     text-align: center;
 }
 
+/* The drop zone is a <label> (it opens the picker without script), so its parts are
+   spans and have to be stacked explicitly. */
+.file-input-content > span {
+    display: block;
+}
+
+.file-input-display {
+    font-weight: 400;
+}
+
 .file-input-icon {
     font-size: 3rem;
     color: var(--water-600);
@@ -605,6 +615,8 @@ a {
     color: var(--text);
     font-weight: 600;
     margin-bottom: 0.5rem;
+    /* A chosen file's name replaces the text and may be one long word. */
+    overflow-wrap: anywhere;
 }
 
 .file-input-subtext {
@@ -656,6 +668,50 @@ a {
 
 .upload-card:hover {
     box-shadow: var(--shadow-2);
+}
+
+/* The page heading sits in the card's header band, at the band's size. */
+.upload-title {
+    margin: 0;
+    font-size: 1.05rem;
+    text-align: center;
+}
+
+.upload-help {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+.upload-error {
+    margin-top: 0.5rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--bad);
+}
+
+.upload-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 1rem 0 0;
+    color: var(--water-700);
+    font-weight: 600;
+}
+
+/* Bootstrap paints a disabled .btn-primary in its own blue; keep the water colour. */
+#uploadForm .btn-primary:disabled {
+    background-color: var(--water-600);
+    border-color: var(--water-600);
+    opacity: 0.55;
+}
+
+/* While SWMM runs the form is aria-busy: the drop zone no longer invites a drop. */
+#uploadForm[aria-busy="true"] .file-input-display {
+    opacity: 0.6;
+    pointer-events: none;
 }
 
 /* Footer styling */

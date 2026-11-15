@@ -96,6 +96,76 @@ const initFileInputs = function() {
 };
 
 /**
+ * The analysis form (#uploadForm).
+ * - An empty "Upload & Analyse" shows an inline error under the drop zone instead of
+ *   the browser bubble (the demo button has formnovalidate and is not checked).
+ * - While SWMM runs (up to a minute) both buttons are disabled, a spinner and a status
+ *   line are shown and the form is aria-busy; a second submit is ignored.
+ * - Coming back with the Back button restores the form from the bfcache, where it
+ *   would otherwise stay disabled.
+ */
+const initAnalysisForm = function() {
+    const form = document.getElementById('uploadForm');
+    if (!form) return;
+    const input = form.querySelector('input[type="file"]');
+    const wrapper = form.querySelector('[data-file-input]');
+    const error = form.querySelector('[data-file-error]');
+    const status = document.getElementById('uploadStatus');
+    const buttons = Array.from(form.querySelectorAll('button[type="submit"]'));
+    const EMPTY_MESSAGE = 'Choose a .inp file to analyse, or try the demo data.';
+    let busy = false;
+
+    const showError = function(text) {
+        if (!error) return;
+        error.textContent = text;
+        error.classList.remove('d-none');
+        if (wrapper) wrapper.classList.add('has-error');
+    };
+
+    const clearError = function() {
+        if (!error) return;
+        error.textContent = '';
+        error.classList.add('d-none');
+        if (wrapper) wrapper.classList.remove('has-error');
+    };
+
+    const setBusy = function(on) {
+        busy = on;
+        form.setAttribute('aria-busy', on ? 'true' : 'false');
+        buttons.forEach(function(button) { button.disabled = on; });
+        if (status) status.classList.toggle('d-none', !on);
+    };
+
+    if (input) {
+        input.addEventListener('invalid', function(event) {
+            event.preventDefault();
+            showError(EMPTY_MESSAGE);
+            input.focus();
+        });
+    }
+    if (wrapper) {
+        wrapper.addEventListener('file-input:change', function(event) {
+            if (event.detail.file) clearError();
+        });
+    }
+
+    form.addEventListener('submit', function(event) {
+        if (busy) {
+            event.preventDefault();
+            return;
+        }
+        // Disabled buttons are left out of the form data, so the clicked one (the demo
+        // button carries name="use_test_file") is disabled only after it was sent.
+        busy = true;
+        window.setTimeout(function() { setBusy(true); }, 0);
+    });
+
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) setBusy(false);
+    });
+};
+
+/**
  * The account page names the section whose form was rejected; move focus to its first
  * invalid field so the error is the next thing a keyboard or screen reader user meets.
  */
@@ -111,6 +181,7 @@ const focusRejectedSection = function() {
 
 document.addEventListener('DOMContentLoaded', function() {
     initFileInputs();
+    initAnalysisForm();
     focusRejectedSection();
 
     // =========================================================================
