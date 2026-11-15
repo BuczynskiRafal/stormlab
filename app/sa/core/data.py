@@ -337,7 +337,7 @@ class DataManager(sw.Model):
         # Subcatchments
         self.subcatchment_service.subcatchments_classify(categories=True)
 
-        # Nodes - zmienione z nodes_subcatchment_name() na nodes_subcatchment_info()
+        # Nodes
         self.node_service.nodes_subcatchment_info()
 
         # Conduits

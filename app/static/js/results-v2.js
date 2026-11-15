@@ -1199,7 +1199,7 @@
     }
 
     /**
-     * The map asked for an element to be shown in the table (stage 7, D10 variant a).
+     * The map asked for an element to be shown in the table.
      *
      * The only direction there is: under the tabbed layout the map and the table are
      * never on screen together, so nothing sends the table's selection back to a map

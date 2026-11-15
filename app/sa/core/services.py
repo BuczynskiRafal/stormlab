@@ -110,14 +110,14 @@ class HydraulicCalculationsService:
         """
         radius = diameter / 2.0
 
-        # Obliczenie długości cięciwy
+        # Length of the chord
         chord = 2.0 * math.sqrt(radius**2 - (filling - radius) ** 2)
-        # Obliczenie kąta centralnego w radianach
+        # Central angle in radians
         alpha = math.acos((2.0 * radius**2 - chord**2) / (2.0 * radius**2))
 
         if filling > radius:
             if filling == diameter:
-                perimeter = 2 * math.pi * radius  # Pełne wypełnienie
+                perimeter = 2 * math.pi * radius  # Full pipe
             else:
                 perimeter = 2 * math.pi * radius - alpha * radius
         else:
@@ -232,7 +232,7 @@ class HydraulicCalculationsService:
         for _ in range(FILLING_CALCULATION_MAX_ITER):
             if filling > diameter:
                 break
-            flow = HydraulicCalculationsService.calc_flow(filling, diameter, slope)  # już [m³/s]
+            flow = HydraulicCalculationsService.calc_flow(filling, diameter, slope)  # already in [m³/s]
             if flow >= q:
                 break
             filling += FILLING_CALCULATION_STEP
