@@ -4,6 +4,9 @@ The figure draws the Rakowiec demo network and shows, for a selected conduit, th
 conduits the graph model aggregates over. The aggregation matrix is built here with
 the same functions and the same model specification the application uses when it
 serves recommendations, so the weights in the figure are the production weights.
+The specification is the one shipped in the repository
+(``sa/core/recommendations/gnn_recommender.spec.json``); one substituted at run
+time through the ``GNN_SPEC`` environment variable is not read here.
 
 Output: ``app/static/data/method-graph.json``, byte-stable for a given network and
 graph code. ``--check`` compares the committed file with a fresh build and fails on
@@ -17,6 +20,7 @@ import warnings
 from pathlib import Path
 
 from django.conf import settings
+from scipy.sparse import SparseEfficiencyWarning
 from django.core.management.base import BaseCommand, CommandError
 
 REPO_ROOT = Path(settings.BASE_DIR).parent
@@ -47,8 +51,8 @@ def _aggregation_matrix(dfc, spec: dict):
 
     order = canonical_order(dfc, "inp")
     with warnings.catch_warnings():
-        # scipy warns about changing CSR sparsity inside the graph builder; it is noise here.
-        warnings.simplefilter("ignore")
+        # The graph builder changes CSR sparsity in place; scipy's advice about it is noise here.
+        warnings.simplefilter("ignore", SparseEfficiencyWarning)
         graph = build_graph(dfc, order, direction="downstream")
         source = graph.adjacency.transpose().tocsr() if spec["direction"] == "upstream" else graph.adjacency
         matrix = operator_adjacency(source, operator=spec["operator"], max_hops=spec["hops"])

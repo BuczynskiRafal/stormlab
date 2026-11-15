@@ -3,7 +3,7 @@
 The figure's data file is generated from the production graph functions. These
 tests keep the two in step: the committed file must be what a fresh build gives,
 and the weights must behave like the upstream aggregation the served model uses -
-rows that are weighted means, reach only upstream, and the documented K17 values.
+rows that are weighted means, reach only upstream, and a hand-checked row (K17).
 Upstream reach is checked with a walk over the network written here, independent
 of the graph builder.
 """
@@ -18,6 +18,7 @@ from pathlib import Path
 
 from django.core.management import CommandError, call_command
 from django.test import TestCase
+from django.urls import reverse
 
 from sa.management.commands.export_method_graph import (
     DEFAULT_INP,
@@ -95,8 +96,12 @@ class MethodGraphDataTests(TestCase):
                 self.assertIn(name, self._support(row))
                 self.assertTrue(all(weight > 0 for _other, weight in row))
 
-    def test_k17_weights_match_the_documented_values(self):
-        """Worked example of the documentation: a conduit on a plain chain, two links from a head."""
+    def test_k17_weights_match_a_hand_checked_row(self):
+        """K17 ends a plain chain (K13 -> ... -> K17): weights 1 : 2 : 0.5 for itself, one and two links up.
+
+        One step: (1, 2, 0.5) / 3.5 for K17, K16, K15. Two steps: that row applied twice,
+        reaching K13 four links up. Checked by hand, independently of the graph code.
+        """
         step1 = dict(self.committed["step1"]["K17"])
         step2 = dict(self.committed["step2"]["K17"])
 
@@ -171,3 +176,21 @@ class ExportMethodGraphCommandTests(TestCase):
     def test_missing_network_file_is_reported(self):
         with self.assertRaises(CommandError):
             call_command("export_method_graph", "--inp", "/nonexistent/network.inp", "--check", stdout=StringIO())
+
+
+class MethodPageFigureTests(TestCase):
+    """The figure as the Method page serves it."""
+
+    def test_caption_states_the_number_of_conduits_in_the_data(self):
+        """The caption is hand-written; it must not drift from the network the data describes."""
+        committed = json.loads(DEFAULT_OUTPUT.read_text(encoding="utf-8"))
+
+        response = self.client.get(reverse("sa:method"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"{len(committed['conduits'])} conduits.")
+
+    def test_figure_data_url_is_versioned(self):
+        response = self.client.get(reverse("sa:method"))
+
+        self.assertContains(response, 'data-src="/static/data/method-graph.json?v=')

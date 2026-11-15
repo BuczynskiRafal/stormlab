@@ -188,6 +188,16 @@
         return { x: points[0][0], y: points[0][1], ux: 1, uy: 0, length: 0 };
     }
 
+    function hitRadius(pointerType) {
+        return pointerType === 'mouse' ? HIT_RADIUS : HIT_RADIUS_TOUCH;
+    }
+
+    function setText(el, text) {
+        if (el.textContent !== text) {
+            el.textContent = text;
+        }
+    }
+
     function easeInOut(t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
@@ -197,8 +207,8 @@
     // around its anchor - nearest ring first, directions closest to the
     // conduit's normal first - and takes the first one that stays inside the
     // map and clear of every line, obstacle box, earlier label and earlier
-    // leader. A label that finds no place is left out; the readout lists every
-    // conduit anyway.
+    // leader. A label that finds no place is left out; the readout still lists
+    // every conduit in view (the tail of a long list under "+ n more").
     // ------------------------------------------------------------------
 
     function placeLabels(items, segments, boxes, width, height) {
@@ -303,7 +313,10 @@
         this.width = 0;
         this.view = null;
         this.hoverId = null;
+        this.pointer = null; // last pointer position over the map, for hover after a pan
+        this.gesturePointer = 'mouse'; // pointer type of the press that ends in a click
         this.panFrame = null;
+        this.readoutKey = null;
 
         var checked = this.stepInputs.filter(function (input) {
             return input.checked;
@@ -331,18 +344,20 @@
         });
     };
 
-    // Swap the static fallback for the interactive parts, or back again.
+    // Swap the static fallback for the interactive parts, or back again. The
+    // stylesheet keeps the room of both reserved, so nothing moves when it flips.
     MethodGraph.prototype.setReady = function (ready) {
-        var controls = this.root.querySelector('[data-method-graph-controls]');
         var fallback = this.root.querySelector('[data-method-graph-fallback]');
+        var vb = this.data.viewBox;
+        this.root.style.setProperty('--mg-map-aspect', vb[0] + ' / ' + vb[1]);
         this.root.classList.toggle('is-ready', ready);
-        if (controls) {
-            controls.hidden = !ready;
-        }
         if (fallback) {
             fallback.hidden = ready;
         }
-        this.readoutMount.hidden = !ready;
+    };
+
+    MethodGraph.prototype.focusIsOnMap = function () {
+        return !!document.activeElement && this.hitLayer.contains(document.activeElement);
     };
 
     MethodGraph.prototype.start = function () {
@@ -360,39 +375,51 @@
             });
         });
 
+        // A click uses the radius of the pointer that made it, the same one hover
+        // feedback uses, so it never picks a conduit that was not highlighted.
+        this.svg.addEventListener('pointerdown', function (event) {
+            self.gesturePointer = event.pointerType || 'mouse';
+        });
         this.svg.addEventListener('click', function (event) {
-            var id = self.conduitAt(event.clientX, event.clientY, HIT_RADIUS_TOUCH);
+            var id = self.conduitAt(event.clientX, event.clientY, hitRadius(self.gesturePointer));
             if (id) {
-                var focusOnMap = !!document.activeElement && self.hitLayer.contains(document.activeElement);
-                self.choose(id, focusOnMap);
+                self.choose(id, self.focusIsOnMap());
             }
         });
         this.svg.addEventListener('pointermove', function (event) {
-            var radius = event.pointerType === 'mouse' ? HIT_RADIUS : HIT_RADIUS_TOUCH;
-            self.setHover(self.conduitAt(event.clientX, event.clientY, radius));
+            self.pointer = { x: event.clientX, y: event.clientY, type: event.pointerType || 'mouse' };
+            self.hoverFromPointer();
         });
         this.svg.addEventListener('pointerleave', function () {
+            self.pointer = null;
             self.setHover(null);
         });
 
         this.hitLayer.addEventListener('keydown', function (event) {
             self.onKey(event);
         });
-        this.hitLayer.addEventListener('focusin', function (event) {
-            var visible = true;
-            try {
-                visible = event.target.matches(':focus-visible');
-            } catch (e) {
-                visible = true;
+        // Focus listeners sit on the figure, not on an SVG element: Chromium makes any
+        // SVG element with focus listeners a tab stop of its own.
+        this.root.addEventListener('focusin', function (event) {
+            var visible = false;
+            if (self.hitLayer.contains(event.target)) {
+                try {
+                    visible = event.target.matches(':focus-visible');
+                } catch (e) {
+                    visible = true;
+                }
             }
             self.root.classList.toggle('is-map-focused', visible);
         });
-        this.hitLayer.addEventListener('focusout', function () {
-            self.root.classList.remove('is-map-focused');
+        this.root.addEventListener('focusout', function (event) {
+            if (self.hitLayer.contains(event.target)) {
+                self.root.classList.remove('is-map-focused');
+            }
         });
 
         this.setReady(true);
         this.layout();
+        this.statusEl.setAttribute('aria-live', 'polite');
 
         if (typeof ResizeObserver === 'function') {
             var pending = false;
@@ -425,23 +452,20 @@
         var svg = this.svg;
         clear(svg);
 
-        var descId = (this.select && this.select.id ? this.select.id : 'method-graph') + '-map-help';
-        var desc = svg.appendChild(svgEl('desc', { id: descId }));
+        // Everything drawn is decoration for assistive technology; the conduits are
+        // exposed once, as the radios of the hit layer.
+        var hidden = { 'aria-hidden': 'true' };
+        this.lineLayer = svg.appendChild(svgEl('g', hidden, 'method-graph__lines'));
+        this.arrowLayer = svg.appendChild(svgEl('g', hidden, 'method-graph__arrows'));
+        this.nodeLayer = svg.appendChild(svgEl('g', hidden, 'method-graph__nodes'));
+        this.focusRing = svg.appendChild(svgEl('rect', { rx: 6, ry: 6, 'aria-hidden': 'true' }, 'method-graph__focus-ring'));
+        this.labelLayer = svg.appendChild(svgEl('g', hidden, 'method-graph__labels'));
+        this.hoverLabel = svg.appendChild(svgEl('text', hidden, 'method-graph__hover-label'));
+        this.inset = svg.appendChild(svgEl('g', hidden, 'method-graph__inset'));
+        this.hitLayer = svg.appendChild(svgEl('g', { role: 'radiogroup', 'aria-label': 'Conduits' }, 'method-graph__hits'));
+        // A <desc> child describes its parent: the radio group, and only it.
+        var desc = this.hitLayer.appendChild(svgEl('desc'));
         desc.textContent = 'Arrow keys move the selection to the neighbouring conduit in that direction on the map.';
-
-        this.lineLayer = svg.appendChild(svgEl('g', null, 'method-graph__lines'));
-        this.arrowLayer = svg.appendChild(svgEl('g', null, 'method-graph__arrows'));
-        this.nodeLayer = svg.appendChild(svgEl('g', null, 'method-graph__nodes'));
-        this.focusRing = svg.appendChild(svgEl('rect', { rx: 6, ry: 6 }, 'method-graph__focus-ring'));
-        this.labelLayer = svg.appendChild(svgEl('g', null, 'method-graph__labels'));
-        this.hoverLabel = svg.appendChild(svgEl('text', null, 'method-graph__hover-label'));
-        this.inset = svg.appendChild(svgEl('g', { 'aria-hidden': 'true' }, 'method-graph__inset'));
-        this.hitLayer = svg.appendChild(svgEl('g', {
-            tabindex: '-1',
-            role: 'radiogroup',
-            'aria-label': 'Conduits',
-            'aria-describedby': descId
-        }, 'method-graph__hits'));
 
         this.halo = svgEl('path', null, 'method-graph__halo');
         this.els = {};
@@ -601,10 +625,11 @@
         var pad = 7;
         var x0 = Math.min.apply(null, xs) - pad;
         var y0 = Math.min.apply(null, ys) - pad;
+        this.focusBox = { x: x0, y: y0, w: Math.max.apply(null, xs) + pad - x0, h: Math.max.apply(null, ys) + pad - y0 };
         this.focusRing.setAttribute('x', round(x0));
         this.focusRing.setAttribute('y', round(y0));
-        this.focusRing.setAttribute('width', round(Math.max.apply(null, xs) + pad - x0));
-        this.focusRing.setAttribute('height', round(Math.max.apply(null, ys) + pad - y0));
+        this.focusRing.setAttribute('width', round(this.focusBox.w));
+        this.focusRing.setAttribute('height', round(this.focusBox.h));
 
         var s = this.insetScale;
         var ip = this.insetBox.pad;
@@ -731,7 +756,7 @@
         var startTime = null;
         this.stopPan();
         clear(this.labelLayer);
-        this.hoverLabel.classList.remove('is-visible');
+        this.setHover(null);
         this.root.classList.add('is-panning');
 
         function frame(now) {
@@ -754,6 +779,7 @@
                 self.view = target;
                 self.root.classList.remove('is-panning');
                 self.finish();
+                self.hoverFromPointer();
             }
         }
         this.panFrame = window.requestAnimationFrame(frame);
@@ -782,10 +808,21 @@
         this.paintHoverLabel();
     };
 
+    // Hover follows the last pointer position; nothing is hovered mid-pan.
+    MethodGraph.prototype.hoverFromPointer = function () {
+        var p = this.pointer;
+        if (!p || this.panFrame !== null) {
+            this.setHover(null);
+            return;
+        }
+        this.setHover(this.conduitAt(p.x, p.y, hitRadius(p.type)));
+    };
+
     MethodGraph.prototype.onKey = function (event) {
         var dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
         var dir = dirs[event.key];
-        if (!dir || !this.geom) {
+        // Modified arrows belong to the browser and assistive technology.
+        if (!dir || !this.geom || event.altKey || event.ctrlKey || event.metaKey) {
             return;
         }
         event.preventDefault();
@@ -986,7 +1023,8 @@
             }
         });
 
-        var obstacles = [inflate(this.insetSpot, 2)];
+        // Labels also keep off the focus ring's box, shown or not, so focus moves no label.
+        var obstacles = [inflate(this.insetSpot, 2), this.focusBox];
         placeLabels(items, this.segments, obstacles, this.width, this.height).forEach(function (spot) {
             var item = spot.item;
             if (spot.leader) {
@@ -1029,9 +1067,12 @@
         var mount = this.readoutMount;
         clear(mount);
 
+        // One short sentence for screen readers; the visible summary is not live.
+        // It becomes live after the first paint, so loading the page announces nothing.
+        this.statusEl = mount.appendChild(htmlEl('p', 'method-graph__status'));
+        this.statusEl.setAttribute('aria-atomic', 'true');
+
         var summary = mount.appendChild(htmlEl('div', 'method-graph__summary'));
-        summary.setAttribute('aria-live', 'polite');
-        summary.setAttribute('aria-atomic', 'true');
         summary.appendChild(htmlEl('p', 'method-graph__eyebrow', 'Selected conduit'));
         this.nameEl = summary.appendChild(htmlEl('p', 'method-graph__name'));
         var counts = summary.appendChild(htmlEl('dl', 'method-graph__counts'));
@@ -1045,7 +1086,10 @@
         var panel = mount.appendChild(htmlEl('div', 'method-graph__panel'));
         this.listTitle = panel.appendChild(htmlEl('p', 'method-graph__list-title'));
         this.listEl = panel.appendChild(htmlEl('ol', 'method-graph__list'));
-        this.moreEl = panel.appendChild(htmlEl('p', 'method-graph__more'));
+        // The tail of a long list, in place under a native disclosure.
+        this.moreEl = panel.appendChild(htmlEl('details', 'method-graph__more'));
+        this.moreSummary = this.moreEl.appendChild(htmlEl('summary', 'method-graph__more-toggle'));
+        this.restEl = this.moreEl.appendChild(htmlEl('ol', 'method-graph__list method-graph__list--rest'));
         this.noteEl = panel.appendChild(htmlEl('p', 'method-graph__note'));
 
         var legend = mount.appendChild(htmlEl('ul', 'method-graph__legend'));
@@ -1067,27 +1111,59 @@
     };
 
     MethodGraph.prototype.paintReadout = function (rows) {
-        var self = this;
         var id = this.selected;
+        var nOne = Object.keys(rows.one).length;
+        var nTwo = Object.keys(rows.two).length;
+
+        // Arrow keys on the map already announce the newly focused conduit.
+        if (!this.focusIsOnMap()) {
+            setText(this.statusEl, id + ': ' + plural(nOne, 'conduit', 'conduits') + ' in one step, ' + nTwo + ' in two.');
+        }
+
+        // Resizes repaint too; the readout only changes with the selection or the step count.
+        var key = id + '|' + this.steps;
+        if (key === this.readoutKey) {
+            return;
+        }
+        this.readoutKey = key;
+
         var row = (this.steps === 2 ? this.data.step2[id] : this.data.step1[id]) || [];
         var isHead = this.upstream[id].length === 0;
-
-        this.nameEl.textContent = id;
-        this.countEls[1].value.textContent = plural(Object.keys(rows.one).length, 'conduit', 'conduits');
-        this.countEls[2].value.textContent = plural(Object.keys(rows.two).length, 'conduit', 'conduits');
+        setText(this.nameEl, id);
+        setText(this.countEls[1].value, plural(nOne, 'conduit', 'conduits'));
+        setText(this.countEls[2].value, plural(nTwo, 'conduit', 'conduits'));
         this.countEls[1].group.classList.toggle('is-active', this.steps === 1);
         this.countEls[2].group.classList.toggle('is-active', this.steps === 2);
         this.legendStep2.classList.toggle('is-inactive', this.steps === 1);
+        setText(this.listTitle, this.steps === 2 ? 'Share of the two-step average' : 'Weights of one graph step');
 
-        this.listTitle.textContent = this.steps === 2 ? 'Share of the two-step average' : 'Weights of one graph step';
-
-        var list = this.listEl;
-        clear(list);
         var top = row.length ? row[0][1] : 1;
-        row.slice(0, LIST_LIMIT).forEach(function (entry) {
+        this.fillList(this.listEl, row.slice(0, LIST_LIMIT), rows, top);
+        this.fillList(this.restEl, row.slice(LIST_LIMIT), rows, top);
+        this.restEl.setAttribute('start', String(LIST_LIMIT + 1));
+        var rest = row.length - LIST_LIMIT;
+        this.moreEl.hidden = rest <= 0;
+        setText(this.moreSummary, rest > 0 ? '+ ' + rest + ' more' : '');
+
+        var note;
+        if (isHead) {
+            note = 'Nothing drains into ' + id + '. It is a head conduit: the model sees only the conduit itself.';
+        } else if (this.steps === 2) {
+            note = 'Indicative reach of both steps, before the model\u2019s non-linearities; not an importance score.';
+        } else {
+            note = 'Exact weights of one step: the conduit itself and the conduits up to two links upstream.';
+        }
+        setText(this.noteEl, note);
+        this.noteEl.classList.toggle('is-head', isHead);
+    };
+
+    MethodGraph.prototype.fillList = function (list, entries, rows, top) {
+        var self = this;
+        clear(list);
+        entries.forEach(function (entry) {
             var li = list.appendChild(htmlEl('li', 'method-graph__row is-' + self.roleOf(entry[0], rows)));
             var name = li.appendChild(htmlEl('span', 'method-graph__row-name', entry[0]));
-            if (entry[0] === id) {
+            if (entry[0] === self.selected) {
                 name.appendChild(htmlEl('span', 'method-graph__row-self', 'itself'));
             }
             var bar = li.appendChild(htmlEl('span', 'method-graph__bar'));
@@ -1096,21 +1172,6 @@
             fill.style.setProperty('--mg-share', String(top ? entry[1] / top : 0));
             li.appendChild(htmlEl('span', 'method-graph__row-value', formatShare(entry[1])));
         });
-
-        // The line keeps its height when empty, so the readout does not jump.
-        var hidden = row.length - LIST_LIMIT;
-        this.moreEl.textContent = hidden > 0 ? '+ ' + hidden + ' more' : '';
-
-        if (isHead) {
-            this.noteEl.textContent = 'Nothing drains into ' + id +
-                '. It is a head conduit: the model sees only the conduit itself.';
-        } else if (this.steps === 2) {
-            this.noteEl.textContent = 'Indicative reach of both steps, before the model\u2019s non-linearities; ' +
-                'not an importance score.';
-        } else {
-            this.noteEl.textContent = 'Exact weights of one step: the conduit itself and the conduits up to two links upstream.';
-        }
-        this.noteEl.classList.toggle('is-head', isHead);
     };
 
     // ---- Select --------------------------------------------------------
@@ -1122,7 +1183,7 @@
         }
         clear(this.select);
         this.conduits.forEach(function (c) {
-            var label = self.upstream[c.id].length ? c.id : c.id + ' (head, no inflow)';
+            var label = self.upstream[c.id].length ? c.id : c.id + ' (head)';
             var option = self.select.appendChild(htmlEl('option', null, label));
             option.value = c.id;
         });
