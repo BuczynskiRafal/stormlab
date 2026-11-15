@@ -20,6 +20,7 @@ from django.views.generic import ListView, TemplateView
 from .core.inp_encoding import utf8_chunks
 from .forms import SWMMModelForm
 from .housekeeping import new_analysis_file, reap_stale_work, remove_analysis_files
+from .labels import ACTION_LABELS, ACTION_MEANINGS, CATEGORY_LABELS
 from .models import CalculationSession, ConduitData, NodeData, SubcatchmentData, SWMMModel
 from .services import (
     AnalysisService,
@@ -85,9 +86,19 @@ class IndexView(TemplateView):
 
 
 class AboutView(TemplateView):
-    """About page view."""
+    """About page view.
+
+    The action table and the list of land-cover categories come from ``sa.labels``, so
+    the page names them as the results do.
+    """
 
     template_name = "sa/about.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["actions"] = [(label, ACTION_MEANINGS[code]) for code, label in ACTION_LABELS.items()]
+        context["categories"] = list(CATEGORY_LABELS.items())
+        return context
 
 
 class MethodView(TemplateView):

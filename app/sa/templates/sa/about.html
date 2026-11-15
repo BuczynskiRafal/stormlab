@@ -162,15 +162,9 @@
                             <tr><th>Action</th><th>Meaning</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>No changes</td><td>No change needed</td></tr>
-                            <tr><td>Increase diameter</td><td>Insufficient capacity; larger diameter</td></tr>
-                            <tr><td>Reduce diameter</td><td>Oversized conduit; smaller diameter</td></tr>
-                            <tr><td>Increase slope</td><td>Velocity too low; steeper slope</td></tr>
-                            <tr><td>Reduce slope</td><td>Velocity too high; gentler slope</td></tr>
-                            <tr><td>Increase depth</td><td>Insufficient cover; deeper invert</td></tr>
-                            <tr><td>Retention tank</td><td>Retention to reduce peak flow</td></tr>
-                            <tr><td>Seepage boxes</td><td>Infiltration to relieve the network</td></tr>
-                            <tr><td>Pump station</td><td>Gravity outflow not possible; pumping station</td></tr>
+                            {% for label, meaning in actions %}
+                            <tr><td>{{ label }}</td><td>{{ meaning }}</td></tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -180,13 +174,16 @@
                     Twelve land-cover categories describe the subcatchments. When a subcatchment
                     has no tag in the model, a small neural network assigns the category from
                     twelve inputs: seven catchment parameters and five runoff results of the
-                    simulation.
+                    simulation. To set a category yourself, write its id, shown after each
+                    name below, as the tag value of the subcatchment in the
+                    <code>[TAGS]</code> section, for example
+                    <code>Subcatch&nbsp;S1&nbsp;urban_highly_impervious</code>.
                 </p>
-                <div class="docs-list-compact">
-                    arable, forests, marshes, meadows, mountains_rocky, mountains_vegetated,
-                    rural, suburban_highly_impervious, suburban_weakly_impervious,
-                    urban_highly_impervious, urban_moderately_impervious, urban_weakly_impervious
-                </div>
+                <ul class="docs-list-compact docs-category-list">
+                    {% for id, label in categories %}
+                    <li>{{ label }} <span aria-hidden="true">—</span> <code>{{ id }}</code></li>
+                    {% endfor %}
+                </ul>
             </section>
 
             <section id="evaluation" class="docs-section">

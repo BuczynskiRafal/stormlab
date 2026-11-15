@@ -202,25 +202,26 @@ class AboutAndHomeWordingTests(TestCase):
         self.assertNotContains(response, "Hydraulic verification")
 
     def test_about_action_table_shows_labels_not_raw_ids(self):
+        from sa.labels import ACTION_LABELS
+
         html = self.client.get(reverse("sa:about")).content.decode()
         labels = re.findall(r"<tr><td>([^<]+)</td><td>[^<]+</td></tr>", html[html.index("<th>Action</th>") :])[:9]
 
-        self.assertEqual(
-            labels,
-            [
-                "No changes",
-                "Increase diameter",
-                "Reduce diameter",
-                "Increase slope",
-                "Reduce slope",
-                "Increase depth",
-                "Retention tank",
-                "Seepage boxes",
-                "Pump station",
-            ],
-        )
+        # The labels of sa.labels, in the order the results filter lists them.
+        self.assertEqual(labels, list(ACTION_LABELS.values()))
+        self.assertEqual(labels[0], "No changes")
         for raw in ("<td>valid</td>", "<td>diameter_increase</td>", "<td>seepage_boxes</td>"):
             self.assertNotIn(raw, html)
+
+    def test_about_names_each_category_and_the_id_a_tag_uses(self):
+        from sa.labels import CATEGORY_LABELS
+
+        html = self.client.get(reverse("sa:about")).content.decode()
+        listed = re.findall(r'<li>([^<]+) <span aria-hidden="true">—</span> <code>([a-z_]+)</code></li>', html)
+
+        self.assertEqual(listed, [(label, code) for code, label in CATEGORY_LABELS.items()])
+        self.assertIn("Urban, highly impervious", html)
+        self.assertIn("as the tag value of the subcatchment in the\n                    <code>[TAGS]</code> section", html)
 
     def test_about_frost_zones_use_the_shared_labels(self):
         response = self.client.get(reverse("sa:about"))

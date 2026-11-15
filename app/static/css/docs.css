@@ -248,6 +248,21 @@ section.docs-section[id],
     line-height: 1.7;
 }
 
+/* The land-cover categories: label, then the id a [TAGS] entry uses, in two columns
+   where they fit.  The section prefix outweighs `.docs-section ul`. */
+.docs-section .docs-category-list {
+    max-width: none;
+    padding-left: 1.1rem;
+    list-style: none;
+    columns: 2 20rem;
+    column-gap: 2rem;
+}
+
+.docs-section .docs-category-list li {
+    margin-bottom: 0.2rem;
+    break-inside: avoid;
+}
+
 /* ============================================================
    LISTA DEFINICJI (parametry, architektura sieci)
    ============================================================ */
