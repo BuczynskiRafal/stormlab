@@ -58,6 +58,58 @@ class SiteChromeContractTests(TestCase):
         self.assertNotContains(response, "btn-success")
 
 
+class MessagesAreRenderedTests(TestCase):
+    """base.html shows the django.contrib.messages of the previous request under the header.
+
+    Before, no template looped over ``messages``: every confirmation and every reason
+    for a redirect was queued and silently dropped.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_user(email="messages@example.com")
+        cls.session = make_session(cls.user, n_conduits=1, n_nodes=2, n_subcatchments=1)
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_missing_conduit_redirect_explains_itself_as_an_alert(self):
+        url = reverse("sa:conduit_detail", args=[self.session.id, "NOPE"])
+
+        response = self.client.get(url, follow=True)
+
+        self.assertEqual(response.redirect_chain[-1][0], reverse("sa:analysis_results", args=[self.session.id]))
+        self.assertContains(response, 'class="containerwide site-messages"')
+        self.assertContains(response, "This analysis has no conduit named “NOPE”.")
+        self.assertContains(response, 'site-message--error alert alert-dismissible fade show"\n         role="alert"')
+
+    def test_failed_session_redirect_explains_itself_on_the_analysis_form(self):
+        failed = make_session(self.user, status="failed")
+
+        response = self.client.get(reverse("sa:analysis_results", args=[failed.id]), follow=True)
+
+        self.assertEqual(response.redirect_chain[-1][0], reverse("sa:analysis"))
+        self.assertContains(response, "site-message--warning")
+        self.assertContains(response, 'id="uploadForm"')
+
+    def test_success_is_announced_politely_and_can_be_dismissed(self):
+        response = self.client.post(
+            reverse("accounts:user_profile"),
+            {"user_profile_forms": "0", "email": self.user.email, "first_name": "Ada", "last_name": ""},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "site-message--success")
+        self.assertContains(response, 'role="status"')
+        self.assertContains(response, 'data-bs-dismiss="alert"')
+
+    def test_a_page_without_messages_renders_no_strip(self):
+        response = self.client.get(reverse("sa:history"))
+
+        self.assertNotContains(response, "site-messages")
+
+
 class StylesheetContractTests(TestCase):
     """base.html must serve exactly one stylesheet and no unused font family."""
 

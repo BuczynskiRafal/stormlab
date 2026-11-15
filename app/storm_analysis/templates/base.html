@@ -73,6 +73,20 @@
 </header>
 {% endwith %}
 
+{% if messages %}
+{# Feedback of the previous request (saved profile, missing conduit, logout...). Errors and warnings interrupt a screen reader, the rest is announced politely. #}
+<div class="containerwide site-messages">
+    {% for message in messages %}
+    <div class="site-message site-message--{{ message.level_tag|default:'info' }} alert alert-dismissible fade show"
+         role="{% if message.level_tag == 'error' or message.level_tag == 'warning' %}alert{% else %}status{% endif %}">
+        <i class="site-message-icon fas {% if message.level_tag == 'success' %}fa-circle-check{% elif message.level_tag == 'error' %}fa-circle-exclamation{% elif message.level_tag == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}" aria-hidden="true"></i>
+        <p class="site-message-text">{{ message }}</p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss this message"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <main class="containerwide content-wrapper">
     {% block content%}{% endblock %}
 </main>

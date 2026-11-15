@@ -1577,6 +1577,86 @@ footer {
     text-decoration: underline;
 }
 
+/* BEGIN site-messages */
+/* ============================================================
+   MESSAGES (django.contrib.messages, rendered by base.html)
+   ============================================================ */
+
+/* One strip under the header, outside <main>, so the full-bleed pages (conduit
+   panel, results) keep their own negative margins against .content-wrapper. */
+.site-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 1rem;
+}
+
+.site-message {
+    --message-ink: var(--info);
+    --message-wash: var(--info-wash);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    max-width: 72rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0.7rem 0.85rem 0.7rem 1rem;
+    border: 1px solid var(--rule-soft);
+    border-left: 4px solid var(--message-ink);
+    border-radius: var(--radius-md);
+    background-color: var(--message-wash);
+    box-shadow: var(--shadow-1);
+    color: var(--ink);
+    font-size: 0.95rem;
+}
+
+.site-message--success { --message-ink: var(--ok);   --message-wash: var(--ok-wash); }
+.site-message--warning { --message-ink: var(--warn); --message-wash: var(--warn-wash); }
+.site-message--error   { --message-ink: var(--bad);  --message-wash: var(--bad-wash); }
+
+.site-message-icon {
+    flex: none;
+    margin-top: 0.2rem;
+    color: var(--message-ink);
+}
+
+.site-message-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Bootstrap positions the close button absolutely inside .alert-dismissible; in a
+   flex row it is simply the last item, and the padding Bootstrap reserves for it
+   is not needed. */
+.site-message.alert-dismissible {
+    padding-right: 0.5rem;
+}
+
+.site-message .btn-close {
+    position: static;
+    flex: none;
+    padding: 0.6rem;
+    margin: -0.25rem 0 -0.25rem auto;
+    opacity: 0.6;
+}
+
+.site-message .btn-close:hover {
+    opacity: 1;
+}
+
+.site-message .btn-close:focus {
+    box-shadow: none;
+}
+
+.site-message .btn-close:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+    opacity: 1;
+}
+/* END site-messages */
+
 /* ============================================================
    BACK TO TOP
    ============================================================ */
