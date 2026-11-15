@@ -438,9 +438,21 @@ a {
     padding-right: 1.5rem;
 }
 
+:root {
+    /* Side gutter of every page: header, content and footer share it. */
+    --page-gutter: 2rem;
+}
+
+/* 16 px on phones, the same as the conduit panel's own padding. */
+@media (max-width: 575.98px) {
+    :root {
+        --page-gutter: 1rem;
+    }
+}
+
 .containerwide {
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-left: var(--page-gutter);
+    padding-right: var(--page-gutter);
 }
 
 .alert {
@@ -1748,7 +1760,9 @@ footer {
 .back-to-top {
     position: fixed;
     right: 1.5rem;
-    bottom: 1.5rem;
+    /* main.js sets the lift to the height of the footer showing in the viewport, so
+       the button stops above the footer instead of covering its links. */
+    bottom: calc(1.5rem + var(--back-to-top-lift, 0px));
     z-index: var(--z-fab);
     width: 44px;
     height: 44px;
@@ -3906,6 +3920,29 @@ tr.selected:hover td:first-child {
     }
 }
 /* END conduit-panel */
+
+/* BEGIN page-gutter */
+/* On phones the page gutter (--page-gutter) is the only side margin: the pages'
+   own inner padding goes, so content starts 16 px from the edge on every page. Placed
+   after the conduit-panel block because its full-bleed margins must follow the
+   gutter, and source order decides between rules of equal weight. */
+@media (max-width: 575.98px) {
+    .index-page {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .history-page.container-fluid {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .conduit-page {
+        margin-left: calc(-1 * var(--page-gutter));
+        margin-right: calc(-1 * var(--page-gutter));
+    }
+}
+/* END page-gutter */
 
 /* ============================================================
    PREFERS-REDUCED-MOTION

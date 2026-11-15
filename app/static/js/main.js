@@ -16,30 +16,54 @@ const initBackToTop = function() {
     }
 
     const SHOW_AFTER_PX = 600;
+    const GAP_PX = 16;
+    const footer = document.querySelector('.site-footer');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // Below 768 px the text column is the whole width, so a fixed button always covers
+    // some text: there it appears only while the reader scrolls up, i.e. heads back.
+    const narrow = window.matchMedia('(max-width: 767.98px)');
     let pending = false;
+    let lastY = window.scrollY;
 
     const syncVisibility = function() {
         pending = false;
-        button.classList.toggle('is-visible', window.scrollY > SHOW_AFTER_PX);
+        const y = window.scrollY;
+        const scrollingUp = y < lastY;
+        lastY = y;
+        const show = y > SHOW_AFTER_PX && (!narrow.matches || scrollingUp);
+        button.classList.toggle('is-visible', show);
+
+        // Stop above the footer instead of covering its links.
+        let lift = 0;
+        if (footer) {
+            const overlap = window.innerHeight - footer.getBoundingClientRect().top;
+            if (overlap > 0) lift = overlap;
+        }
+        button.style.setProperty('--back-to-top-lift', lift + 'px');
+        button.style.setProperty('--back-to-top-gap', GAP_PX + 'px');
     };
 
     // The scroll event fires far more often than the class can meaningfully change,
     // so the read of scrollY is deferred to one animation frame per burst.
-    window.addEventListener('scroll', function() {
+    const schedule = function() {
         if (pending) {
             return;
         }
         pending = true;
         window.requestAnimationFrame(syncVisibility);
-    }, { passive: true });
+    };
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
 
     button.addEventListener('click', function() {
         window.scrollTo({ top: 0, behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+        // Focus follows the scroll: the button is about to disappear.
+        const main = document.getElementById('main-content');
+        if (main) main.focus({ preventScroll: true });
     });
 
     syncVisibility();
-}
+};
 
 /**
  * File controls built as .file-input-wrapper[data-file-input]: a visually hidden

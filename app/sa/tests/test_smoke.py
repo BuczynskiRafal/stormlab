@@ -184,6 +184,32 @@ class MessagesAreRenderedTests(TestCase):
         self.assertNotContains(response, "site-messages")
 
 
+class PhoneLayoutContractTests(TestCase):
+    """One 16 px gutter on phones; the back-to-top button stays clear of the footer."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from pathlib import Path
+
+        static = Path(__file__).resolve().parents[2] / "static"
+        cls.css = (static / "css" / "app.css").read_text(encoding="utf-8")
+        cls.js = (static / "js" / "main.js").read_text(encoding="utf-8")
+
+    def test_page_gutter_drops_to_16px_below_576px(self):
+        self.assertIn("padding-left: var(--page-gutter);", self.css)
+        self.assertRegex(self.css, r"@media \(max-width: 575\.98px\) \{\s*:root \{\s*--page-gutter: 1rem;")
+
+    def test_full_bleed_conduit_panel_follows_the_gutter(self):
+        block = self.css[self.css.index("/* BEGIN page-gutter */") : self.css.index("/* END page-gutter */")]
+        self.assertIn("margin-left: calc(-1 * var(--page-gutter));", block)
+        self.assertGreater(self.css.index("/* BEGIN page-gutter */"), self.css.index("/* END conduit-panel */"))
+
+    def test_back_to_top_is_lifted_above_the_footer_and_hidden_while_reading_on_phones(self):
+        self.assertIn("bottom: calc(1.5rem + var(--back-to-top-lift, 0px));", self.css)
+        self.assertIn("window.innerHeight - footer.getBoundingClientRect().top", self.js)
+        self.assertIn("(!narrow.matches || scrollingUp)", self.js)
+
+
 class StylesheetContractTests(TestCase):
     """base.html must serve exactly one stylesheet and no unused font family."""
 
