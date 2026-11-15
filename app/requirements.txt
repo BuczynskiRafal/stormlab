@@ -2,12 +2,15 @@ crispy-bootstrap4==2022.1
 Django~=5.2.0
 django-crispy-forms==2.0
 gunicorn~=27.0
+# networkx: required by swmmio, whose utilities import it; never imported directly; held at the version the analysis is tested with.
 networkx==2.8.8
 numpy~=1.26.0
 pandas~=2.1.0
+# Pillow: Django's ImageField needs it to check an uploaded avatar.
 Pillow~=13.0
 pyswmm~=2.1.0
 python-dotenv~=1.0.1
+# PyYAML: stormlab/config.py reads the design constants from stormlab/config.yaml.
 PyYAML~=6.0
 scipy~=1.11.0
 swmm-toolkit==0.16.2
