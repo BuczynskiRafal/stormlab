@@ -192,11 +192,11 @@ class HydraulicCalculationsService:
             ValueError: If slope is too small or exceeds maximum allowed.
         """
         if not validate_max_slope(slope, diameter):
-            # raise ValueError("Slope exceeds maximum allowed value")
             logger.warning("Slope exceeds maximum allowed value")
         if not validate_min_slope(slope, filling, diameter):
-            # raise ValueError("Slope is too small")
-            logger.warning("Slope is too small")
+            # DEBUG, not WARNING: the search for a minimum diameter passes through this
+            # for conduit after conduit, and calc_velocity raises for it a moment later.
+            logger.debug("Slope is too small")
 
         area = HydraulicCalculationsService.calc_area(filling, diameter)
         velocity = HydraulicCalculationsService.calc_velocity(filling, diameter, slope)

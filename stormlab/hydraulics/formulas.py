@@ -192,13 +192,15 @@ def calc_flow(
 
     Raises:
         ValueError: propagated from :func:`calc_velocity` when the slope is out
-            of range. The warnings logged just above are historical: the same
-            conditions raise a moment later inside :func:`calc_velocity`.
+            of range. The messages logged just above are historical: the same
+            conditions raise a moment later inside :func:`calc_velocity`. The
+            small-slope one is at DEBUG, because the search for a minimum diameter
+            passes through it for conduit after conduit.
     """
     if not validate_max_slope(slope, diameter):
         logger.warning(SLOPE_TOO_LARGE_MESSAGE)
     if not validate_min_slope(slope, filling, diameter, rule=min_slope_rule, theta=theta, g=g):
-        logger.warning(SLOPE_TOO_SMALL_MESSAGE)
+        logger.debug(SLOPE_TOO_SMALL_MESSAGE)
 
     area = calc_area(filling, diameter, max_filling_ratio=max_filling_ratio)
     velocity = calc_velocity(
