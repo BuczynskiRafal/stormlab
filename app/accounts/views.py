@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, update_session_auth_hash
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import Http404
@@ -23,6 +24,29 @@ def register(request):
     else:
         form = CustomUserCreationForm()
     return render(request, "registration/register.html", {"form": form})
+
+
+class LogoutView(auth_views.LogoutView):
+    """Log out on POST; answer a GET with a confirmation page instead of a blank 405.
+
+    Django's view accepts only POST, so a typed or bookmarked ``/accounts/logout/``
+    showed an empty "Method Not Allowed" page. Logging out stays a POST (a GET must not
+    change state), but the GET now offers the button, or sends a visitor who is not
+    logged in to the home page.
+    """
+
+    http_method_names = ["get", "post", "options"]
+    next_page = "/"
+
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect(self.next_page)
+        return render(request, "registration/logout.html")
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        messages.info(request, "You have logged out.")
+        return response
 
 
 @login_required(login_url="/accounts/login/")

@@ -9,10 +9,31 @@ from __future__ import annotations
 
 import re
 
-from django.test import TestCase
+from django.core.exceptions import PermissionDenied, SuspiciousOperation
+from django.template import loader
+from django.test import TestCase, override_settings
+from django.urls import path as url_path
 from django.urls import reverse
 
+from storm_analysis.urls import urlpatterns as site_urlpatterns
+
 from .factories import VALIDATION_FLAGS, make_conduit, make_session, make_user
+
+
+def _raise(exception):
+    def view(request):
+        raise exception
+
+    return view
+
+
+# ROOT_URLCONF of ErrorPageTests: the site plus three routes that fail on purpose.
+urlpatterns = [
+    url_path("test-errors/400/", _raise(SuspiciousOperation("bad"))),
+    url_path("test-errors/403/", _raise(PermissionDenied())),
+    url_path("test-errors/500/", _raise(RuntimeError("boom"))),
+    *site_urlpatterns,
+]
 
 
 class PublicPageTests(TestCase):
@@ -310,3 +331,47 @@ class AuthenticatedPageTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "2 of 7 checks failed")
+
+
+@override_settings(DEBUG=False, ROOT_URLCONF=__name__)
+class ErrorPageTests(TestCase):
+    """With DEBUG off, errors answer with pages in the site's style instead of Django's plain text."""
+
+    def setUp(self):
+        self.client.raise_request_exception = False
+
+    def assert_error_page(self, response, status, heading):
+        self.assertEqual(response.status_code, status)
+        self.assertContains(response, f'<p class="error-code">Error {status}</p>', status_code=status)
+        self.assertContains(response, f'<h1 class="error-title">{heading}</h1>', status_code=status)
+        self.assertContains(response, 'href="/">Home</a>', status_code=status)
+        self.assertContains(response, 'href="/analysis/">Analysis</a>', status_code=status)
+
+    def test_unknown_address_gets_the_404_page_with_the_site_header(self):
+        response = self.client.get("/no-such-page/")
+
+        self.assert_error_page(response, 404, "Page not found")
+        self.assertContains(response, "<title>Page not found · StormLab</title>", status_code=404)
+        self.assertContains(response, 'class="site-header"', status_code=404)
+
+    def test_permission_denied_gets_the_403_page(self):
+        self.assert_error_page(self.client.get("/test-errors/403/"), 403, "Access denied")
+
+    def test_suspicious_request_gets_the_400_page(self):
+        self.assert_error_page(self.client.get("/test-errors/400/"), 400, "Bad request")
+
+    def test_server_error_gets_the_500_page(self):
+        response = self.client.get("/test-errors/500/")
+
+        self.assert_error_page(response, 500, "Something went wrong")
+        self.assertContains(response, "<title>Server error · StormLab</title>", status_code=500)
+
+    def test_500_page_renders_without_a_request_or_context_processors(self):
+        """Django renders 500.html with an empty context; it must not depend on the user, the database or {% url %}."""
+        html = loader.get_template("500.html").render()
+
+        self.assertIn("Something went wrong", html)
+        self.assertIn("/static/css/app.css", html)
+        source = open(loader.get_template("500.html").origin.name, encoding="utf-8").read()
+        for dependency in ("{% extends", "{% url", "user.", "registration_open", "messages"):
+            self.assertNotIn(dependency, source.split("{% endcomment %}")[1], dependency)

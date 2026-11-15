@@ -97,6 +97,31 @@ class LogoutTests(TestCase):
         self.assertEqual(response["Location"], "/")
         self.assertNotIn("_auth_user_id", self.client.session)
 
+    def test_post_confirms_the_logout_on_the_next_page(self):
+        self.client.force_login(User.objects.create_user(email="bye2@example.com", password="avatar-pass-123"))
+
+        response = self.client.post(reverse("accounts:logout"), follow=True)
+
+        self.assertContains(response, "You have logged out.")
+        self.assertContains(response, 'role="status"')
+
+    def test_get_offers_the_logout_button_instead_of_a_blank_405(self):
+        user = User.objects.create_user(email="get-out@example.com", password="avatar-pass-123")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("accounts:logout"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<title>Log out · StormLab</title>")
+        self.assertContains(response, f'<form method="post" action="{reverse("accounts:logout")}">')
+        # A GET must not change state: the user is still logged in.
+        self.assertEqual(self.client.session["_auth_user_id"], str(user.pk))
+
+    def test_get_without_a_login_goes_to_the_home_page(self):
+        response = self.client.get(reverse("accounts:logout"))
+
+        self.assertRedirects(response, "/", fetch_redirect_response=False)
+
 
 class LoginPageTests(TestCase):
     """The login form is the 420 px card of Etap 7, not the bare crispy form."""

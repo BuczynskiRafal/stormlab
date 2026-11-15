@@ -1712,6 +1712,78 @@ footer {
 }
 /* END site-messages */
 
+/* BEGIN error-pages */
+/* ============================================================
+   ERROR PAGES (400, 403, 404, 500)
+   ============================================================ */
+
+.error-page {
+    display: flex;
+    justify-content: center;
+    padding: 3rem 0 4rem;
+}
+
+.error-card {
+    width: 100%;
+    max-width: 520px;
+    padding: 2rem;
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+}
+
+.error-code {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+.error-title {
+    margin: 0 0 0.6rem;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    text-align: left;
+    color: var(--ink);
+}
+
+.error-text {
+    margin: 0 0 1.5rem;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+.error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* 500.html loads no Bootstrap, so the buttons get their box from here. */
+.error-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    text-decoration: none;
+}
+
+@media (max-width: 575.98px) {
+    .error-page {
+        padding: 1rem 0 2rem;
+    }
+
+    .error-card {
+        padding: 1.5rem 1.25rem;
+    }
+}
+/* END error-pages */
+
 /* ============================================================
    BACK TO TOP
    ============================================================ */
