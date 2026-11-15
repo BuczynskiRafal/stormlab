@@ -21,7 +21,13 @@ from .core.inp_encoding import utf8_chunks
 from .forms import SWMMModelForm
 from .housekeeping import new_analysis_file, reap_stale_work, remove_analysis_files
 from .models import CalculationSession, ConduitData, NodeData, SubcatchmentData, SWMMModel
-from .services import AnalysisService, CalculationRetrievalService, ConduitPanelService, NavigationService
+from .services import (
+    AnalysisService,
+    CalculationRetrievalService,
+    ConduitPanelService,
+    NavigationService,
+    SessionDeletionService,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEST_FILE = str(REPO_ROOT / "examples" / "wroclaw_rakowiec.inp")
@@ -434,8 +440,8 @@ class DeleteSessionView(LoginRequiredMixin, SessionOwnerMixin, View):
         session_id = session.id
 
         try:
-            session.delete()
-            logger.info(f"Successfully deleted session {session_id}")
+            SessionDeletionService.delete(CalculationSession.objects.filter(pk=session_id))
+            logger.info("Deleted session %s", session_id)
             return JsonResponse({"success": True, "message": f"Session {session_id} deleted successfully."})
         except Exception:
             logger.exception("Deleting session %s failed", session_id)
@@ -459,13 +465,11 @@ class BulkDeleteSessionsView(LoginRequiredMixin, View):
                 return JsonResponse({"success": False, "message": "No sessions selected."}, status=400)
 
             sessions = CalculationSession.objects.filter(id__in=session_ids, user=request.user)
-            deleted_count = sessions.count()
-
-            if deleted_count == 0:
+            if not sessions.exists():
                 return JsonResponse({"success": False, "message": "No valid sessions found."}, status=404)
 
-            sessions.delete()
-            logger.info(f"Successfully bulk deleted {deleted_count} sessions for user {request.user.id}")
+            deleted_count = SessionDeletionService.delete(sessions)
+            logger.info("Bulk deleted %d sessions for user %s", deleted_count, request.user.id)
 
             return JsonResponse(
                 {"success": True, "message": f"Successfully deleted {deleted_count} session(s).", "deleted_count": deleted_count}

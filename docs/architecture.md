@@ -261,7 +261,7 @@ erDiagram
     }
 ```
 
-The user model is `accounts.User` (`app/accounts/models.py`), which signs in with the e-mail address. Every relation cascades on delete. `ConduitData`, `NodeData` and `SubcatchmentData` are unique per session and name. `ConduitData` and `NodeData` also carry the subcatchment and category (`subcatchment`, `sbc_category`) assigned to the element.
+The user model is `accounts.User` (`app/accounts/models.py`), which signs in with the e-mail address. Every relation cascades on delete. Deleting sessions from History (`SessionDeletionService`) also deletes each `SWMMModel` left without a session; migration 0012 removed the ones left behind earlier. `ConduitData`, `NodeData` and `SubcatchmentData` are unique per session and name. `ConduitData` and `NodeData` also carry the subcatchment and category (`subcatchment`, `sbc_category`) assigned to the element.
 
 **Stored:** per session, the hydraulic results and the seven flags of every conduit, the diameter and slope figures, the recommendation and its nine scores; the node and subcatchment tables; the frost zone; and the drawable geometry as JSON (`SessionGeometry.data`, produced by `extract_geometry` in `app/sa/core/geometry.py` from the `.inp` sections alone, with an automatic schematic layout when the file has no coordinates).
 

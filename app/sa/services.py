@@ -12,7 +12,7 @@ from typing import Any, Dict, Literal, Optional
 
 import pandas as pd
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
@@ -401,6 +401,23 @@ class CalculationPersistenceService:
             return
 
         logger.info(f"Saved network geometry for session {session.id}")
+
+
+class SessionDeletionService:
+    """Deleting sessions, and the uploaded-model rows nothing refers to any more."""
+
+    @staticmethod
+    def delete(sessions: QuerySet[CalculationSession]) -> int:
+        """Delete *sessions* with their results, then every ``SWMMModel`` left without a session.
+
+        Returns the number of sessions deleted. A model still used by another session stays.
+        """
+        with transaction.atomic():
+            model_ids = list(sessions.values_list("swmm_model_id", flat=True).distinct())
+            count = sessions.count()
+            sessions.delete()
+            SWMMModel.objects.filter(pk__in=model_ids, calculationsession__isnull=True).delete()
+        return count
 
 
 class CalculationRetrievalService:
