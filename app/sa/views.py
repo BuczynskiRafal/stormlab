@@ -455,15 +455,33 @@ class BulkDeleteSessionsView(LoginRequiredMixin, View):
     """AJAX endpoint for bulk deleting calculation sessions. Returns JSON response."""
 
     login_url = "/accounts/login/"
+    MAX_SESSIONS = 500
+    """More ids than History can select in one go (100 per page); a longer list is refused."""
+
+    @classmethod
+    def _session_ids(cls, body: bytes) -> list[int] | str:
+        """The ids of ``{"session_ids": [1, 2, ...]}``, or the reason the body is refused."""
+        try:
+            data = json.loads(body)
+        except (ValueError, UnicodeDecodeError):
+            return "Invalid request data."
+        if not isinstance(data, dict) or not isinstance(data.get("session_ids"), list):
+            return "Invalid request data."
+        ids = data["session_ids"]
+        if not ids:
+            return "No sessions selected."
+        if len(ids) > cls.MAX_SESSIONS:
+            return f"Select at most {cls.MAX_SESSIONS} sessions at a time."
+        # bool is an int in Python; true/false are not session ids.
+        if not all(isinstance(item, int) and not isinstance(item, bool) and item > 0 for item in ids):
+            return "Invalid request data."
+        return ids
 
     def post(self, request, *args, **kwargs):
+        session_ids = self._session_ids(request.body)
+        if isinstance(session_ids, str):
+            return JsonResponse({"success": False, "message": session_ids}, status=400)
         try:
-            data = json.loads(request.body)
-            session_ids = data.get("session_ids", [])
-
-            if not session_ids:
-                return JsonResponse({"success": False, "message": "No sessions selected."}, status=400)
-
             sessions = CalculationSession.objects.filter(id__in=session_ids, user=request.user)
             if not sessions.exists():
                 return JsonResponse({"success": False, "message": "No valid sessions found."}, status=404)
@@ -474,8 +492,6 @@ class BulkDeleteSessionsView(LoginRequiredMixin, View):
             return JsonResponse(
                 {"success": True, "message": f"Successfully deleted {deleted_count} session(s).", "deleted_count": deleted_count}
             )
-        except json.JSONDecodeError:
-            return JsonResponse({"success": False, "message": "Invalid request data."}, status=400)
         except Exception:
             logger.exception("Bulk deleting sessions failed")
             return JsonResponse(

@@ -66,3 +66,49 @@ class OrphanModelTests(TestCase):
 
         self.assertFalse(SWMMModel.objects.filter(pk__in=[orphan.pk, self.model.pk]).exists())
         self.assertTrue(SWMMModel.objects.filter(pk=used.pk).exists())
+
+
+class BulkDeleteValidationTests(TestCase):
+    def setUp(self) -> None:
+        self.user = make_user()
+        self.client.force_login(self.user)
+        self.session = make_session(self.user)
+
+    def _post(self, body: str | bytes):
+        return self.client.post(reverse("sa:bulk_delete_sessions"), body, content_type="application/json")
+
+    def test_malformed_bodies_are_refused_with_400_and_delete_nothing(self):
+        for body in (
+            "[1,2]",
+            '{"session_ids":"abc"}',
+            '["x"]',
+            "5",
+            "[{}]",
+            '{"session_ids":[{}]}',
+            '{"session_ids":["1"]}',
+            '{"session_ids":[0]}',
+            '{"session_ids":[-3]}',
+            '{"session_ids":[1.5]}',
+            '{"session_ids":[true]}',
+            '{"session_ids":null}',
+            "{}",
+            "not json",
+            bytes([0xFF, 0xFE]),
+        ):
+            with self.subTest(body=body):
+                response = self._post(body)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json(), {"success": False, "message": "Invalid request data."})
+        self.assertTrue(CalculationSession.objects.filter(pk=self.session.pk).exists())
+
+    def test_an_empty_or_too_long_list_is_refused_with_its_reason(self):
+        self.assertEqual(self._post('{"session_ids":[]}').json()["message"], "No sessions selected.")
+        response = self._post(json.dumps({"session_ids": list(range(1, 502))}))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["message"], "Select at most 500 sessions at a time.")
+
+    def test_a_valid_list_still_deletes_only_the_users_sessions(self):
+        response = self._post(json.dumps({"session_ids": [self.session.id, 999999]}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["deleted_count"], 1)
