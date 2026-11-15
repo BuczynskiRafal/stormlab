@@ -112,7 +112,7 @@ class AnalysisService:
                 success = CalculationPersistenceService.save_calculation_results(session, model)
                 return session, success
         except Exception as e:
-            logger.error(f"Analysis error for session {session.id}: {e}")
+            logger.exception("Analysis of session %s failed", session.id)
             session.status = "failed"
             session.error_message = str(e)
             session.save()
@@ -205,7 +205,7 @@ class CalculationPersistenceService:
                 return True
 
         except Exception as e:
-            logger.error(f"Error saving calculation results for session {session.id}: {str(e)}")
+            logger.exception("Saving the results of session %s failed", session.id)
             session.status = "failed"
             session.error_message = str(e)
             session.save()
@@ -349,15 +349,15 @@ class CalculationPersistenceService:
         """
         try:
             payload = extract_geometry(inp)
-        except Exception as e:
-            logger.error(f"Error extracting geometry for session {session.id}: {str(e)}")
+        except Exception:
+            logger.exception("Extracting the geometry of session %s failed", session.id)
             return
 
         try:
             with transaction.atomic():
                 SessionGeometry.objects.update_or_create(session=session, defaults={"data": payload})
-        except Exception as e:
-            logger.error(f"Error saving geometry for session {session.id}: {str(e)}")
+        except Exception:
+            logger.exception("Saving the geometry of session %s failed", session.id)
             return
 
         logger.info(f"Saved network geometry for session {session.id}")

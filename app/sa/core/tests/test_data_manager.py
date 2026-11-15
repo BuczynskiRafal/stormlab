@@ -215,11 +215,11 @@ class TestContextManager:
         assert result is False
 
     def test_exit_with_exception(self, data_manager: DataManager, caplog):
-        """Test __exit__ logs the exception and returns False."""
+        """__exit__ lets the exception propagate without logging it; the caller logs it once."""
         with caplog.at_level(logging.ERROR, logger="sa.core.data"):
             result = data_manager.__exit__(ValueError, ValueError("test error"), None)
         assert result is False
-        assert "Exception occurred: test error" in caplog.text
+        assert "test error" not in caplog.text
 
 
 class TestDelegationMethods:

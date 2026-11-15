@@ -167,8 +167,8 @@ class AnalysisView(LoginRequiredMixin, View):
                 temp_path=temp_path,
                 swmm_model=swmm_model,
             )
-        except Exception as e:
-            logger.error(f"Test file analysis error: {e}")
+        except Exception:
+            logger.exception("Analysis of the demo network failed")
             return self._render_form(request, error="The demo network could not be analysed.")
         finally:
             if temp_path:
@@ -441,8 +441,8 @@ class DeleteSessionView(LoginRequiredMixin, SessionOwnerMixin, View):
             session.delete()
             logger.info(f"Successfully deleted session {session_id}")
             return JsonResponse({"success": True, "message": f"Session {session_id} deleted successfully."})
-        except Exception as e:
-            logger.error(f"Error deleting session {session_id}: {e}")
+        except Exception:
+            logger.exception("Deleting session %s failed", session_id)
             return JsonResponse(
                 {"success": False, "message": "An error occurred while deleting the session."},
                 status=500,
@@ -476,8 +476,8 @@ class BulkDeleteSessionsView(LoginRequiredMixin, View):
             )
         except json.JSONDecodeError:
             return JsonResponse({"success": False, "message": "Invalid request data."}, status=400)
-        except Exception as e:
-            logger.error(f"Error bulk deleting sessions: {e}")
+        except Exception:
+            logger.exception("Bulk deleting sessions failed")
             return JsonResponse(
                 {"success": False, "message": "An error occurred while deleting sessions."},
                 status=500,
