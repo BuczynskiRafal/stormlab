@@ -1,12 +1,15 @@
 """Unit tests for SubcatchmentFeatureEngineeringService."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
 
 from sa.core.constants import SUBCATCHMENT_CATEGORIES
-from sa.core.subcatchments import SubcatchmentFeatureEngineeringService
+from sa.core.subcatchments import CATCHMENT_FEATURE_COLS, SubcatchmentFeatureEngineeringService
+
+CLASSIFIER_INPUTS = [*CATCHMENT_FEATURE_COLS, "Area"]
 
 
 class TestSubcatchmentFeatureEngineeringService:
@@ -309,6 +312,31 @@ class TestSubcatchmentsClassify:
         passed_features = fake_clf.predict.call_args[0][0]
         assert passed_features.loc["SC1", "TotalInfil"] == pytest.approx(5.0)
         assert passed_features.loc["SC2", "PeakRunoff"] == pytest.approx(1.0)
+
+    def test_model_without_a_tags_section_sends_every_subcatchment_to_the_classifier(self, tmp_path):
+        """swmmio reads a missing [TAGS] as an empty frame whose index is not text."""
+        import numpy as np
+        import swmmio
+        from unittest.mock import patch
+
+        source = (Path(__file__).resolve().parents[4] / "examples" / "demo_network_coordinates.inp").read_text()
+        inp = tmp_path / "untagged.inp"
+        inp.write_text(source.split("[TAGS]")[0] + "[MAP]" + source.split("[MAP]")[1])
+        model = MagicMock()
+        model.inp.tags = swmmio.Model(str(inp)).inp.tags
+
+        dfs = pd.DataFrame({column: [1.0, 2.0] for column in CLASSIFIER_INPUTS}, index=["S1", "S2"])
+        probs = np.zeros((2, 12), dtype=float)
+        probs[0, 1] = 0.9  # "forests"
+        probs[1, 6] = 0.9  # "rural"
+        fake_clf = MagicMock()
+        fake_clf.predict.return_value = probs
+
+        with patch("sa.core.predictor.get_classifier", return_value=fake_clf):
+            service = SubcatchmentFeatureEngineeringService(dfs, model)
+            service.subcatchments_classify(categories=True)
+
+        assert list(service.dfs["category"]) == ["forests", "rural"]
 
     def test_partial_subcatchment_tags_fills_uncategorized_with_ml_fallback(self):
         """When [TAGS] covers only SC1 and all 12 feature columns + Area are present, SC2 is classified via ML."""

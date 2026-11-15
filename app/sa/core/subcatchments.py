@@ -81,8 +81,11 @@ class SubcatchmentFeatureEngineeringService:
         if self.dfs is None or len(self.dfs) == 0:
             return
 
-        if hasattr(self.model.inp, "tags") and self.model.inp.tags is not None:
-            subcatch_tags = self.model.inp.tags[self.model.inp.tags.index.str.startswith("Subcatch")]
+        tags = getattr(self.model.inp, "tags", None)
+        # Without a [TAGS] section swmmio returns an empty frame whose index is not
+        # text, so it counts as no section rather than going through ``.str``.
+        if tags is not None and len(tags) > 0:
+            subcatch_tags = tags[tags.index.astype(str).str.startswith("Subcatch")]
 
             if not subcatch_tags.empty:
                 category_map = dict(zip(subcatch_tags["Name"], subcatch_tags["Tag"]))
