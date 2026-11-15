@@ -137,8 +137,10 @@ body {
     padding-bottom: 1.75rem;
 }
 
-/* Results V2 Page Layout: full viewport fit with balanced vertical spacing */
-@media (min-height: 520px) {
+/* Results V2 Page Layout: full viewport fit with balanced vertical spacing.  Below
+   576 px wide the page scrolls instead and results-v2.css gives the table and the map
+   heights of their own. */
+@media (min-height: 520px) and (min-width: 576px) {
     body:has(#storm-results-v2),
     body.results-v2-page {
         height: 100vh;
@@ -161,6 +163,15 @@ body {
         flex: 1;
         min-height: 0;
         padding: 0 !important;
+    }
+}
+
+/* On a phone the results page scrolls; it keeps a tighter top and bottom gap. */
+@media (max-width: 575.98px) {
+    body:has(#storm-results-v2) .content-wrapper,
+    body.results-v2-page .content-wrapper {
+        padding-top: 12px;
+        padding-bottom: 16px;
     }
 }
 .profile-image {

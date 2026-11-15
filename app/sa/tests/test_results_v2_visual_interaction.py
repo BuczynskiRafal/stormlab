@@ -190,6 +190,16 @@ class ResultsV2ExistingPagesZeroRegressionTests(TestCase):
 class ResultsV2CSSIsolationTests(TestCase):
     """Verify 100% of CSS rules in results-v2.css are strictly scoped under #storm-results-v2."""
 
+    def test_the_viewport_fit_of_app_css_leaves_phones_to_scroll(self):
+        """app.css fits the results page to the viewport from 576 px wide only, so
+        results-v2.css needs no rule outside #storm-results-v2 to undo it on a phone."""
+        static = Path(__file__).resolve().parent.parent.parent / "static" / "css"
+        app_css = (static / "app.css").read_text(encoding="utf-8")
+        fit = app_css.index("@media (min-height: 520px) and (min-width: 576px) {")
+        self.assertIn("body:has(#storm-results-v2),", app_css[fit : fit + 200])
+        self.assertNotIn("@media (min-height: 520px) {", app_css)
+        self.assertNotIn("body.results-v2-page", (static / "results-v2.css").read_text(encoding="utf-8"))
+
     def test_all_css_rules_scoped_under_root_id(self):
         """Every CSS rule selector must start with #storm-results-v2 to prevent Bootstrap collisions."""
         css_path = Path(__file__).resolve().parent.parent.parent / "static" / "css" / "results-v2.css"
@@ -228,11 +238,6 @@ class ResultsV2CSSIsolationTests(TestCase):
                 # Split multiple selectors separated by comma
                 for part in selector.split(","):
                     p = part.strip()
-                    # One documented exception (section 1c): the phone layout undoes the
-                    # viewport fit app.css puts on <body>, through the class
-                    # results-v2.js adds to the body of this page alone.
-                    if p.startswith("body.results-v2-page:has(#storm-results-v2)"):
-                        continue
                     if p and not p.startswith("#storm-results-v2"):
                         unscoped_selectors.append((line_idx, p))
 

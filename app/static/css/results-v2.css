@@ -83,7 +83,8 @@
    On a tablet or a desktop the workspace fills the viewport and the table scrolls
    inside it.  On a phone (below 576 px) that left no room at all - the table frame
    measured 0 px at 390x844 and the page could not scroll - so there the page scrolls
-   and the table and the map get heights of their own (section 1c).
+   and the table and the map get heights of their own (the viewport fit in app.css
+   starts at 576 px).
    ============================================================================== */
 @media (min-height: 520px) and (min-width: 576px) {
   #storm-results-v2 {
@@ -149,27 +150,6 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-  }
-}
-
-/* ==============================================================================
-   1c. PHONE LAYOUT: THE PAGE SCROLLS
-   app.css fits the body to the viewport on every screen at least 520 px tall
-   (body:has(#storm-results-v2) { height: 100vh; overflow-y: hidden }).  Below 576 px
-   wide that is undone here, with a selector one class more specific than the one in
-   app.css, and it is the only rule of this file outside #storm-results-v2: it names
-   the class results-v2.js puts on <body> of this page alone.
-   ============================================================================== */
-@media (max-width: 575.98px) {
-  body.results-v2-page:has(#storm-results-v2) {
-    height: auto;
-    overflow-y: auto;
-  }
-
-  body.results-v2-page:has(#storm-results-v2) .content-wrapper {
-    display: block;
-    padding-top: 12px;
-    padding-bottom: 16px;
   }
 }
 
