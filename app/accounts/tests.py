@@ -197,3 +197,83 @@ class AvatarChangeFormTests(TestCase):
         form = UserAvatarForm(data={}, files={"avatar": oversized}, instance=user)
         self.assertFalse(form.is_valid())
         self.assertIn("avatar", form.errors)
+
+
+class AuthFieldTests(TestCase):
+    """Login and sign-up fields tell browsers and password managers what they hold."""
+
+    def test_login_email_field_is_an_email_input_with_autocomplete(self):
+        response = self.client.get(reverse("accounts:login"))
+
+        self.assertContains(response, 'type="email" name="username"')
+        self.assertContains(response, 'autocomplete="username"')
+        self.assertContains(response, 'autocomplete="current-password"')
+        self.assertEqual(response.context["form"].fields["username"].label, "E-mail")
+
+    def test_register_fields_carry_autocomplete_hints(self):
+        response = self.client.get(reverse("accounts:register"))
+
+        self.assertContains(response, 'type="email" name="email"')
+        self.assertContains(response, 'autocomplete="email"')
+        self.assertContains(response, 'autocomplete="new-password"', count=2)
+
+    def test_duplicate_email_is_explained_in_a_sentence(self):
+        User.objects.create_user(email="taken@example.com", password="right-pass-123")
+
+        response = self.client.post(
+            reverse("accounts:register"),
+            {"email": "taken@example.com", "password1": "a-Long-pass-9271", "password2": "a-Long-pass-9271"},
+        )
+
+        self.assertContains(
+            response, "An account with this e-mail address already exists. Log in instead, or use another address."
+        )
+        self.assertNotContains(response, "User with this Email already exists.")
+
+    def test_wrong_password_message_names_the_fields_plainly(self):
+        User.objects.create_user(email="member2@example.com", password="right-pass-123")
+
+        response = self.client.post(reverse("accounts:login"), {"username": "member2@example.com", "password": "nope-123456"})
+
+        self.assertContains(response, "The e-mail address and password do not match an account.")
+
+    def test_sign_up_page_does_not_promise_to_keep_uploaded_models(self):
+        response = self.client.get(reverse("accounts:register"))
+
+        self.assertNotContains(response, "keeps every model you upload")
+        self.assertContains(response, "The model files you upload are not kept")
+        self.assertContains(response, ">Sign up</button>")
+
+    def test_sign_up_greets_the_new_account(self):
+        response = self.client.post(
+            reverse("accounts:register"),
+            {"email": "fresh@example.com", "password1": "a-Long-pass-9271", "password2": "a-Long-pass-9271"},
+            follow=True,
+        )
+
+        self.assertContains(response, "Your account is ready.")
+
+
+class LoginReasonTests(TestCase):
+    """A visitor sent to the login page from a page behind it reads why."""
+
+    def lede(self, next_url=None):
+        query = {"next": next_url} if next_url else {}
+        return self.client.get(reverse("accounts:login"), query).context["login_lede"]
+
+    def test_analysis_link_explains_that_an_analysis_needs_a_login(self):
+        self.assertEqual(self.lede(reverse("sa:analysis")), "Log in to run an analysis.")
+
+    def test_history_link_explains_that_history_needs_a_login(self):
+        self.assertEqual(self.lede(reverse("sa:history")), "Log in to see the analyses you have run.")
+
+    def test_following_the_nav_link_lands_on_the_explained_login_page(self):
+        response = self.client.get(reverse("sa:history"), follow=True)
+
+        self.assertContains(response, "Log in to see the analyses you have run.")
+
+    def test_plain_or_foreign_next_falls_back_to_the_general_lede(self):
+        general = "Log in to run an analysis and to return to its results later."
+        self.assertEqual(self.lede(), general)
+        self.assertEqual(self.lede("https://evil.example.com/history/"), general)
+        self.assertEqual(self.lede("/no-such-page/"), general)

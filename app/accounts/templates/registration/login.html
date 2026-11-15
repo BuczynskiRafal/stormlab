@@ -8,7 +8,8 @@
         <div class="auth-card">
             <p class="auth-kicker">StormLab</p>
             <h1 class="auth-title">Log in</h1>
-            <p class="auth-lede">Sign in to run an analysis and to reach your saved sessions.</p>
+            {# LoginView sets the lede from ?next=: a visitor sent here from Analysis or History reads why. #}
+            <p class="auth-lede">{{ login_lede }}</p>
 
             {# The form posts back to the current URL, so an incoming ?next= survives the round trip. #}
             <form method="post">
@@ -18,7 +19,7 @@
                 <button type="submit" class="btn btn-primary auth-submit">Log in</button>
             </form>
 
-            {% if registration_open %}<p class="auth-alt">No account yet? <a href="{% url 'accounts:register' %}">Create account</a></p>{% endif %}
+            {% if registration_open %}<p class="auth-alt">No account yet? <a href="{% url 'accounts:register' %}">Sign up</a></p>{% endif %}
         </div>
     </div>
 {% endblock %}

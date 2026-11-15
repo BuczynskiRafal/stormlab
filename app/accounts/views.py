@@ -6,8 +6,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.urls import Resolver404, resolve
 
-from accounts.forms import CustomUserCreationForm, UserAvatarForm, UserForm, UserProfileForm
+from accounts.forms import CustomUserCreationForm, EmailAuthenticationForm, UserAvatarForm, UserForm, UserProfileForm
 
 User = get_user_model()
 
@@ -20,10 +21,44 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
+            messages.success(request, "Your account is ready. Run your first analysis from the Analysis page.")
             return redirect("/")
     else:
         form = CustomUserCreationForm()
     return render(request, "registration/register.html", {"form": form})
+
+
+# Why the login page was shown, by the URL name of the page that sent the visitor here.
+LOGIN_REASONS = {
+    "analysis": "Log in to run an analysis.",
+    "analysis_results": "Log in to open the results of your analysis.",
+    "conduit_detail": "Log in to open the results of your analysis.",
+    "history": "Log in to see the analyses you have run.",
+}
+DEFAULT_LOGIN_LEDE = "Log in to run an analysis and to return to its results later."
+
+
+class LoginView(auth_views.LoginView):
+    """The login card; when ``next`` names a page behind the login, the lede says why the visitor is here."""
+
+    template_name = "registration/login.html"
+    authentication_form = EmailAuthenticationForm
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["login_lede"] = self.login_reason() or DEFAULT_LOGIN_LEDE
+        return context
+
+    def login_reason(self) -> str | None:
+        # get_redirect_url() returns "" for an unsafe or missing ``next``.
+        target = self.get_redirect_url()
+        if not target:
+            return None
+        try:
+            match = resolve(target.split("?", 1)[0])
+        except Resolver404:
+            return None
+        return LOGIN_REASONS.get(match.url_name) if match.namespace == "sa" else None
 
 
 class LogoutView(auth_views.LogoutView):
