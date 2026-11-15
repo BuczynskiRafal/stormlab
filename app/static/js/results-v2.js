@@ -855,7 +855,7 @@
       const summaryEl = $('#r-filter-summary');
       if (summaryEl) {
         summaryEl.textContent = activeFilters()
-          ? `Filtered results · ${filtered.length} matches`
+          ? `Filtered results · ${filtered.length} ${filtered.length === 1 ? 'match' : 'matches'}`
           : '';
       }
 

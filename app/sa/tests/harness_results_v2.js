@@ -1252,6 +1252,7 @@ function runEmpiricalTests() {
   filterSelect.value = 'diameter_increase';
   filterSelect.dispatchEvent({ type: 'change', target: filterSelect });
   assert.strictEqual($('#r-row-count').textContent.trim(), '1 of 5 conduits', 'Filtering by diameter_increase matches C2');
+  assert.strictEqual($('#r-filter-summary').textContent, 'Filtered results · 1 match', 'one match, singular');
 
   // Checkbox: Failed checks only
   filterSelect.value = 'all';
@@ -1260,6 +1261,7 @@ function runEmpiricalTests() {
   failedCheckbox.dispatchEvent({ type: 'change', target: failedCheckbox });
   // C1 has 7/7, C2 has 3/7, C3 has 6/7, C4 has 6/7, C5 has 7/7 -> failed checks: C2, C3, C4 (3 conduits)
   assert.strictEqual($('#r-row-count').textContent.trim(), '3 of 5 conduits', 'Failed checks only filter matches 3 conduits');
+  assert.strictEqual($('#r-filter-summary').textContent, 'Filtered results · 3 matches');
 
   // Clear all filters
   $('#r-clear-filters').click();
