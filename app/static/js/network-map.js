@@ -1951,6 +1951,11 @@
     });
 
     let legendButtons = [];
+    // Read from the same flag markFlooded() paints by, on the nodes the drawing has.
+    const hasFloodedNode = (Array.isArray(data.nodes) ? data.nodes : []).some(node => {
+      const row = rowFor('node', String(node.n));
+      return Boolean(row && row.is_flooded === true);
+    });
 
     /** The legend of the current mode, rebuilt from scratch on every change of mode. */
     function buildLegend() {
@@ -1977,6 +1982,20 @@
         legend.appendChild(item);
         return { key: entry[0], el: button };
       });
+      // Flooding is drawn in every mode, so its key is in every legend - and it is a key,
+      // not a toggle: it stands for a mark on the node, not for a colour class.
+      if (hasFloodedNode) {
+        const key = document.createElement('li');
+        key.className = 'nm-legend-key';
+        const swatch = document.createElement('span');
+        swatch.className = 'nm-swatch nm-swatch-flooded';
+        swatch.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        label.textContent = 'Flooded node';
+        key.appendChild(swatch);
+        key.appendChild(label);
+        legend.appendChild(key);
+      }
     }
 
     /**

@@ -2670,3 +2670,53 @@ class ResultsV2NetworkMapContrastTests(TestCase):
             "the swatch is what says the category is off",
         )
         self.assertRegex(css, r"#storm-results-v2 \.nm-legend-off \.nm-swatch \{[^}]*box-shadow:\s*inset")
+
+
+class ResultsV2MapLegendTests(TestCase):
+    """Every legend entry is visible, and flooded nodes have a key of their own."""
+
+    @staticmethod
+    def _asset(folder: str, name: str) -> str:
+        static = Path(__file__).resolve().parent.parent.parent / "static"
+        return re.sub(r"/\*.*?\*/", "", (static / folder / name).read_text(encoding="utf-8"), flags=re.DOTALL)
+
+    def test_the_legend_wraps_and_is_never_capped(self):
+        # A cap with overflow hid six of ten entries on a phone, behind a scrollbar a
+        # touch screen does not draw.
+        css = self._asset("css", "network-map.css")
+        rule = re.search(r"#storm-results-v2 \.nm-legend \{([^}]*)\}", css)
+        self.assertIsNotNone(rule)
+        self.assertIn("flex-wrap: wrap", rule.group(1))
+        self.assertNotIn("max-height", rule.group(1))
+        self.assertNotIn("overflow", rule.group(1))
+
+    def test_flooded_nodes_have_a_legend_key_in_every_mode(self):
+        code = self._asset("js", "network-map.js")
+        build = code[code.index("function buildLegend()") :]
+        build = build[: build.index("function updateLegendState()")]
+        # The key is added after the entries of whichever mode is on, not inside one mode.
+        self.assertIn("if (hasFloodedNode)", build)
+        self.assertIn("'Flooded node'", build)
+        self.assertIn("nm-swatch nm-swatch-flooded", build)
+        self.assertIn("row.is_flooded === true", code[code.index("const hasFloodedNode") :][:300])
+
+    def test_a_flooded_node_is_told_apart_by_its_ring_not_only_its_hue(self):
+        css = self._asset("css", "network-map.css")
+        node = re.search(r"#storm-results-v2 \.nm-node\.nm-flooded \{([^}]*)\}", css).group(1)
+        # A filled disc with a dark ring: pipes carry no outline, so a red pipe (pump
+        # station, 0 / 7 checks, a full pipe) cannot be mistaken for it.
+        self.assertIn("fill: var(--r-red)", node)
+        self.assertIn("stroke: var(--r-ink)", node)
+        # The label placement counts on a 2 px stroke for a flooded node.
+        self.assertIn("stroke-width: 2", node)
+        swatch = re.search(r"\.nm-swatch\.nm-swatch-flooded \{([^}]*)\}", css).group(1)
+        self.assertIn("border-radius: 50%", swatch)
+        self.assertIn("var(--r-ink)", swatch)
+
+    def test_the_phone_canvas_takes_more_than_half_the_screen(self):
+        css = self._asset("css", "network-map.css")
+        block = css[css.index("@media (max-width: 575.98px)") :]
+        canvas = re.search(r"\.nm-canvas \{([^}]*)\}", block).group(1)
+        self.assertIn("height: 62svh", canvas)
+        self.assertIn("min-height: 300px", canvas)
+        self.assertRegex(block, r"\.nm-ctrls \{[^}]*bottom: 10px")

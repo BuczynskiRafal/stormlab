@@ -73,7 +73,7 @@
    on specificity (1,2,0) and stands after them, so it wins over the symbol's own
    colours - and *before* .nm-node.nm-sel, which ties with it in turn and has to win,
    or a selected flooded node would show no selection at all. */
-#storm-results-v2 .nm-node.nm-flooded { fill: var(--r-redbg); stroke: var(--r-red); stroke-width: 2; }
+#storm-results-v2 .nm-node.nm-flooded { fill: var(--r-red); stroke: var(--r-ink); stroke-width: 2; }
 
 /* No side padding: the side inset is the panel's now (results-v2.css, section 6) and
    a second one here would simply add to it. */
@@ -297,17 +297,20 @@
 #storm-results-v2 .nm-mode:focus-visible { outline: 2px solid var(--r-blue); outline-offset: 1px; }
 #storm-results-v2 .nm-mode-on { border-color: var(--r-blue); background: var(--r-soft); color: var(--r-blue); }
 
-/* The legend wraps, but it never takes the drawing's room: past two rows it scrolls
-   inside itself.  On a phone the ten entries of the recommendation mode wrap into five
-   rows and, uncapped, they left the canvas with half the height it has without them -
-   which the browser gate measures as symbols that no longer reach their ceiling deep
-   into the zoom.  A cap plus overflow does on a narrow viewport what a media query
-   would, and keeps the stylesheet flat. */
-#storm-results-v2 .nm-legend { display: flex; flex-wrap: wrap; gap: 2px 10px; max-height: 44px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+/* The legend wraps and shows every entry.  It used to be capped at two rows and to
+   scroll inside itself, which on a phone hid six of the ten entries of the
+   recommendation mode behind a scrollbar a touch screen does not draw.  On a phone the
+   page now scrolls and the canvas has a height of its own (results-v2.css, section 1c,
+   and the narrow block at the end of this file), so the rows cost the drawing nothing. */
+#storm-results-v2 .nm-legend { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; padding: 0; list-style: none; }
 #storm-results-v2 .nm-legend-item { display: flex; align-items: center; gap: 5px; padding: 2px 4px; border: 0; border-radius: 6px; background: none; color: var(--r-ink); font-size: 12px; cursor: pointer; }
 #storm-results-v2 .nm-legend-item:hover { background: var(--r-soft); }
 #storm-results-v2 .nm-legend-item:focus-visible { outline: 2px solid var(--r-blue); outline-offset: 1px; }
 #storm-results-v2 .nm-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--nm-color, var(--r-muted)); }
+/* The key of a flooded node: not a toggle, and drawn as the node is - a round symbol
+   with its ring - so that it does not read as one more pipe colour. */
+#storm-results-v2 .nm-legend-key { display: flex; align-items: center; gap: 5px; padding: 2px 4px; color: var(--r-ink); font-size: 12px; }
+#storm-results-v2 .nm-swatch.nm-swatch-flooded { width: 11px; height: 11px; border-radius: 50%; background: var(--r-red); box-shadow: 0 0 0 1.5px var(--r-ink); }
 
 /* An entry of a faded category is greyed and stays fully clickable: it is the control
    that brings the category back, so pointer-events must not be taken from it.
@@ -423,4 +426,16 @@
      canvas (181 px of card against 180 px of canvas) and a cap that only applied below
      520 px left that one uncapped.  Nothing about this viewport is special enough for
      a rule of its own any more. */
+}
+
+/* Phones: the page scrolls (results-v2.css, section 1c), so the canvas no longer has to
+   shrink into what is left of a fitted workspace - it takes 62 % of the screen, never
+   less than 300 px (196 px at 390x844 before).  The view controls sit in the
+   bottom-right corner, within reach of the thumb that holds the phone, and grow to a
+   40 px target. */
+@media (max-width: 575.98px) {
+  #storm-results-v2 .nm-canvas { height: 62vh; height: 62svh; min-height: 300px; flex: none; }
+  #storm-results-v2 .nm-ctrls { top: auto; bottom: 10px; grid-template-columns: repeat(2, 40px); }
+  #storm-results-v2 .nm-ctrl { width: 40px; height: 40px; font-size: 15px; }
+  #storm-results-v2 .nm-legend-item, #storm-results-v2 .nm-legend-key { padding: 4px; }
 }
