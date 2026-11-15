@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from .core.inp_encoding import utf8_chunks
-from .core.inp_options import read_flow_units
+from .core.inp_options import OptionValueError, read_flow_units, simulation_period
 from .core.inp_safety import find_unsafe_input
 from .core.inp_structure import listing, non_circular_conduits, survey_inp
 from .models import INP_EXTENSION_MESSAGE, SWMMModel, has_inp_extension
@@ -92,6 +92,7 @@ class SWMMModelForm(forms.ModelForm):
             survey = survey_inp(utf8_chunks(uploaded.chunks))
         finally:
             uploaded.seek(0)
+        self._check_cost(survey)
         other_shapes = non_circular_conduits(survey)
         if other_shapes:
             raise ValidationError(
@@ -100,3 +101,38 @@ class SWMMModelForm(forms.ModelForm):
                 params={"conduits": listing(other_shapes)},
             )
         return uploaded
+
+    @staticmethod
+    def _check_cost(survey) -> None:
+        """Refuse a model whose run would outgrow the request or the temporary disk."""
+        elements, limit = survey.elements, settings.MAX_MODEL_ELEMENTS
+        if elements > limit:
+            raise ValidationError(
+                "SWMM file has %(count)d elements (conduits, nodes and subcatchments); the limit is %(limit)d.",
+                code="too_many_elements",
+                params={"count": elements, "limit": limit},
+            )
+        try:
+            period = simulation_period(survey.options)
+        except OptionValueError as error:
+            raise ValidationError(
+                "StormLab cannot read %(option)s %(value)s in [OPTIONS]; write dates as MM/DD/YYYY, "
+                "times as HH:MM:SS and the report step as HH:MM:SS longer than zero.",
+                code="option_value",
+                params={"option": error.option, "value": error.value},
+            ) from None
+        hours, limit = period.duration_hours, settings.MAX_SIMULATION_HOURS
+        if hours > limit:
+            raise ValidationError(
+                "SWMM file simulates %(hours)s hours (START to END in [OPTIONS]); the limit is %(limit)d hours.",
+                code="simulation_too_long",
+                params={"hours": f"{hours:g}" if hours < 1e6 else f"{hours:.0f}", "limit": limit},
+            )
+        steps, limit = period.report_steps, settings.MAX_REPORT_STEPS
+        if steps > limit:
+            raise ValidationError(
+                "SWMM file asks for %(steps)d report steps (reporting period / REPORT_STEP); the limit is "
+                "%(limit)d. Lengthen REPORT_STEP or shorten the simulation.",
+                code="too_many_report_steps",
+                params={"steps": steps, "limit": limit},
+            )

@@ -198,6 +198,77 @@ class FormEncodingTests(SimpleTestCase):
         self.assertEqual([e.code for e in errors], ["unsafe_input"])
 
 
+class FormCostLimitTests(SimpleTestCase):
+    """A run is bounded by the request timeout and the temporary disk, so the form bounds what drives them."""
+
+    DEMO = (Path(settings.BASE_DIR).parent / "examples" / "demo_network_coordinates.inp").read_text(encoding="utf-8")
+
+    def _errors(self, text: str) -> list:
+        uploaded = SimpleUploadedFile("x.inp", text.encode("utf-8"), content_type="application/octet-stream")
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        return [] if form.is_valid() else form.errors.as_data().get("file", [])
+
+    def _option(self, name: str, value: str, text: str | None = None) -> str:
+        text = self.DEMO if text is None else text
+        lines = [f"{name:<21}{value}" if line.startswith(name + " ") else line for line in text.split("\n")]
+        return "\n".join(lines)
+
+    def test_the_audited_eight_day_one_second_run_is_refused_for_its_duration(self):
+        text = self._option("REPORT_STEP", "00:00:01", self._option("END_DATE", "06/25/2022"))
+
+        errors = self._errors(text)
+
+        self.assertEqual([e.code for e in errors], ["simulation_too_long"])
+        self.assertEqual(
+            errors[0].messages, ["SWMM file simulates 204 hours (START to END in [OPTIONS]); the limit is 72 hours."]
+        )
+
+    def test_an_end_date_hidden_in_a_second_options_section_counts(self):
+        errors = self._errors(self.DEMO + "\n[OPTIONS]\nEND_DATE 06/30/2022\n")
+        self.assertEqual([e.code for e in errors], ["simulation_too_long"])
+
+    def test_a_file_without_start_date_runs_from_2004_and_is_refused(self):
+        text = "\n".join(line for line in self.DEMO.split("\n") if not line.startswith(("START_DATE", "REPORT_START")))
+        self.assertEqual([e.code for e in self._errors(text)], ["simulation_too_long"])
+
+    def test_too_many_report_steps_are_refused_with_the_count_and_the_limit(self):
+        errors = self._errors(self._option("REPORT_STEP", "00:00:30"))
+
+        self.assertEqual([e.code for e in errors], ["too_many_report_steps"])
+        self.assertEqual(
+            errors[0].messages,
+            [
+                "SWMM file asks for 1440 report steps (reporting period / REPORT_STEP); the limit is 1000. "
+                "Lengthen REPORT_STEP or shorten the simulation."
+            ],
+        )
+
+    def test_an_unreadable_period_option_is_named(self):
+        errors = self._errors(self._option("END_DATE", "2022-06-18"))
+
+        self.assertEqual([e.code for e in errors], ["option_value"])
+        self.assertIn("END_DATE 2022-06-18", errors[0].messages[0])
+
+    @override_settings(MAX_MODEL_ELEMENTS=50)
+    def test_too_many_elements_are_refused_with_the_count_and_the_limit(self):
+        errors = self._errors(self.DEMO)
+
+        self.assertEqual([e.code for e in errors], ["too_many_elements"])
+        self.assertEqual(
+            errors[0].messages,
+            ["SWMM file has 51 elements (conduits, nodes and subcatchments); the limit is 50."],
+        )
+
+    @override_settings(MAX_SIMULATION_HOURS=12, MAX_REPORT_STEPS=48, MAX_MODEL_ELEMENTS=51)
+    def test_limits_follow_the_settings_and_a_file_at_the_limits_passes(self):
+        self.assertEqual(self._errors(self.DEMO), [])
+
+    def test_the_shipped_examples_pass(self):
+        for path in (Path(settings.BASE_DIR).parent / "examples").glob("*.inp"):
+            with self.subTest(path=path.name):
+                self.assertEqual(self._errors(path.read_text(encoding="utf-8")), [])
+
+
 class FormSizeLimitTests(SimpleTestCase):
     def _form(self, size: int):
         uploaded = SimpleUploadedFile("huge.inp", b"[OPTIONS]\nFLOW_UNITS CMS\n", content_type="application/octet-stream")
