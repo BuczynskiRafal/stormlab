@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% load sa_query %}
+{% load tz %}
 
 {% block title %}History{% endblock %}
 
 {% block content %}
 {% csrf_token %}
 <div class="container-fluid history-page">
-    <h2 class="page-title mb-3">Analysis History</h2>
+    <h1 class="page-title mb-3">Analysis history</h1>
 
     {% if sessions or filters_active %}
         <!-- One GET form for search, status, sorting and page size: the selects submit it
@@ -14,9 +15,9 @@
         <form method="get" id="historyFilters" class="history-filters">
             <div class="history-filters-search input-group">
                 <span class="input-group-text" aria-hidden="true"><i class="fas fa-magnifying-glass"></i></span>
-                <label class="visually-hidden" for="searchInput">Search by model file</label>
+                <label class="visually-hidden" for="searchInput">Search by file name</label>
                 <input type="search" class="form-control" id="searchInput" name="q"
-                       value="{{ current_q }}" placeholder="Search by model file...">
+                       value="{{ current_q }}" placeholder="File name">
                 <button type="submit" class="btn btn-outline-primary">Search</button>
             </div>
             <div class="history-filters-controls">
@@ -31,7 +32,7 @@
                 <select class="form-select" id="sortOrder" name="sort">
                     <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest first</option>
                     <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>Oldest first</option>
-                    <option value="name" {% if current_sort == 'name' %}selected{% endif %}>Model file</option>
+                    <option value="name" {% if current_sort == 'name' %}selected{% endif %}>File name</option>
                 </select>
                 <label for="perPageSelect" class="form-label mb-0 text-muted history-filters-label">Per page</label>
                 <select class="form-select" id="perPageSelect" name="per_page">
@@ -40,7 +41,7 @@
                     {% endfor %}
                 </select>
                 <a href="{% url 'sa:analysis' %}" class="btn btn-primary ms-auto">
-                    <i class="fas fa-plus me-1" aria-hidden="true"></i>New analysis
+                    <i class="fas fa-plus me-1" aria-hidden="true"></i>New Analysis
                 </a>
             </div>
         </form>
@@ -49,60 +50,67 @@
     {% if sessions %}
         <!-- Bulk Action Bar -->
         <div id="bulkActionBar" class="bulk-action-bar" style="display: none;">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center py-2">
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="bulk-count">
-                            <strong id="selectedCount">0</strong> selected
-                        </span>
-                        <button type="button" class="btn btn-sm btn-link text-decoration-none" id="selectAllVisible">
-                            Select all visible
-                        </button>
-                        <button type="button" class="btn btn-sm btn-link text-decoration-none" id="clearSelection">
-                            Clear selection
-                        </button>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn">
-                            <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete selected
-                        </button>
-                    </div>
+            <div class="bulk-action-inner">
+                <div class="bulk-action-group">
+                    <span class="bulk-count" aria-live="polite">
+                        <strong id="selectedCount">0</strong> selected
+                    </span>
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none" id="selectAllVisible">
+                        Select all on this page
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none" id="clearSelection">
+                        Clear selection
+                    </button>
                 </div>
+                <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn">
+                    <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete Selected
+                </button>
             </div>
         </div>
 
+        {# data-page/-per-page/-total let main.js land on a page that still exists after a delete. #}
         <div class="table-responsive history-table-wrapper">
-            <table class="table table-hover history-table" id="sessionsTable">
+            <table class="table table-hover history-table" id="sessionsTable"
+                   data-page="{{ page_obj.number }}" data-per-page="{{ current_per_page }}" data-total="{{ page_obj.paginator.count }}">
+                <caption class="visually-hidden">Your analyses, {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</caption>
                 <thead>
                     <tr>
-                        <th class="checkbox-cell">
-                            <input type="checkbox" class="session-checkbox" id="selectAllCheckbox" title="Select all">
+                        <th class="checkbox-cell" scope="col">
+                            <label class="check-target" title="Select all on this page">
+                                <input type="checkbox" class="session-checkbox" id="selectAllCheckbox" aria-label="Select all sessions on this page">
+                            </label>
                         </th>
-                        <th>Date &amp; Time</th>
-                        <th>Model File</th>
-                        <th>Frost Zone</th>
-                        <th>Status</th>
-                        <th class="count-col">Conduits</th>
-                        <th class="count-col">Nodes</th>
-                        <th class="count-col">Subcatchments</th>
-                        <th class="actions-col">Actions</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">File</th>
+                        <th scope="col">Frost zone</th>
+                        <th scope="col">Status</th>
+                        <th class="count-col" scope="col">Conduits</th>
+                        <th class="count-col" scope="col">Nodes</th>
+                        <th class="count-col" scope="col">Subcatchments</th>
+                        <th class="actions-col" scope="col">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for session in sessions %}
+                    {% with file_name=session.swmm_model.file.name created=session.created_at|utc %}
                     <tr data-session-id="{{ session.id }}">
                         <td class="checkbox-cell">
-                            <input type="checkbox" class="session-checkbox row-checkbox" data-session-id="{{ session.id }}">
+                            <label class="check-target">
+                                <input type="checkbox" class="session-checkbox row-checkbox" data-session-id="{{ session.id }}"
+                                       aria-label="Select {{ file_name }}, {{ created|date:'j M Y, H:i' }} UTC">
+                            </label>
                         </td>
-                        <td class="history-date">
-                            <span class="history-date-day">{{ session.created_at|date:"Y-m-d" }}</span>
-                            <span class="history-date-time">{{ session.created_at|date:"H:i" }}</span>
+                        <td class="history-date" data-label="Date">
+                            <time datetime="{{ created|date:'c' }}">
+                                <span class="history-date-day">{{ created|date:"j M Y" }}</span>
+                                <span class="history-date-time">{{ created|date:"H:i" }} UTC</span>
+                            </time>
                         </td>
-                        <td>
-                            <span class="history-file" title="{{ session.swmm_model.file.name }}">{{ session.swmm_model.file.name|truncatechars:34 }}</span>
+                        <td class="history-file-cell" data-label="File">
+                            <span class="history-file" title="{{ file_name }}">{{ file_name }}</span>
                         </td>
-                        <td class="history-zone">{{ session.swmm_model.get_zone_display_name }}</td>
-                        <td>
+                        <td class="history-zone" data-label="Frost zone">{% for zone, label in frost_zones %}{% if zone == session.swmm_model.zone %}{{ label }}{% endif %}{% endfor %}</td>
+                        <td class="history-status" data-label="Status">
                             {% if session.status == 'completed' %}
                                 <span class="badge bg-success">Completed</span>
                             {% elif session.status == 'processing' %}
@@ -111,103 +119,107 @@
                                 <span class="badge bg-danger">Failed</span>
                             {% endif %}
                         </td>
-                        <td class="count-col"><span class="count-chip">{{ session.n_conduits }}</span></td>
-                        <td class="count-col"><span class="count-chip">{{ session.n_nodes }}</span></td>
-                        <td class="count-col"><span class="count-chip">{{ session.n_subcatchments }}</span></td>
+                        <td class="count-col" data-label="Conduits"><span class="count-chip">{{ session.n_conduits }}</span></td>
+                        <td class="count-col" data-label="Nodes"><span class="count-chip">{{ session.n_nodes }}</span></td>
+                        <td class="count-col" data-label="Subcatchments"><span class="count-chip">{{ session.n_subcatchments }}</span></td>
                         <td class="actions-col">
                             <div class="history-actions">
                                 {% if session.status == 'completed' %}
                                     <a href="{% url 'sa:analysis_results' session.id %}" class="btn btn-sm btn-outline-primary">
-                                        View results
+                                        View Results
                                     </a>
                                 {% elif session.status == 'processing' %}
-                                    <button type="button" class="btn btn-sm btn-outline-warning" disabled>
-                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                        Processing...
-                                    </button>
+                                    <span class="history-processing">
+                                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                        Processing…
+                                    </span>
                                 {% elif session.status == 'failed' and session.error_message %}
-                                    <button type="button" class="btn btn-sm btn-outline-danger"
-                                            data-bs-toggle="tooltip"
-                                            title="{{ session.error_message|truncatechars:100 }}">
-                                        View error
+                                    <button type="button" class="btn btn-sm btn-outline-danger history-error-toggle"
+                                            aria-expanded="false" aria-controls="session-error-{{ session.id }}">
+                                        View Error
                                     </button>
                                 {% endif %}
 
-                                <!-- Delete button for all sessions -->
                                 <button type="button" class="btn btn-icon delete-btn"
                                         data-bs-toggle="modal"
                                         data-bs-target="#deleteModal"
                                         data-session-id="{{ session.id }}"
-                                        data-session-name="Session {{ session.id }}"
-                                        title="{% if session.status == 'processing' %}Cancel processing{% else %}Delete session{% endif %}">
-                                    {% if session.status == 'processing' %}
-                                        <i class="fas fa-ban" aria-hidden="true"></i>
-                                    {% else %}
-                                        <i class="fas fa-trash" aria-hidden="true"></i>
-                                    {% endif %}
-                                    <span class="visually-hidden">{% if session.status == 'processing' %}Cancel processing{% else %}Delete session{% endif %}</span>
+                                        data-session-name="{{ file_name }}"
+                                        data-session-date="{{ created|date:'j M Y, H:i' }} UTC"
+                                        title="Delete">
+                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Delete {{ file_name }}, {{ created|date:'j M Y, H:i' }} UTC</span>
                                 </button>
                             </div>
                         </td>
                     </tr>
+                    {% if session.status == 'failed' and session.error_message %}
+                    {# The full message, opened by "View Error" (click, tap or keyboard). #}
+                    <tr class="history-error-row" id="session-error-{{ session.id }}" hidden>
+                        <td colspan="9">
+                            <p class="history-error-text"><strong>Why the analysis failed:</strong> {{ session.error_message }}</p>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endwith %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
         {% if is_paginated %}
-        <nav aria-label="Page navigation" class="mt-4">
+        <nav aria-label="Pages" class="mt-4">
             <div class="d-flex justify-content-center align-items-center gap-3">
                 <ul class="pagination mb-0">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="{% querystring page=1 %}" aria-label="First">
+                        <a class="page-link" href="{% querystring page=1 %}" aria-label="First page">
                             <span aria-hidden="true">&laquo;&laquo;</span>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="{% querystring page=page_obj.previous_page_number %}" aria-label="Previous">
+                        <a class="page-link" href="{% querystring page=page_obj.previous_page_number %}" aria-label="Previous page">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
                 {% else %}
                     <li class="page-item disabled">
-                        <span class="page-link">&laquo;&laquo;</span>
+                        <span class="page-link" aria-hidden="true">&laquo;&laquo;</span>
                     </li>
                     <li class="page-item disabled">
-                        <span class="page-link">&laquo;</span>
+                        <span class="page-link" aria-hidden="true">&laquo;</span>
                     </li>
                 {% endif %}
 
                 {% for num in page_obj.paginator.page_range %}
                     {% if page_obj.number == num %}
-                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
                     {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                         <li class="page-item"><a class="page-link" href="{% querystring page=num %}">{{ num }}</a></li>
                     {% elif num == 1 or num == page_obj.paginator.num_pages %}
                         <li class="page-item"><a class="page-link" href="{% querystring page=num %}">{{ num }}</a></li>
                     {% elif num == page_obj.number|add:'-3' or num == page_obj.number|add:'3' %}
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
                     {% endif %}
                 {% endfor %}
 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{% querystring page=page_obj.next_page_number %}" aria-label="Next">
+                        <a class="page-link" href="{% querystring page=page_obj.next_page_number %}" aria-label="Next page">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="{% querystring page=page_obj.paginator.num_pages %}" aria-label="Last">
+                        <a class="page-link" href="{% querystring page=page_obj.paginator.num_pages %}" aria-label="Last page">
                             <span aria-hidden="true">&raquo;&raquo;</span>
                         </a>
                     </li>
                 {% else %}
                     <li class="page-item disabled">
-                        <span class="page-link">&raquo;</span>
+                        <span class="page-link" aria-hidden="true">&raquo;</span>
                     </li>
                     <li class="page-item disabled">
-                        <span class="page-link">&raquo;&raquo;</span>
+                        <span class="page-link" aria-hidden="true">&raquo;&raquo;</span>
                     </li>
                 {% endif %}
                 </ul>
@@ -216,46 +228,47 @@
         {% endif %}
 
         <p class="history-range">
-            Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} sessions
+            Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} session{{ page_obj.paginator.count|pluralize }}
         </p>
     {% elif filters_active %}
         <div class="history-empty">
             <span class="history-empty-icon" aria-hidden="true"><i class="fas fa-filter-circle-xmark"></i></span>
-            <h4>No sessions match these filters</h4>
-            <p class="text-muted">Try a different phrase or status - nothing here fits the current selection.</p>
-            <a href="{% url 'sa:history' %}" class="btn btn-outline-primary">Clear filters</a>
+            <h2>No sessions match these filters</h2>
+            <p class="text-muted">Nothing matches the current search and status. Try a different file name or status.</p>
+            <a href="{% url 'sa:history' %}" class="btn btn-outline-primary">Clear Filters</a>
         </div>
     {% else %}
         <div class="history-empty">
             <span class="history-empty-icon" aria-hidden="true"><i class="fas fa-water"></i></span>
-            <h4>No analysis history</h4>
+            <h2>No analysis history</h2>
             <p class="text-muted">You haven't performed any analyses yet.</p>
-            <a href="{% url 'sa:analysis' %}" class="btn btn-primary">Start your first analysis</a>
+            <a href="{% url 'sa:analysis' %}" class="btn btn-primary">Start Your First Analysis</a>
         </div>
     {% endif %}
 </div>
 
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <h2 class="modal-title" id="deleteModalLabel">Delete this analysis?</h2>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete <strong id="sessionToDelete"></strong>?</p>
-                <p class="text-muted" id="deleteDescription">This action cannot be undone. All related data (conduits, nodes, subcatchments) will be permanently deleted.</p>
+                <p>The analysis of <strong id="sessionToDelete"></strong> from <span id="sessionToDeleteDate"></span> will be deleted.</p>
+                <p class="text-muted" id="deleteDescription">Its results (conduits, nodes and subcatchments) are deleted with it. This cannot be undone.</p>
+                <p class="history-modal-error d-none" id="deleteError" role="alert"></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-outline-danger" id="confirmDelete">
                     <span class="delete-text">
-                        <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete Session
+                        <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete
                     </span>
                     <span class="delete-loading d-none">
-                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                        Deleting...
+                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                        Deleting…
                     </span>
                 </button>
             </div>
@@ -265,31 +278,28 @@
 
 <!-- Bulk Delete Confirmation Modal -->
 <div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-labelledby="bulkDeleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="bulkDeleteModalLabel">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Bulk Deletion
-                </h5>
+                <h2 class="modal-title" id="bulkDeleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>Delete the selected sessions?
+                </h2>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>You are about to delete <strong id="bulkDeleteCount" class="text-danger">0</strong> session(s).</p>
-                <p class="text-muted">This action cannot be undone. All related data (conduits, nodes, subcatchments) will be permanently deleted for all selected sessions.</p>
-                <div class="alert d-flex align-items-center" role="alert">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <div>This operation may take a moment depending on the amount of data.</div>
-                </div>
+                <p>You are about to delete <strong id="bulkDeleteCount" class="text-danger">0</strong>.</p>
+                <p class="text-muted">Their results (conduits, nodes and subcatchments) are deleted with them. This cannot be undone.</p>
+                <p class="history-modal-error d-none" id="bulkDeleteError" role="alert"></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-danger" id="confirmBulkDelete">
                     <span class="bulk-delete-text">
-                        <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete All Selected
+                        <i class="fas fa-trash me-1" aria-hidden="true"></i>Delete Selected
                     </span>
                     <span class="bulk-delete-loading d-none">
-                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                        Deleting...
+                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                        Deleting…
                     </span>
                 </button>
             </div>

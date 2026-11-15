@@ -244,16 +244,83 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    /**
+     * Where to go after rows were deleted: the current page if it still exists,
+     * otherwise the last page that does. Reloading a page that no longer exists (the
+     * last rows of the last page) answered 404.
+     */
+    function reloadAfterDelete(deletedCount) {
+        const table = document.getElementById('sessionsTable');
+        const url = new URL(window.location.href);
+        if (table) {
+            const page = parseInt(table.dataset.page, 10) || 1;
+            const perPage = parseInt(table.dataset.perPage, 10) || 10;
+            const total = parseInt(table.dataset.total, 10) || 0;
+            const lastPage = Math.max(1, Math.ceil(Math.max(0, total - deletedCount) / perPage));
+            if (page > lastPage) {
+                if (lastPage === 1) {
+                    url.searchParams.delete('page');
+                } else {
+                    url.searchParams.set('page', String(lastPage));
+                }
+                window.location.assign(url.toString());
+                return;
+            }
+        }
+        window.location.reload();
+    }
+
+    function sessionCount(count) {
+        return count + (count === 1 ? ' session' : ' sessions');
+    }
+
+    function showModalError(element, text) {
+        if (!element) return;
+        element.textContent = text;
+        element.classList.remove('d-none');
+    }
+
+    function hideModalError(element) {
+        if (!element) return;
+        element.textContent = '';
+        element.classList.add('d-none');
+    }
+
+    function postJson(url, body) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+            body: body === undefined ? undefined : JSON.stringify(body),
+        }).then(function(response) {
+            return response.json().catch(function() { return { success: false }; });
+        });
+    }
+
+    // "View Error" opens the full message in the row below (click, tap, Enter or Space).
+    function initErrorToggles() {
+        document.querySelectorAll('.history-error-toggle').forEach(function(button) {
+            const row = document.getElementById(button.getAttribute('aria-controls'));
+            if (!row) return;
+            button.addEventListener('click', function() {
+                const open = button.getAttribute('aria-expanded') !== 'true';
+                button.setAttribute('aria-expanded', open ? 'true' : 'false');
+                button.textContent = open ? 'Hide Error' : 'View Error';
+                row.hidden = !open;
+            });
+        });
+    }
+
     function initSingleDelete() {
         const deleteModal = document.getElementById('deleteModal');
-        const sessionToDeleteElement = document.getElementById('sessionToDelete');
+        const nameElement = document.getElementById('sessionToDelete');
+        const dateElement = document.getElementById('sessionToDeleteDate');
         const confirmDeleteButton = document.getElementById('confirmDelete');
-        const deleteDescription = document.getElementById('deleteDescription');
-        const modalTitle = document.getElementById('deleteModalLabel');
+        const errorElement = document.getElementById('deleteError');
 
-        if (!deleteModal || !sessionToDeleteElement || !confirmDeleteButton || !deleteDescription || !modalTitle) return;
+        if (!deleteModal || !nameElement || !confirmDeleteButton) return;
 
-        const cancelButton = deleteModal.querySelector('[data-bs-dismiss="modal"]');
+        const cancelButton = deleteModal.querySelector('.modal-footer [data-bs-dismiss="modal"]');
         const deleteText = confirmDeleteButton.querySelector('.delete-text');
         const deleteLoading = confirmDeleteButton.querySelector('.delete-loading');
 
@@ -261,85 +328,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let sessionIdToDelete = null;
 
+        const setLoading = function(on) {
+            deleteText.classList.toggle('d-none', on);
+            deleteLoading.classList.toggle('d-none', !on);
+            confirmDeleteButton.disabled = on;
+            cancelButton.disabled = on;
+        };
+
         // Bootstrap opens the modal declaratively (data-bs-target); this only fills it
-        // from the row whose trash button was clicked.
+        // from the row whose bin was clicked: the file and the date the row shows.
         document.addEventListener('click', function(e) {
             const button = e.target.closest('[data-bs-target="#deleteModal"]');
             if (!button) return;
 
             sessionIdToDelete = button.getAttribute('data-session-id');
-            sessionToDeleteElement.textContent = button.getAttribute('data-session-name');
-
-            const row = button.closest('tr');
-            const statusBadge = row ? row.querySelector('.badge') : null;
-            const isProcessing = statusBadge !== null && statusBadge.textContent.trim() === 'Processing';
-
-            if (isProcessing) {
-                modalTitle.textContent = 'Cancel Processing';
-                deleteDescription.textContent = 'This will cancel the current processing and remove the session. This action cannot be undone.';
-            } else {
-                modalTitle.textContent = 'Confirm Deletion';
-                deleteDescription.textContent = 'This action cannot be undone. All related data (conduits, nodes, subcatchments) will be permanently deleted.';
-            }
-
-            const buttonText = isProcessing ? 'Cancel Processing' : 'Delete Session';
-            deleteText.innerHTML = `<i class="fas fa-trash me-1" aria-hidden="true"></i>${buttonText}`;
-            deleteText.classList.remove('d-none');
-            deleteLoading.classList.add('d-none');
-            confirmDeleteButton.disabled = false;
-            cancelButton.disabled = false;
-            confirmDeleteButton.classList.remove('btn-success');
-            confirmDeleteButton.classList.add('btn-outline-danger');
+            nameElement.textContent = button.getAttribute('data-session-name');
+            if (dateElement) dateElement.textContent = button.getAttribute('data-session-date');
+            hideModalError(errorElement);
+            setLoading(false);
         });
 
         confirmDeleteButton.addEventListener('click', function() {
             if (!sessionIdToDelete) return;
+            hideModalError(errorElement);
+            setLoading(true);
 
-            deleteText.classList.add('d-none');
-            deleteLoading.classList.remove('d-none');
-            confirmDeleteButton.disabled = true;
-            cancelButton.disabled = true;
-
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-
-            fetch(`/session/${sessionIdToDelete}/delete/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    deleteLoading.classList.add('d-none');
-
-                    // The title still says what the row was when the modal opened.
-                    const successText = modalTitle.textContent === 'Cancel Processing' ? 'Cancelled' : 'Deleted';
-                    deleteText.innerHTML = `<i class="fas fa-check me-1"></i>${successText}`;
-                    deleteText.classList.remove('d-none');
-                    confirmDeleteButton.classList.remove('btn-outline-danger');
-                    confirmDeleteButton.classList.add('btn-success');
-
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 800);
-                } else {
-                    deleteLoading.classList.add('d-none');
-                    deleteText.classList.remove('d-none');
-                    confirmDeleteButton.disabled = false;
-                    cancelButton.disabled = false;
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                deleteLoading.classList.add('d-none');
-                deleteText.classList.remove('d-none');
-                confirmDeleteButton.disabled = false;
-                cancelButton.disabled = false;
-                console.error('Error:', error);
-                alert('An error occurred while deleting the session.');
-            });
+            postJson(`/session/${sessionIdToDelete}/delete/`)
+                .then(function(data) {
+                    if (data.success) {
+                        reloadAfterDelete(1);
+                        return;
+                    }
+                    setLoading(false);
+                    showModalError(errorElement, data.message || 'The session could not be deleted. Try again.');
+                })
+                .catch(function() {
+                    setLoading(false);
+                    showModalError(errorElement, 'The session could not be deleted. Check the connection and try again.');
+                });
         });
     }
 
@@ -353,189 +379,108 @@ document.addEventListener('DOMContentLoaded', function() {
         const bulkDeleteModalElement = document.getElementById('bulkDeleteModal');
         const confirmBulkDeleteBtn = document.getElementById('confirmBulkDelete');
         const bulkDeleteCountElement = document.getElementById('bulkDeleteCount');
+        const bulkErrorElement = document.getElementById('bulkDeleteError');
 
-        // Only initialize if bulk selection elements exist
-        if (!bulkActionBar || !selectAllCheckbox) return;
+        if (!bulkActionBar || !selectAllCheckbox || !bulkDeleteModalElement || !confirmBulkDeleteBtn) return;
 
         const bulkDeleteModal = new bootstrap.Modal(bulkDeleteModalElement);
-        let selectedSessions = new Set();
+        const bulkDeleteText = confirmBulkDeleteBtn.querySelector('.bulk-delete-text');
+        const bulkDeleteLoading = confirmBulkDeleteBtn.querySelector('.bulk-delete-loading');
+        const cancelButton = bulkDeleteModalElement.querySelector('.modal-footer [data-bs-dismiss="modal"]');
+        const selectedSessions = new Set();
+
+        const rows = function() {
+            return Array.from(document.querySelectorAll('#sessionsTable tbody tr[data-session-id]'));
+        };
+
+        const setLoading = function(on) {
+            bulkDeleteText.classList.toggle('d-none', on);
+            bulkDeleteLoading.classList.toggle('d-none', !on);
+            confirmBulkDeleteBtn.disabled = on;
+            if (cancelButton) cancelButton.disabled = on;
+        };
 
         function updateUI() {
             const count = selectedSessions.size;
             selectedCountElement.textContent = count;
-            bulkDeleteCountElement.textContent = count;
+            bulkDeleteCountElement.textContent = sessionCount(count);
+            bulkActionBar.style.display = count > 0 ? 'block' : 'none';
 
-            // Show/hide bulk action bar
-            if (count > 0) {
-                bulkActionBar.style.display = 'block';
-            } else {
-                bulkActionBar.style.display = 'none';
-            }
-
-            // Update select all checkbox state
-            const visibleRows = document.querySelectorAll('#sessionsTable tbody tr[data-session-id]');
-            const visibleChecked = Array.from(visibleRows).filter(row => {
+            const visibleRows = rows();
+            const checked = visibleRows.filter(function(row) {
                 const checkbox = row.querySelector('.row-checkbox');
                 return checkbox && checkbox.checked;
             });
+            selectAllCheckbox.checked = visibleRows.length > 0 && checked.length === visibleRows.length;
+            selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < visibleRows.length;
 
-            if (visibleRows.length > 0 && visibleChecked.length === visibleRows.length) {
-                selectAllCheckbox.checked = true;
-                selectAllCheckbox.indeterminate = false;
-            } else if (visibleChecked.length > 0) {
-                selectAllCheckbox.checked = false;
-                selectAllCheckbox.indeterminate = true;
-            } else {
-                selectAllCheckbox.checked = false;
-                selectAllCheckbox.indeterminate = false;
-            }
-
-            // Update row styling
-            document.querySelectorAll('#sessionsTable tbody tr[data-session-id]').forEach(row => {
-                const sessionId = row.dataset.sessionId;
-                if (selectedSessions.has(sessionId)) {
-                    row.classList.add('selected');
-                } else {
-                    row.classList.remove('selected');
-                }
+            visibleRows.forEach(function(row) {
+                row.classList.toggle('selected', selectedSessions.has(row.dataset.sessionId));
             });
         }
 
-        // Handle individual checkbox changes
-        document.addEventListener('change', function(e) {
-            if (e.target.classList.contains('row-checkbox')) {
-                const sessionId = e.target.dataset.sessionId;
-                if (e.target.checked) {
-                    selectedSessions.add(sessionId);
+        function setAll(checked) {
+            rows().forEach(function(row) {
+                const checkbox = row.querySelector('.row-checkbox');
+                if (!checkbox) return;
+                checkbox.checked = checked;
+                if (checked) {
+                    selectedSessions.add(row.dataset.sessionId);
                 } else {
-                    selectedSessions.delete(sessionId);
+                    selectedSessions.delete(row.dataset.sessionId);
                 }
-                updateUI();
+            });
+            updateUI();
+        }
+
+        document.addEventListener('change', function(e) {
+            if (!e.target.classList.contains('row-checkbox')) return;
+            const sessionId = e.target.dataset.sessionId;
+            if (e.target.checked) {
+                selectedSessions.add(sessionId);
+            } else {
+                selectedSessions.delete(sessionId);
             }
-        });
-
-        // Handle select all checkbox
-        selectAllCheckbox.addEventListener('change', function() {
-            const visibleRows = document.querySelectorAll('#sessionsTable tbody tr[data-session-id]');
-            visibleRows.forEach(row => {
-                const checkbox = row.querySelector('.row-checkbox');
-                const sessionId = row.dataset.sessionId;
-                if (checkbox) {
-                    checkbox.checked = this.checked;
-                    if (this.checked) {
-                        selectedSessions.add(sessionId);
-                    } else {
-                        selectedSessions.delete(sessionId);
-                    }
-                }
-            });
             updateUI();
         });
 
-        // Handle "Select all visible" button
-        selectAllVisibleBtn.addEventListener('click', function() {
-            const visibleRows = document.querySelectorAll('#sessionsTable tbody tr[data-session-id]');
-            visibleRows.forEach(row => {
-                const checkbox = row.querySelector('.row-checkbox');
-                const sessionId = row.dataset.sessionId;
-                if (checkbox) {
-                    checkbox.checked = true;
-                    selectedSessions.add(sessionId);
-                }
-            });
-            updateUI();
-        });
+        selectAllCheckbox.addEventListener('change', function() { setAll(this.checked); });
+        selectAllVisibleBtn.addEventListener('click', function() { setAll(true); });
+        clearSelectionBtn.addEventListener('click', function() { setAll(false); });
 
-        // Handle "Clear selection" button
-        clearSelectionBtn.addEventListener('click', function() {
-            document.querySelectorAll('.row-checkbox').forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            selectAllCheckbox.checked = false;
-            selectedSessions.clear();
-            updateUI();
-        });
-
-        // Handle bulk delete button
         bulkDeleteBtn.addEventListener('click', function() {
-            if (selectedSessions.size > 0) {
-                bulkDeleteModal.show();
-            }
+            if (selectedSessions.size === 0) return;
+            hideModalError(bulkErrorElement);
+            bulkDeleteModal.show();
         });
 
-        // Handle confirm bulk delete
         confirmBulkDeleteBtn.addEventListener('click', function() {
             if (selectedSessions.size === 0) return;
+            hideModalError(bulkErrorElement);
+            setLoading(true);
 
-            const bulkDeleteText = confirmBulkDeleteBtn.querySelector('.bulk-delete-text');
-            const bulkDeleteLoading = confirmBulkDeleteBtn.querySelector('.bulk-delete-loading');
-            const cancelButton = document.querySelector('#bulkDeleteModal [data-bs-dismiss="modal"]');
-
-            // Show loading state
-            bulkDeleteText.classList.add('d-none');
-            bulkDeleteLoading.classList.remove('d-none');
-            confirmBulkDeleteBtn.disabled = true;
-            cancelButton.disabled = true;
-
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-            const sessionIds = Array.from(selectedSessions).map(id => parseInt(id));
-
-            fetch('/sessions/bulk-delete/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ session_ids: sessionIds })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success state briefly before reload
-                    bulkDeleteLoading.classList.add('d-none');
-                    bulkDeleteText.innerHTML = `<i class="fas fa-check me-1"></i>Deleted ${data.deleted_count} session(s)`;
-                    bulkDeleteText.classList.remove('d-none');
-                    confirmBulkDeleteBtn.classList.remove('btn-danger');
-                    confirmBulkDeleteBtn.classList.add('btn-success');
-
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 800);
-                } else {
-                    // Reset loading state on error
-                    bulkDeleteLoading.classList.add('d-none');
-                    bulkDeleteText.classList.remove('d-none');
-                    confirmBulkDeleteBtn.disabled = false;
-                    cancelButton.disabled = false;
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                // Reset loading state on error
-                bulkDeleteLoading.classList.add('d-none');
-                bulkDeleteText.classList.remove('d-none');
-                confirmBulkDeleteBtn.disabled = false;
-                cancelButton.disabled = false;
-                console.error('Error:', error);
-                alert('An error occurred while deleting sessions.');
-            });
+            const sessionIds = Array.from(selectedSessions).map(function(id) { return parseInt(id, 10); });
+            postJson('/sessions/bulk-delete/', { session_ids: sessionIds })
+                .then(function(data) {
+                    if (data.success) {
+                        reloadAfterDelete(data.deleted_count || sessionIds.length);
+                        return;
+                    }
+                    setLoading(false);
+                    showModalError(bulkErrorElement, data.message || 'The sessions could not be deleted. Try again.');
+                })
+                .catch(function() {
+                    setLoading(false);
+                    showModalError(bulkErrorElement, 'The sessions could not be deleted. Check the connection and try again.');
+                });
         });
 
-        // Reset bulk delete modal state when hidden
         bulkDeleteModalElement.addEventListener('hidden.bs.modal', function() {
-            const bulkDeleteText = confirmBulkDeleteBtn.querySelector('.bulk-delete-text');
-            const bulkDeleteLoading = confirmBulkDeleteBtn.querySelector('.bulk-delete-loading');
-
-            bulkDeleteText.innerHTML = '<i class="fas fa-trash me-1" aria-hidden="true"></i>Delete All Selected';
-            bulkDeleteText.classList.remove('d-none');
-            bulkDeleteLoading.classList.add('d-none');
-            confirmBulkDeleteBtn.disabled = false;
-            confirmBulkDeleteBtn.classList.remove('btn-success');
-            if (!confirmBulkDeleteBtn.classList.contains('btn-danger')) {
-                confirmBulkDeleteBtn.classList.add('btn-danger');
-            }
+            setLoading(false);
         });
     }
+
+    initErrorToggles();
 
     initHistoryFilters();
     initSingleDelete();

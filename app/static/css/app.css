@@ -2142,6 +2142,324 @@ tr.selected:hover td:first-child {
     }
 }
 
+/* Rows, controls and dialogs added with the card layout -------------------- */
+
+.bulk-action-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.5rem 0;
+}
+
+.bulk-action-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+}
+
+/* A 44 px tap target around each 18 px checkbox. */
+.check-target {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin: -0.75rem -0.5rem;
+    cursor: pointer;
+}
+
+.history-table .checkbox-cell {
+    vertical-align: middle;
+}
+
+/* The file name is cut with an ellipsis in the table; the full name is in the title
+   and, on a phone, in the card. */
+.history-file {
+    display: inline-block;
+    max-width: 22rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    word-break: normal;
+}
+
+.history-processing {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--warn);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.history-error-toggle[aria-expanded="true"] {
+    background-color: var(--bad-wash);
+    border-color: var(--bad);
+}
+
+#sessionsTable tbody tr.history-error-row td {
+    padding: 0.75rem 1rem 0.9rem;
+    text-align: left;
+    white-space: normal;
+    background-color: var(--bad-wash);
+    border-bottom: 1px solid var(--rule-soft);
+}
+
+.history-error-text {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.history-error-text strong {
+    color: var(--bad);
+}
+
+#deleteModal .modal-title,
+#bulkDeleteModal .modal-title {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+#deleteModal .modal-body strong {
+    overflow-wrap: anywhere;
+}
+
+.history-modal-error {
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--bad);
+    border-radius: var(--radius-sm);
+    background-color: var(--bad-wash);
+    color: var(--bad);
+    font-size: 0.9rem;
+}
+
+.history-empty h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Cards below 992 px: nine columns do not fit a phone or a portrait tablet, and scrolling
+   the table sideways hid "View Results" and the bin. Each row becomes a card: file and status on top,
+   then date, zone and counts as labelled lines, actions at the bottom. */
+@media (max-width: 991.98px) {
+    .history-table-wrapper {
+        overflow: visible;
+        border: none;
+        box-shadow: none;
+    }
+
+    .history-table,
+    .history-table tbody {
+        display: block;
+        width: 100%;
+        border: none;
+        box-shadow: none;
+    }
+
+    #sessionsTable {
+        overflow: visible;
+        border-radius: 0;
+    }
+
+    .history-table thead {
+        /* The select-all box stays reachable: only the column labels are hidden. */
+        display: block;
+    }
+
+    .history-table thead tr {
+        display: flex;
+        align-items: center;
+    }
+
+    .history-table thead th:not(.checkbox-cell) {
+        display: none;
+    }
+
+    #sessionsTable thead th.checkbox-cell {
+        position: static;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: auto;
+        padding: 0 0 0.5rem;
+        background: transparent !important;  /* beats the app-wide thead th band */
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    #sessionsTable thead th.checkbox-cell::after {
+        content: "Select all";
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--muted);
+    }
+
+    .history-table tbody tr[data-session-id] {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        column-gap: 0.75rem;
+        row-gap: 0.15rem;
+        margin-top: 0.75rem;
+        padding: 0.85rem 1rem;
+        background-color: var(--surface-0);
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-1);
+    }
+
+    .history-table tbody tr[data-session-id] > td {
+        position: static;
+        display: block;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        text-align: left;
+        white-space: normal;
+        overflow: visible;
+    }
+
+    .history-table tbody tr:hover td,
+    .history-table tbody tr:hover td:first-child {
+        background: transparent;
+    }
+
+    .history-table tbody tr.selected {
+        background-color: var(--water-100);
+        border-color: var(--water-300);
+    }
+
+    tr.selected td,
+    tr.selected td:first-child,
+    tr.selected:hover td,
+    tr.selected:hover td:first-child {
+        background-color: transparent !important;  /* the card carries the selection colour */
+    }
+
+    .history-table td.checkbox-cell {
+        grid-column: 1;
+        grid-row: 1;
+        width: auto;
+    }
+
+    .history-table td.history-file-cell {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .history-table td.history-status {
+        grid-column: 3;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .history-file {
+        max-width: none;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .history-table tbody tr[data-session-id] > td.history-date,
+    .history-table tbody tr[data-session-id] > td.history-zone,
+    .history-table tbody tr[data-session-id] > td.count-col {
+        grid-column: 1 / -1;
+        white-space: nowrap;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        font-size: 0.88rem;
+        color: var(--text);
+    }
+
+    .history-table td[data-label]:not(.history-file-cell):not(.history-status)::before {
+        content: attr(data-label);
+        flex: 0 0 7.25rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+
+    .history-table td.history-date time {
+        display: inline-flex;
+        flex-wrap: wrap;
+        column-gap: 0.4rem;
+        white-space: nowrap;
+    }
+
+    .history-table tbody tr[data-session-id] > td.history-date {
+        white-space: normal;
+    }
+
+    .history-date-day,
+    .history-date-time {
+        display: inline;
+        font-size: 0.85rem;
+    }
+
+    .history-table .count-chip {
+        min-width: 0;
+        padding: 0;
+        background: none;
+    }
+
+    .history-table td.actions-col {
+        grid-column: 1 / -1;
+        margin-top: 0.6rem;
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--rule-soft);
+    }
+
+    .history-actions {
+        justify-content: space-between;
+    }
+
+    .history-actions .btn-sm {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .history-actions .delete-btn {
+        width: 44px;
+        height: 44px;
+        margin-left: auto;
+    }
+
+    .history-table tbody tr.history-error-row:not([hidden]) {
+        display: block;
+        margin-top: -0.35rem;
+        border: 1px solid var(--slate-300);
+        border-top: none;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        overflow: hidden;
+    }
+
+    .history-table tbody tr.history-error-row td {
+        display: block;
+        position: static;
+        box-shadow: none;
+    }
+
+    .history-filters-label {
+        margin-top: 0.25rem;
+    }
+}
 /* END history */
 
 /* BEGIN mobile-nav */
