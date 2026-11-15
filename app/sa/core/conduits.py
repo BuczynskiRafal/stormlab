@@ -777,7 +777,11 @@ class RecommendationService:
 
                     if self.inp_path and self.rpt_path and os.path.isfile(self.inp_path) and os.path.isfile(self.rpt_path):
                         config = load_config(check_inputs=False)
-                        phys_df = extract_physical_features(self.inp_path, self.rpt_path, config=config, file_id="app_serving")
+                        # A user's [TAGS] may hold any label; one that names no land cover
+                        # class is read as no tag, as the catchment classifier reads it.
+                        phys_df = extract_physical_features(
+                            self.inp_path, self.rpt_path, config=config, file_id="app_serving", foreign_tags_untagged=True
+                        )
                         phys_indexed = phys_df.set_index("conduit").loc[:, list(FEATURE_CONTRACT_V4_PHYSICAL.columns)].copy()
                     else:
                         phys_indexed = pd.DataFrame(index=order)

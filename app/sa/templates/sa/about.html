@@ -92,7 +92,9 @@
                         seven design criteria.</li>
                     <li><strong>Catchment categories.</strong> Land-cover categories are read
                         from the <code>[TAGS]</code> section; subcatchments without a tag are
-                        classified by a neural network.</li>
+                        classified by a neural network. A tag counts only when it names one of
+                        the twelve categories, in any letter case; any other label is treated
+                        as no tag.</li>
                     <li><strong>Recommendations.</strong> The graph neural network returns a
                         probability distribution over nine actions for every conduit.</li>
                 </ol>
@@ -268,8 +270,9 @@
                         change with the zone.</li>
                     <li>The recommendation model reads land cover from the tags of the model
                         file. Categories assigned by the classifier are shown in the results
-                        but are not passed to it; for an untagged subcatchment it assumes the
-                        average of its training data.</li>
+                        but are not passed to it; for an untagged subcatchment, or one whose tag
+                        names none of the twelve categories, it assumes the average of its
+                        training data.</li>
                     <li>The model was trained on dynamic wave results. Files that declare another
                         routing method are analysed as declared, and recommendations for them are
                         less reliable.</li>

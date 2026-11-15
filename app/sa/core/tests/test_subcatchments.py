@@ -338,6 +338,30 @@ class TestSubcatchmentsClassify:
 
         assert list(service.dfs["category"]) == ["forests", "rural"]
 
+    def test_a_tag_naming_no_category_goes_to_the_classifier_and_case_is_ignored(self):
+        """SWMM users put any label in [TAGS]; only the twelve class names count, in any case."""
+        import numpy as np
+        from unittest.mock import patch
+
+        model = MagicMock()
+        model.inp.tags = pd.DataFrame(
+            {"Name": ["S1", "S2", "S3", "S3"], "Tag": ["Osiedle_A", "Rural", "phase-2", "forests"]},
+            index=["Subcatch", "Subcatch", "Subcatch", "Link"],
+        )
+        dfs = pd.DataFrame({column: [1.0, 2.0, 3.0] for column in CLASSIFIER_INPUTS}, index=["S1", "S2", "S3"])
+        probs = np.zeros((3, 12), dtype=float)
+        probs[:, 0] = 0.9  # "arable" for every row the classifier is asked about
+        fake_clf = MagicMock()
+        fake_clf.predict.return_value = probs
+
+        with patch("sa.core.predictor.get_classifier", return_value=fake_clf):
+            service = SubcatchmentFeatureEngineeringService(dfs, model)
+            service.subcatchments_classify(categories=True)
+
+        # S2 keeps its tag in canonical spelling; S1 and S3 (whose only class name is
+        # on a link) are classified.
+        assert service.dfs["category"].to_dict() == {"S1": "arable", "S2": "rural", "S3": "arable"}
+
     def test_partial_subcatchment_tags_fills_uncategorized_with_ml_fallback(self):
         """When [TAGS] covers only SC1 and all 12 feature columns + Area are present, SC2 is classified via ML."""
         import numpy as np

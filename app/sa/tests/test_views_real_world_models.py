@@ -57,3 +57,22 @@ class ModelWithoutTagsTests(RealWorldUploadTestCase):
         categories = set(session.subcatchments.values_list("category", flat=True))
         self.assertEqual(session.subcatchments.count(), 7)
         self.assertTrue(categories <= set(SUBCATCHMENT_CATEGORIES), categories)
+
+
+class ForeignTagTests(RealWorldUploadTestCase):
+    def test_tags_outside_the_twelve_categories_do_not_stop_the_analysis(self):
+        text = demo_text()
+        text = text.replace("Subcatch  S1               urban_moderately_impervious", "Subcatch  S1               Osiedle_A")
+        text = text.replace(
+            "Subcatch  S2               urban_weakly_impervious", "Subcatch  S2               URBAN_WEAKLY_IMPERVIOUS"
+        )
+        text = text.replace("[TAGS]\n", "[TAGS]\nNode      J0               manhole_type_B\nLink      K1               forests\n")
+
+        session = self.assert_completed(self.upload(text))
+
+        categories = dict(session.subcatchments.values_list("subcatchment_name", "category"))
+        self.assertIn(categories["S1"], SUBCATCHMENT_CATEGORIES)
+        self.assertEqual(categories["S2"], "urban_weakly_impervious")
+        self.assertEqual(categories["S3"], "urban_weakly_impervious")
+        recommendations = set(session.conduits.values_list("recommendation", flat=True))
+        self.assertNotIn("-", recommendations)

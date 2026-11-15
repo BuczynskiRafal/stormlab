@@ -16,6 +16,7 @@ from stormlab.features.subcatchments import (
     SUBCATCHMENT_TAG_PREFIX,
     SubcatchmentFeatureError,
     assign_categories,
+    category_from_tag,
     one_hot_categories,
 )
 
@@ -104,6 +105,59 @@ class TestAssignCategories:
         result = assign_categories(dfs, tags)
 
         assert result.loc["SC1", "category"] == "rural"
+
+
+class TestCategoryFromTag:
+    @pytest.mark.parametrize("tag", ["rural", "Rural", "RURAL", "  rural ", "\trural"])
+    def test_a_class_name_in_any_case_and_padding_gives_the_canonical_name(self, tag):
+        assert category_from_tag(tag, FEATURE_ONEHOT_ORDER) == "rural"
+
+    @pytest.mark.parametrize("tag", ["Osiedle_A", "rural_2", "rur", "", "phase 2", "-"])
+    def test_any_other_label_names_no_class(self, tag):
+        assert category_from_tag(tag, FEATURE_ONEHOT_ORDER) is None
+
+    @pytest.mark.parametrize("tag", [None, float("nan"), pd.NA, 3])
+    def test_a_missing_or_non_text_tag_names_no_class(self, tag):
+        assert category_from_tag(tag, FEATURE_ONEHOT_ORDER) is None
+
+
+class TestAssignCategoriesWithKnownClasses:
+    def test_a_foreign_label_leaves_its_subcatchment_untagged(self, caplog):
+        tags = tag_series([("Subcatch", "SC1", "Osiedle_A"), ("Subcatch", "SC2", "Forests")])
+        dfs = pd.DataFrame({"Area": [100, 200]}, index=["SC1", "SC2"])
+
+        with caplog.at_level(logging.WARNING, logger="stormlab.features.subcatchments"):
+            result = assign_categories(dfs, tags, categories=FEATURE_ONEHOT_ORDER)
+
+        assert pd.isna(result.loc["SC1", "category"])
+        assert result.loc["SC2", "category"] == "forests"
+        assert "SC1='Osiedle_A'" in caplog.text
+
+    def test_the_result_encodes_like_an_untagged_subcatchment(self):
+        tags = tag_series([("Subcatch", "SC1", "Osiedle_A")])
+        dfs = pd.DataFrame({"Area": [100]}, index=["SC1"])
+
+        result = one_hot_categories(assign_categories(dfs, tags, categories=FEATURE_ONEHOT_ORDER), FEATURE_ONEHOT_ORDER)
+
+        assert result[list(FEATURE_ONEHOT_ORDER)].to_numpy().sum() == 0
+
+    def test_tags_of_nodes_and_links_are_ignored_even_when_they_name_a_class(self):
+        tags = tag_series([("Node", "SC1", "rural"), ("Link", "SC1", "forests")])
+        dfs = pd.DataFrame({"Area": [100]}, index=["SC1"])
+
+        result = assign_categories(dfs, tags, categories=FEATURE_ONEHOT_ORDER)
+
+        assert pd.isna(result.loc["SC1", "category"])
+
+    def test_without_known_classes_the_label_is_kept_for_the_encoder_to_refuse(self):
+        tags = tag_series([("Subcatch", "SC1", "Osiedle_A")])
+        dfs = pd.DataFrame({"Area": [100]}, index=["SC1"])
+
+        result = assign_categories(dfs, tags)
+
+        assert result.loc["SC1", "category"] == "Osiedle_A"
+        with pytest.raises(SubcatchmentFeatureError, match="Osiedle_A"):
+            one_hot_categories(result, FEATURE_ONEHOT_ORDER)
 
 
 class TestOneHotCategories:
