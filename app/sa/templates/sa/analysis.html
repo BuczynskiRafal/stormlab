@@ -45,9 +45,9 @@
                     {% with field=swmm_form.zone %}
                     <div class="mb-4">
                         <label for="{{ field.id_for_label }}" class="form-label fw-bold mb-2">Frost zone</label>
-                        {# Rendered here only to label the zones "Zone I (0.8 m)"; the values and the default (the first zone) are the form's. #}
+                        {# The values, the default (the first zone) and the labels ("Zone I (0.8 m)", from zone_label) are the form's. #}
                         <select name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="form-select" required aria-describedby="{{ field.auto_id }}_helptext">
-                            {% for zone, label in frost_zones %}
+                            {% for zone, label in field.field.choices %}
                             <option value="{{ zone }}"{% if field.value|stringformat:"s" == zone|stringformat:"s" %} selected{% endif %}>{{ label }}</option>
                             {% endfor %}
                         </select>

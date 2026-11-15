@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load sa_labels %}
 
 {% block title %}Your account{% endblock %}
 
@@ -8,7 +9,7 @@
     <header class="account-header">
         <p class="account-kicker">Your account</p>
         <h1 class="account-title">{{ user.email }}</h1>
-        <p class="account-meta">Member since {{ user.date_joined|date:"j M Y" }}</p>
+        <p class="account-meta">Member since {{ user.date_joined|utc_datetime:"date" }}</p>
     </header>
 
     <section class="account-card{% if error_section == 'account' %} has-errors{% endif %}" id="account" aria-labelledby="account-heading">

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load sa_query %}
-{% load tz %}
+{% load sa_labels %}
 
 {% block title %}History{% endblock %}
 
@@ -92,24 +92,24 @@
                 </thead>
                 <tbody>
                     {% for session in sessions %}
-                    {% with file_name=session.swmm_model.file.name created=session.created_at|utc %}
+                    {% with file_name=session.swmm_model.file.name created=session.created_at %}
                     <tr data-session-id="{{ session.id }}">
                         <td class="checkbox-cell">
                             <label class="check-target">
                                 <input type="checkbox" class="session-checkbox row-checkbox" data-session-id="{{ session.id }}"
-                                       aria-label="Select {{ file_name }}, {{ created|date:'j M Y, H:i' }} UTC">
+                                       aria-label="Select {{ file_name }}, {{ created|utc_datetime }}">
                             </label>
                         </td>
                         <td class="history-date" data-label="Date">
                             <time datetime="{{ created|date:'c' }}">
-                                <span class="history-date-day">{{ created|date:"j M Y" }}</span>
-                                <span class="history-date-time">{{ created|date:"H:i" }} UTC</span>
+                                <span class="history-date-day">{{ created|utc_datetime:"date" }}</span>
+                                <span class="history-date-time">{{ created|utc_datetime:"time" }}</span>
                             </time>
                         </td>
                         <td class="history-file-cell" data-label="File">
                             <span class="history-file" title="{{ file_name }}">{{ file_name }}</span>
                         </td>
-                        <td class="history-zone" data-label="Frost zone">{% for zone, label in frost_zones %}{% if zone == session.swmm_model.zone %}{{ label }}{% endif %}{% endfor %}</td>
+                        <td class="history-zone" data-label="Frost zone">{{ session.swmm_model|zone_label }}</td>
                         <td class="history-status" data-label="Status">
                             {% if session.status == 'completed' %}
                                 <span class="badge bg-success">Completed</span>
@@ -145,10 +145,10 @@
                                         data-bs-target="#deleteModal"
                                         data-session-id="{{ session.id }}"
                                         data-session-name="{{ file_name }}"
-                                        data-session-date="{{ created|date:'j M Y, H:i' }} UTC"
+                                        data-session-date="{{ created|utc_datetime }}"
                                         title="Delete">
                                     <i class="fas fa-trash" aria-hidden="true"></i>
-                                    <span class="visually-hidden">Delete {{ file_name }}, {{ created|date:'j M Y, H:i' }} UTC</span>
+                                    <span class="visually-hidden">Delete {{ file_name }}, {{ created|utc_datetime }}</span>
                                 </button>
                             </div>
                         </td>

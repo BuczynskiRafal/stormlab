@@ -17,7 +17,7 @@ from django.urls import reverse
 
 from storm_analysis.urls import urlpatterns as site_urlpatterns
 
-from .factories import VALIDATION_FLAGS, make_conduit, make_session, make_user
+from .factories import VALIDATION_FLAGS, make_conduit, make_session, make_swmm_model, make_user
 
 
 def _raise(exception):
@@ -570,3 +570,60 @@ class PageTitleTests(TestCase):
                 (reverse("accounts:logout"), "Log out"),
             ]
         )
+
+
+class OneDateAndZoneFormatTests(TestCase):
+    """History, the results page (header and Info tab) and the account page write a date
+    and a frost zone in one way, through the utc_datetime and zone_label filters."""
+
+    @classmethod
+    def setUpTestData(cls):
+        import datetime
+
+        from accounts.models import User
+        from sa.models import CalculationSession
+
+        stamp = datetime.datetime(2026, 3, 5, 4, 43, tzinfo=datetime.timezone.utc)
+        cls.user = make_user(email="formats@example.com")
+        User.objects.filter(pk=cls.user.pk).update(date_joined=stamp)
+        cls.session = make_session(cls.user, swmm_model=make_swmm_model(cls.user, zone=3), n_conduits=1)
+        CalculationSession.objects.filter(pk=cls.session.pk).update(created_at=stamp)
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_every_page_writes_the_same_date_without_a_leading_zero(self):
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id])).content.decode()
+        history = self.client.get(reverse("sa:history")).content.decode()
+        account = self.client.get(reverse("accounts:user_profile")).content.decode()
+
+        self.assertEqual(results.count(">5 Mar 2026, 04:43 UTC</time>"), 2, "the header and the Info tab")
+        self.assertIn('<span class="history-date-day">5 Mar 2026</span>', history)
+        self.assertIn('<span class="history-date-time">04:43 UTC</span>', history)
+        self.assertIn('data-session-date="5 Mar 2026, 04:43 UTC"', history)
+        self.assertIn("Member since 5 Mar 2026</p>", account)
+        for html in (results, history, account):
+            self.assertNotIn("05 Mar", html)
+
+    def test_every_page_names_the_zone_the_same_way(self):
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id])).content.decode()
+        history = self.client.get(reverse("sa:history")).content.decode()
+
+        self.assertEqual(results.count("Zone III (1.2 m)"), 2, "the header and the Info tab")
+        self.assertIn('data-label="Frost zone">Zone III (1.2 m)</td>', history)
+        self.assertNotIn("Frost zone 3", results)
+
+    def test_no_template_formats_a_date_or_a_zone_by_hand(self):
+        from pathlib import Path
+
+        roots = [
+            Path(__file__).resolve().parents[2] / sub
+            for sub in ("sa/templates", "accounts/templates", "storm_analysis/templates")
+        ]
+        for template in (path for root in roots for path in root.rglob("*.html")):
+            source = template.read_text(encoding="utf-8")
+            with self.subTest(template=template.name):
+                # Only the machine-readable datetime attribute may use the date filter.
+                self.assertEqual(re.findall(r"\|date:(?!'c')", source), [])
+                self.assertNotIn("get_frost_zone_value", source)
+                self.assertNotIn("frost_zones", source)

@@ -25,7 +25,7 @@
                 <h1 class="r-title"><span class="r-title-kicker">Results</span> <span class="r-title-file">{{ session.swmm_model.file|file_label }}</span></h1>
                 <p class="r-meta">
                     <span><i class="fas fa-calendar-alt" aria-hidden="true"></i><time datetime="{{ session.created_at|date:'c' }}">{{ session.created_at|utc_datetime }}</time></span>
-                    <span><i class="fas fa-snowflake" aria-hidden="true"></i><span class="visually-hidden">Frost zone: </span>{{ session.swmm_model.get_zone_display_name }}</span>
+                    <span><i class="fas fa-snowflake" aria-hidden="true"></i><span class="visually-hidden">Frost zone: </span>{{ session.swmm_model|zone_label }}</span>
                 </p>
             </div>
             <div class="r-tabs-actions">
@@ -168,7 +168,7 @@
                             <span class="r-info-icon"><i class="fas fa-snowflake" aria-hidden="true"></i></span>
                             <div>
                                 <dt>Frost zone</dt>
-                                <dd>{{ session.swmm_model.get_zone_display_name }}</dd>
+                                <dd>{{ session.swmm_model|zone_label }}</dd>
                             </div>
                         </div>
                         <div class="r-info-item">
