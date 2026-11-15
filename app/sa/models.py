@@ -55,6 +55,8 @@ class CalculationSession(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        # Serves the stale-session sweep the analysis form and history page run (sa.housekeeping).
+        indexes = [models.Index(fields=["status", "updated_at"], name="sa_session_status_updated")]
 
     def __str__(self):
         return f"{self.user.email} - {self.created_at.strftime('%Y-%m-%d %H:%M')} - {self.status}"

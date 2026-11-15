@@ -46,7 +46,7 @@ docker compose up -d
 docker compose exec web python manage.py createsuperuser
 ```
 
-On start, `web` applies database migrations, marks analyses stuck in processing for over 30 minutes as failed, and starts gunicorn. `docker compose logs -f web` shows the output.
+On start, `web` applies database migrations, marks analyses stuck in processing for over 30 minutes as failed, removes leftover analysis files, and starts gunicorn. `docker compose logs -f web` shows the output.
 
 ## Updating
 
@@ -76,7 +76,7 @@ docker compose cp web:/data/db/backup.sqlite3 ./backup-$(date +%F).sqlite3
 - Each worker runs one simulation at a time: the SWMM engine allows a single simulation per process, so gunicorn uses sync workers with one thread. Concurrent analyses are limited by `WEB_CONCURRENCY`.
 - The model files are part of the repository; `manage.py check` and the container start fail if one is missing.
 - The first analysis in each worker takes several seconds longer, because TensorFlow and the models load on first use.
-- Analyses run inside the request; the gunicorn timeout is 180 seconds. If a worker is killed mid-analysis, its session stays in processing until `python manage.py reap_stale_sessions` (run at startup; `--minutes` sets the age, default 30) marks it as failed.
+- Analyses run inside the request; the gunicorn timeout is 180 seconds. A worker killed mid-analysis leaves its session in processing and its files in `/tmp/stormlab-analyses`. Opening the analysis form or the history page marks sessions stuck for over 30 minutes as failed and removes analysis files of that age, so no restart is needed; `python manage.py reap_stale_sessions` does the same by hand (`--minutes` sets the age, default 30), and the container runs it at startup with `--all-temp-files`, which empties the directory before gunicorn starts. The application writes temporary files nowhere else.
 - `/admin/` is blocked at the proxy except for `ADMIN_IPS`. Management commands work without it via `docker compose exec web python manage.py ...`.
 - Set `REGISTRATION_OPEN=false` to stop new sign-ups on a public instance; existing accounts keep working.
 - One analysis must fit in the gunicorn timeout (180 s) and in `/tmp` (512 MB, shared by the workers), where the engine writes its binary output, roughly 24 bytes per element and report step. The form therefore refuses a model above `MAX_MODEL_ELEMENTS`, `MAX_SIMULATION_HOURS` or `MAX_REPORT_STEPS`. At the defaults the binary output stays under about 200 MB per run, and the engine simulates a dynamic-wave model at the element limit for 72 hours in about a minute; the shipped examples (at most 162 elements, 12 hours, 240 report steps) pass by a wide margin. Raise the limits together with the timeout and the `/tmp` size.

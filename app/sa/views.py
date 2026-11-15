@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import shutil
-import tempfile
 from functools import cached_property
 from pathlib import Path
 
@@ -20,6 +19,7 @@ from django.views.generic import ListView, TemplateView
 
 from .core.inp_encoding import utf8_chunks
 from .forms import SWMMModelForm
+from .housekeeping import new_analysis_file, reap_stale_work, remove_analysis_files
 from .models import CalculationSession, ConduitData, NodeData, SubcatchmentData, SWMMModel
 from .services import AnalysisService, CalculationRetrievalService, ConduitPanelService, NavigationService
 
@@ -100,6 +100,7 @@ class AnalysisView(LoginRequiredMixin, View):
 
     def get(self, request):
         """Display analysis form."""
+        reap_stale_work()
         return render(request, self.template_name, {"swmm_form": SWMMModelForm()})
 
     def post(self, request):
@@ -153,9 +154,7 @@ class AnalysisView(LoginRequiredMixin, View):
                 raise FileNotFoundError(f"test network not found at {TEST_FILE}")
             zone_val = self._parse_zone(request.POST.get("zone"))
 
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".inp")
-            temp_file.close()
-            temp_path = temp_file.name
+            temp_path = new_analysis_file()
             shutil.copy2(TEST_FILE, temp_path)
 
             swmm_model = SWMMModel.objects.create(
@@ -207,34 +206,23 @@ class AnalysisView(LoginRequiredMixin, View):
 
     @staticmethod
     def _create_temp_file(uploaded_file) -> str:
-        """Create temporary file from uploaded file, cleaning up on write error."""
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".inp")
+        """Copy the upload into the analysis directory (sa.housekeeping), cleaning up on write error."""
+        path = new_analysis_file()
         try:
             # The copy is UTF-8 whatever the upload's encoding, so that the engine, swmmio
             # and the upload gates all read the same bytes (see sa.core.inp_encoding).
-            for chunk in utf8_chunks(uploaded_file.chunks):
-                temp_file.write(chunk)
-            temp_file.close()
-            return temp_file.name
+            with open(path, "wb") as temp_file:
+                for chunk in utf8_chunks(uploaded_file.chunks):
+                    temp_file.write(chunk)
+            return path
         except Exception:
-            temp_file.close()
-            try:
-                if os.path.exists(temp_file.name):
-                    os.unlink(temp_file.name)
-            except OSError:
-                pass
+            remove_analysis_files(path)
             raise
 
     @staticmethod
     def _cleanup_temp_file(path: str):
         """Remove temporary .inp file along with any SWMM-generated .rpt, .out, and .bak sibling files."""
-        base, _ = os.path.splitext(path)
-        for candidate in (path, f"{base}.rpt", f"{base}.out", f"{base}.bak"):
-            try:
-                if os.path.exists(candidate):
-                    os.unlink(candidate)
-            except OSError:
-                pass
+        remove_analysis_files(path)
 
 
 class AnalysisResultsView(LoginRequiredMixin, SessionOwnerMixin, TemplateView):
@@ -335,6 +323,11 @@ class HistoryView(LoginRequiredMixin, ListView):
     status_options = ("completed", "processing", "failed")
     sort_options = {"newest": "-created_at", "oldest": "created_at", "name": "swmm_model__file"}
     default_sort = "newest"
+
+    def get(self, request, *args, **kwargs):
+        # A session whose worker was killed would otherwise read "processing" until a restart.
+        reap_stale_work()
+        return super().get(request, *args, **kwargs)
 
     def get_paginate_by(self, queryset):
         per_page = self.request.GET.get("per_page")
