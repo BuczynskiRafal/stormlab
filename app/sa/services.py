@@ -8,7 +8,7 @@ import json
 import logging
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal
 
 import pandas as pd
 from django.db import transaction
@@ -496,52 +496,6 @@ class SessionDeletionService:
 
 class CalculationRetrievalService:
     """Service for retrieving calculation results from the database."""
-
-    @staticmethod
-    def get_session_data(session: CalculationSession) -> Dict[str, Any]:
-        """
-        Retrieve all data for a calculation session.
-
-        Args:
-            session: CalculationSession instance
-
-        Returns:
-            Dict containing conduits, nodes, and subcatchments data
-        """
-        return {
-            "session": session,
-            "conduits": list(session.conduits.all().values()),
-            "nodes": list(session.nodes.all().values()),
-            "subcatchments": list(session.subcatchments.all().values()),
-        }
-
-    @staticmethod
-    def get_user_sessions(user, limit: Optional[int] = None, status_filter: Optional[str] = None) -> list:
-        """
-        Get calculation sessions for a user.
-
-        Args:
-            user: User instance
-            limit: Maximum number of sessions to return
-            status_filter: Filter by session status
-
-        Returns:
-            List of CalculationSession instances
-        """
-        queryset = (
-            CalculationSession.objects.filter(user=user)
-            .select_related("swmm_model")
-            .prefetch_related("conduits", "nodes", "subcatchments")
-            .order_by("-created_at")
-        )
-
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-
-        if limit:
-            queryset = queryset[:limit]
-
-        return list(queryset)
 
     @staticmethod
     def panel_links(
