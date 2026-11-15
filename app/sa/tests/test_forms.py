@@ -242,6 +242,22 @@ class FormCostLimitTests(SimpleTestCase):
             errors[0].messages, ["The SWMM file simulates 204 hours (START to END in [OPTIONS]); the limit is 168 hours."]
         )
 
+    def test_a_fraction_of_an_hour_is_rounded_up_to_one_decimal(self):
+        from sa.forms import _hours
+
+        self.assertEqual(_hours(204), "204 hours")
+        self.assertEqual(_hours(204.0), "204 hours")
+        self.assertEqual(_hours(168 + 1 / 60), "168.1 hours")  # one minute over a week
+        self.assertEqual(_hours(204.5), "204.5 hours")
+        self.assertEqual(_hours(204.25), "204.3 hours")
+        self.assertEqual(_hours(1), "1 hour")
+        self.assertEqual(_hours(1200000), "1,200,000 hours")
+
+        errors = self._errors(self._option("END_TIME", "00:01:00", self._option("END_DATE", "06/24/2022")))
+        self.assertEqual(
+            errors[0].messages, ["The SWMM file simulates 168.1 hours (START to END in [OPTIONS]); the limit is 168 hours."]
+        )
+
     def test_an_end_date_hidden_in_a_second_options_section_counts(self):
         errors = self._errors(self.DEMO + "\n[OPTIONS]\nEND_DATE 06/30/2022\n")
         self.assertEqual([e.code for e in errors], ["simulation_too_long"])
@@ -310,6 +326,15 @@ class FormSizeLimitTests(SimpleTestCase):
 
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors["file"].as_data()[0].code, "too_large")
+
+    @override_settings(MAX_INP_BYTES=50 * 1024 * 1024)
+    def test_the_message_gives_both_sizes_in_megabytes(self):
+        self.assertEqual(
+            self._form(61 * 1024 * 1024 + 300000).errors["file"].as_data()[0].messages,
+            ["The SWMM file is too large (61.3 MB; the limit is 50.0 MB)."],
+        )
+        # One byte over still reads as over.
+        self.assertIn("(50.1 MB; the limit is 50.0 MB)", self._form(50 * 1024 * 1024 + 1).errors["file"].as_data()[0].messages[0])
 
     @override_settings(MAX_INP_BYTES=100)
     def test_limit_follows_the_setting(self):
