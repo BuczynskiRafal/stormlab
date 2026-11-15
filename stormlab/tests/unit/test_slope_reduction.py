@@ -13,8 +13,11 @@ def create_test_df(diameter, slope):
 
 
 def test_slope_reduction_none_df():
+    """Without a conduit frame the step is a no-op, not an error."""
     service = ConduitFeatureSteps(None, None, 1.0)
     service.slope_reduction()
+
+    assert service.dfc is None
 
 
 def test_slope_reduction_existing_column():

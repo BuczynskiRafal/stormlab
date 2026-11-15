@@ -224,15 +224,24 @@ class TestLoadModels:
         errors = [record.getMessage() for record in caplog.records if record.levelname == "ERROR"]
         assert errors == [f"Cannot load MLP recommendation model: {broken}"]
 
-    @pytest.mark.skipif(HAS_TENSORFLOW, reason="Test requires TensorFlow to be unavailable")
-    def test_handles_missing_tensorflow(self, reset_predictor_state):
-        """Test that _load_models handles missing TensorFlow gracefully."""
-        predictor._load_models()
+    def test_handles_missing_tensorflow(self, reset_predictor_state, monkeypatch, caplog):
+        """Without TensorFlow the load attempt finishes, loads nothing and says why.
+
+        A ``None`` entry in ``sys.modules`` makes the import fail the way an absent
+        package does, so the test runs whether or not TensorFlow is installed.
+        """
+        import sys
+
+        monkeypatch.setitem(sys.modules, "tensorflow.keras.models", None)
+
+        with caplog.at_level("WARNING", logger=predictor.logger.name):
+            predictor._load_models()
 
         assert predictor._models_loaded is True
-        # Models should be None when TF is not available
         assert predictor._classifier is None
         assert predictor._recommendation is None
+        assert predictor._gnn_recommendation is None
+        assert "TensorFlow not available - models will not be loaded" in caplog.text
 
 
 class TestGetterFunctions:
