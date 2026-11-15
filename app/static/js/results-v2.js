@@ -880,7 +880,10 @@
       if (mapPanel) mapPanel.hidden = (k !== 'map');
       TABS.forEach(t => {
         const tab = $(`#r-tab-${t}`);
-        if (tab) tab.setAttribute('aria-selected', String(t === k));
+        if (!tab) return;
+        tab.setAttribute('aria-selected', String(t === k));
+        // Roving tab index: Tab enters the tab list on the selected tab, the arrows move.
+        tab.tabIndex = t === k ? 0 : -1;
       });
       if (tablePanel) tablePanel.setAttribute('aria-labelledby', `r-tab-${active}`);
     }
@@ -893,6 +896,11 @@
       // panel is derived from it, and nothing else fixes it afterwards.
       if (TYPES.includes(k)) active = k;
       applyTabState(k);
+      // On a phone the tab row scrolls sideways; keep the chosen tab on screen.
+      const chosen = $(`#r-tab-${k}`);
+      if (chosen && typeof chosen.scrollIntoView === 'function') {
+        chosen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
 
       // 'info' and 'map' own no table state, so they touch neither prefs nor schemas.
       if (TYPES.includes(k)) {

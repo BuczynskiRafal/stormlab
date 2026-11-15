@@ -228,6 +228,11 @@ class ResultsV2CSSIsolationTests(TestCase):
                 # Split multiple selectors separated by comma
                 for part in selector.split(","):
                     p = part.strip()
+                    # One documented exception (section 1c): the phone layout undoes the
+                    # viewport fit app.css puts on <body>, through the class
+                    # results-v2.js adds to the body of this page alone.
+                    if p.startswith("body.results-v2-page:has(#storm-results-v2)"):
+                        continue
                     if p and not p.startswith("#storm-results-v2"):
                         unscoped_selectors.append((line_idx, p))
 
@@ -605,13 +610,14 @@ class ResultsV2NetworkMapTemplateTests(TestCase):
     def test_map_panel_inset_matches_the_table_toolbar(self):
         """The unconditional inset of the map panel equals the toolbar's, side for side.
 
-        The block of ``@media (min-height: 520px)`` is cut out first: it carries the
+        The block of ``@media (min-height: 520px) and (min-width: 576px)`` is cut out
+        first: it carries the
         *layout* rule for the same selector (display, flex, min-height, overflow) and a
         search for the inset would otherwise stop on it.  What is asserted is equality
         between two rules of this file, never a number typed here.
         """
         source = self._css_no_comments(self._map_source("results-v2.css"))
-        unconditional = self._css_without_block(source, "@media (min-height: 520px) {")
+        unconditional = self._css_without_block(source, "@media (min-height: 520px) and (min-width: 576px) {")
         self.assertEqual(
             self._padding_sides(unconditional, "#r-map-panel"),
             self._padding_sides(unconditional, ".r-toolbar"),

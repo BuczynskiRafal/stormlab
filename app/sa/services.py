@@ -21,7 +21,7 @@ from .models import CalculationSession, ConduitData, NodeData, SessionGeometry, 
 from .core.data import DataManager, RecommendationModelUnavailable
 from .core.errors import AnalysisInputError, unexpected_failure_message
 from .core.geometry import NETMAP_MAX_ELEMENTS, NETMAP_MAX_POINTS, extract_geometry
-from .core.predictor import get_model_metadata
+from .core.predictor import get_model_metadata, gnn_model_paths
 from .core.round import max_depth_value, max_filling, max_velocity_value, min_velocity_value
 from .labels import ACTION_LABELS, CATEGORY_LABELS, action_label, category_label
 
@@ -69,6 +69,39 @@ def fill_percent(filling: Any, diameter: Any) -> float | None:
     if not math.isfinite(diameter_val) or diameter_val <= 0.0 or not math.isfinite(filling_val):
         return None
     return min(100.0, max(0.0, 100.0 * filling_val / diameter_val))
+
+
+_COUNT_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
+
+
+def describe_model(metadata: dict[str, Any] | None) -> dict[str, Any]:
+    """The model behind the recommendations, in plain words and as technical detail.
+
+    ``summary`` is the line a reader sees ("Graph model, five runs averaged"); the
+    identifiers stay available for whoever needs them, with the weights digest also
+    shortened to its first 12 hex characters for display.  ``None`` or a metadata of
+    kind ``none`` describes the state without recommendations.
+    """
+    meta = metadata or {}
+    kind = meta.get("model_kind")
+    if kind == "gnn":
+        runs = len(gnn_model_paths)
+        count = _COUNT_WORDS[runs] if runs < len(_COUNT_WORDS) else str(runs)
+        summary = f"Graph model, {count} runs averaged" if runs > 1 else "Graph model"
+    elif kind == "mlp":
+        summary = "Plain neural network (MLP), one conduit at a time"
+    else:
+        summary = "None (recommendations are switched off)"
+    digest = meta.get("weights_sha256") or None
+    return {
+        "kind": kind or "none",
+        "summary": summary,
+        "model_id": meta.get("model_id") or None,
+        "feature_contract": meta.get("feature_contract") or None,
+        "target_contract": meta.get("target_contract") or None,
+        "weights_digest": digest,
+        "weights_digest_short": digest[:12] if isinstance(digest, str) else None,
+    }
 
 
 def simple_band_rule_passed(filling: Any, diameter: Any, velocity: Any) -> bool:
@@ -960,11 +993,15 @@ class CalculationRetrievalService:
         # -------------------------------------------------------------------------
         # The header renders the file name, date and zone straight from the ``session``
         # object, so the payload carries only what the script itself reads: the id for
-        # the CSV file name, the frost zone for the coverage threshold, and active model metadata.
+        # the CSV file name, the frost zone for the coverage threshold, and the metadata of
+        # the model stored with the session.
+        model_metadata = session_model_metadata(session)
         session_meta = {
             "id": session.id,
             "frost_zone": clean(session.frost_zone),
-            "model_metadata": session_model_metadata(session),
+            "model_metadata": model_metadata,
+            # The same model in plain words, for the Info tab (see describe_model).
+            "model": describe_model(model_metadata),
         }
 
         return {

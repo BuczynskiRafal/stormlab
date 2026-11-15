@@ -13,7 +13,6 @@
  *   1. Design Tokens & CSS Custom Properties
  *   2. Scoped Root & Base Resets (Bootstrap 5 Shielding)
  *   3. Workspace Header & Session Metadata
- *   4. KPI Summary Cards Grid
  *   5. Workspace Container & Tab Navigation
  *   6. Action Toolbar & Filtering Controls
  *   7. Status Viewline & Filter Reset
@@ -71,8 +70,8 @@
   /* Dynamic Viewport Width for Sticky Expansion Rows (updated via JS) */
   --r-viewport: 850px;
 
-  /* Typography & Layout */
-  font: 14px / 1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Typography & Layout: the site's body face (app.css), with the old stack as fallback */
+  font: 14px / 1.45 var(--font-body, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   color: var(--r-ink);
   background: var(--r-bg);
   border-radius: 12px;
@@ -81,8 +80,12 @@
 
 /* ==============================================================================
    1b. WORKSPACE COMPONENT VIEWPORT FIT & SCROLL LAYOUT
+   On a tablet or a desktop the workspace fills the viewport and the table scrolls
+   inside it.  On a phone (below 576 px) that left no room at all - the table frame
+   measured 0 px at 390x844 and the page could not scroll - so there the page scrolls
+   and the table and the map get heights of their own (section 1c).
    ============================================================================== */
-@media (min-height: 520px) {
+@media (min-height: 520px) and (min-width: 576px) {
   #storm-results-v2 {
     display: flex;
     flex-direction: column;
@@ -149,10 +152,24 @@
   }
 }
 
-@media (max-height: 519px) {
-  #storm-results-v2 .r-overflow {
-    max-height: 320px;
-    min-height: 180px;
+/* ==============================================================================
+   1c. PHONE LAYOUT: THE PAGE SCROLLS
+   app.css fits the body to the viewport on every screen at least 520 px tall
+   (body:has(#storm-results-v2) { height: 100vh; overflow-y: hidden }).  Below 576 px
+   wide that is undone here, with a selector one class more specific than the one in
+   app.css, and it is the only rule of this file outside #storm-results-v2: it names
+   the class results-v2.js puts on <body> of this page alone.
+   ============================================================================== */
+@media (max-width: 575.98px) {
+  body.results-v2-page:has(#storm-results-v2) {
+    height: auto;
+    overflow-y: auto;
+  }
+
+  body.results-v2-page:has(#storm-results-v2) .content-wrapper {
+    display: block;
+    padding-top: 12px;
+    padding-bottom: 16px;
   }
 }
 
@@ -183,6 +200,7 @@
 
 #storm-results-v2 a {
   color: var(--r-blue);
+  font-size: inherit;
   text-decoration: none;
 }
 
@@ -194,6 +212,13 @@
   line-height: 1.35;
   border: 0;
   background: transparent;
+}
+
+#storm-results-v2 button:focus-visible,
+#storm-results-v2 a:focus-visible,
+#storm-results-v2 [tabindex]:focus-visible {
+  outline: 2px solid var(--r-blue);
+  outline-offset: 2px;
 }
 
 /* Screen-reader only utility */
@@ -229,26 +254,45 @@
 #storm-results-v2 .r-pagehead {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 15px;
-  flex-wrap: wrap;
-  margin-bottom: 21px;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  flex: none;
 }
 
-#storm-results-v2 h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-  line-height: 1.2;
+#storm-results-v2 .r-pagehead-text {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  min-width: 0;
+}
+
+/* The heading is the file name: modest on purpose, the workspace is the page. */
+#storm-results-v2 h1.r-title {
+  margin: 0;
+  font-family: inherit;
+  text-align: left;
+  font-size: 17px;
+  line-height: 1.3;
   font-weight: 600;
-  letter-spacing: -0.7px;
+  letter-spacing: 0;
   color: var(--r-ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#storm-results-v2 .r-title-kicker {
+  color: var(--r-muted);
+  font-weight: 500;
 }
 
 #storm-results-v2 .r-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px 14px;
+  gap: 2px 14px;
+  margin: 0;
   font-size: 12px;
   color: var(--r-muted);
 }
@@ -259,71 +303,8 @@
   align-items: center;
 }
 
-/* ==============================================================================
-   4. KPI SUMMARY CARDS GRID
-   ============================================================================== */
-#storm-results-v2 .r-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  background: var(--r-white);
-  border: 1px solid var(--r-line);
-  border-radius: 9px;
-  margin-bottom: 20px;
-}
-
-#storm-results-v2 .r-summary button {
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--r-line);
-  padding: 15px 18px;
-  text-align: left;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  color: var(--r-ink);
-  min-width: 0;
-  transition: background-color 0.15s ease;
-}
-
-#storm-results-v2 .r-summary button:last-child {
-  border-right: 0;
-  border-radius: 0 9px 9px 0;
-}
-
-#storm-results-v2 .r-summary button:first-child {
-  border-radius: 9px 0 0 9px;
-}
-
-#storm-results-v2 .r-summary button:hover,
-#storm-results-v2 .r-summary button[aria-pressed=true] {
-  background: var(--r-soft);
-}
-
-#storm-results-v2 .r-summary strong {
-  font-size: 25px;
-  font-weight: 600;
-  letter-spacing: -0.6px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-#storm-results-v2 .r-summary .r-caption {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-#storm-results-v2 .r-summary small {
-  display: block;
-  color: var(--r-muted);
+#storm-results-v2 .r-meta i.fas {
   font-size: 11px;
-  font-weight: 400;
-  margin-top: 3px;
-}
-
-#storm-results-v2 .r-summary .r-arr {
-  margin-left: auto;
-  color: var(--r-blue);
-  font-size: 16px;
 }
 
 /* ==============================================================================
@@ -337,6 +318,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
+  margin: 0;
 }
 
 #storm-results-v2 .r-info-item {
@@ -372,7 +354,38 @@
   font-weight: 500;
   color: var(--r-ink);
   margin: 0;
-  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+/* Model id, contracts and digest: secondary, labelled, in the mono face. */
+#storm-results-v2 .r-info-item .r-info-detail {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 10px;
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+#storm-results-v2 .r-info-item .r-info-detail dt {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+#storm-results-v2 .r-info-item .r-info-detail dd {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+#storm-results-v2 .r-info-detail code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--r-ink);
+  background: var(--r-bg);
+  padding: 0 4px;
+  border-radius: 3px;
 }
 
 /* ==============================================================================
@@ -388,24 +401,35 @@
 #storm-results-v2 .r-tabs {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
   padding: 0 20px;
   border-bottom: 1px solid var(--r-line);
-  flex-wrap: wrap;
+  flex: none;
+  min-width: 0;
 }
 
+/* One row at every width: when the tabs do not fit they scroll sideways instead of
+   stacking into a column (356 px tall at 390 px before). */
 #storm-results-v2 .r-tabs-list {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 28px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  min-width: 0;
+  flex: 1;
+}
+
+#storm-results-v2 .r-tabs-list::-webkit-scrollbar {
+  display: none;
 }
 
 #storm-results-v2 .r-tabs-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex: none;
 }
 
 #storm-results-v2 .r-action-btn {
@@ -453,7 +477,9 @@
 
 #storm-results-v2 .r-tab {
   display: flex;
+  flex: none;
   align-items: center;
+  white-space: nowrap;
   gap: 8px;
   background: transparent;
   border: 0;
@@ -477,6 +503,10 @@
 #storm-results-v2 .r-tab[aria-selected=true] {
   color: var(--r-blue);
   border-bottom-color: var(--r-blue);
+}
+
+#storm-results-v2 .r-tab:focus-visible {
+  outline-offset: -2px;
 }
 
 #storm-results-v2 .r-tab[aria-selected=true] .r-count {
@@ -534,7 +564,7 @@
 }
 
 #storm-results-v2 .r-search {
-  width: 210px;
+  width: 260px;
   max-width: 100%;
 }
 
@@ -979,8 +1009,14 @@
   box-shadow: inset 3px 0 0 #e3b33a, inset 0 -1px 0 #e3b33a, inset 0 1px 0 #e3b33a;
 }
 
-/* Right-aligned numeric data cells */
+/* Right-aligned numeric data cells, and their headers: the label and the unit stand
+   over the numbers they name, with the sort mark on the outer side. */
 #storm-results-v2 .r-num {
+  text-align: right;
+}
+
+#storm-results-v2 th.r-num .r-sort {
+  flex-direction: row-reverse;
   text-align: right;
 }
 
@@ -1254,89 +1290,163 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #storm-results-v2 .r-summary button {
-    padding: 13px 12px;
-    gap: 8px;
+  #storm-results-v2 .r-tools {
+    margin-left: auto;
+  }
+}
+
+/* Phones (< 576px): the page head and the toolbar fold onto their own rows. */
+@media (max-width: 575.98px) {
+  /* The two page actions keep their icon and their name for assistive technology;
+     the visible text gives way so that the heading keeps the line. */
+  #storm-results-v2 .r-pagehead {
+    align-items: flex-start;
+    margin-bottom: 10px;
   }
 
-  #storm-results-v2 .r-summary strong {
-    font-size: 23px;
+  #storm-results-v2 .r-pagehead-text {
+    display: block;
   }
 
-  #storm-results-v2 .r-summary .r-arr {
-    display: none;
+  #storm-results-v2 h1.r-title {
+    font-size: 16px;
+  }
+
+  #storm-results-v2 .r-meta {
+    margin-top: 2px;
+  }
+
+  #storm-results-v2 .r-action-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  #storm-results-v2 .r-action-btn i {
+    font-size: 15px;
+  }
+
+  #storm-results-v2 .r-action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  #storm-results-v2 .r-workspace {
+    border-radius: 8px;
+  }
+
+  #storm-results-v2 .r-tabs {
+    padding: 0 12px;
+  }
+
+  #storm-results-v2 .r-tabs-list {
+    gap: 20px;
+  }
+
+  #storm-results-v2 .r-tab {
+    font-size: 13px;
+    gap: 6px;
+    padding: 13px 0;
+  }
+
+  #storm-results-v2 .r-count {
+    padding: 1px 5px;
+  }
+
+  /* Search on a row of its own; the filter, the toggle and the two tools wrap below
+     it, the tools pushed to the right edge. */
+  #storm-results-v2 .r-toolbar {
+    padding: 12px 12px 10px;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* The filters join the toolbar row: search and filter take a row each, the
+     toggle and the two tools share the last one. */
+  #storm-results-v2 .r-filters {
+    display: contents;
+  }
+
+  #storm-results-v2 .r-search {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  #storm-results-v2 .r-field:has(select) {
+    flex: 1 1 100%;
+  }
+
+  #storm-results-v2 .r-field:has(select) select {
+    width: 100%;
   }
 
   #storm-results-v2 .r-tools {
     margin-left: auto;
   }
 
+  /* 16px font size prevents iOS Safari automatic viewport zooming on focus */
+  #storm-results-v2 select,
+  #storm-results-v2 input[type=search] {
+    font-size: 16px;
+    height: 40px;
+  }
+
+  #storm-results-v2 .r-viewline {
+    padding: 0 12px 10px;
+  }
+
+  #storm-results-v2 .r-selection {
+    margin: 0 10px 13px;
+    padding: 13px 11px;
+  }
+
+  #storm-results-v2 .r-groups {
+    gap: 17px 12px;
+  }
+
+  #storm-results-v2 .r-option {
+    font-size: 12px;
+    gap: 6px;
+    padding: 6px 0;
+  }
+
+  #storm-results-v2 .r-presets {
+    width: 100%;
+  }
+
+  #storm-results-v2 .r-close {
+    margin-left: auto;
+  }
+
+  #storm-results-v2 .r-foot {
+    padding: 10px 12px;
+  }
+
+  #storm-results-v2 .r-checkgrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #storm-results-v2 .r-id {
+    min-height: 22px;
+  }
+
+  #storm-results-v2 .r-pin {
+    min-width: 72px;
+  }
 }
 
 /* Mobile Devices & Narrow Viewports (<= 520px) */
 @media (max-width: 520px) {
-  #storm-results-v2 .r-topnav {
-    gap: 22px;
-  }
-
-  #storm-results-v2 .r-prototype {
-    display: none;
-  }
-
-  #storm-results-v2 h1 {
-    font-size: 25px;
-  }
-
-  #storm-results-v2 .r-example {
-    font-size: 11px;
-  }
-
-  #storm-results-v2 .r-pagehead {
-    gap: 10px;
-  }
-
-  #storm-results-v2 .r-summary {
-    margin-bottom: 15px;
-  }
-
-  #storm-results-v2 .r-summary button {
-    display: block;
-    padding: 12px 10px;
-  }
-
-  #storm-results-v2 .r-summary strong {
-    display: block;
-    margin-bottom: 5px;
-  }
-
-  #storm-results-v2 .r-summary .r-caption {
-    font-size: 11px;
-  }
-
-  #storm-results-v2 .r-summary small {
-    font-size: 11px;
-  }
-
-  #storm-results-v2 .r-tabs {
-    gap: 18px;
-    padding: 0 14px;
-    flex-wrap: nowrap;
-  }
-
-  #storm-results-v2 .r-tab {
-    font-size: 12px;
-    gap: 5px;
-    padding: 15px 0;
-  }
-
-  #storm-results-v2 .r-count {
-    font-size: 11px;
-    padding: 1px 4px;
-  }
-
   #storm-results-v2 .r-toolbar {
-    padding: 15px 14px 10px;
-    display: block;
+    padding: 12px 12px 10px;
   }
 
   /* Below 520 px the sides go to 10 px: D2 = (b), which is the decision's own default
@@ -1361,85 +1471,6 @@
      4.00 px, measured.  The gate prints all of these numbers. */
   #storm-results-v2 #r-map-panel {
     padding: 10px 10px 8px;
-  }
-
-  #storm-results-v2 .r-filters {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 11px;
-  }
-
-  #storm-results-v2 .r-search {
-    width: 100%;
-  }
-
-  #storm-results-v2 .r-tools {
-    margin-top: 12px;
-    justify-content: flex-end;
-  }
-
-  #storm-results-v2 .r-field:has(select) {
-    width: 100%;
-  }
-
-  /* 16px font size prevents iOS Safari automatic viewport zooming on focus */
-  #storm-results-v2 select,
-  #storm-results-v2 input[type=search] {
-    font-size: 16px;
-    height: 39px;
-  }
-
-  #storm-results-v2 .r-checkbox {
-    min-height: 30px;
-    font-size: 12px;
-  }
-
-  #storm-results-v2 .r-viewline {
-    padding: 0 14px 11px;
-  }
-
-  #storm-results-v2 .r-selection {
-    margin: 0 10px 13px;
-    padding: 13px 11px;
-  }
-
-  #storm-results-v2 .r-selectionhead {
-    gap: 10px;
-  }
-
-  #storm-results-v2 .r-groups {
-    gap: 17px 12px;
-  }
-
-  #storm-results-v2 .r-option {
-    font-size: 11px;
-    gap: 6px;
-    padding: 6px 0;
-  }
-
-  #storm-results-v2 .r-presets {
-    width: 100%;
-  }
-
-  #storm-results-v2 .r-close {
-    margin-left: auto;
-  }
-
-  #storm-results-v2 .r-foot {
-    padding: 12px 14px;
-  }
-
-  #storm-results-v2 .r-overflow {
-    min-height: 180px;
-    max-height: calc(100vh - 380px);
-  }
-
-  #storm-results-v2 .r-checkgrid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  #storm-results-v2 .r-id {
-    min-height: 22px;
   }
 }
 
@@ -1473,27 +1504,32 @@
 
 /* Extra-Narrow Mobile Screens (<= 380px) */
 @media (max-width: 380px) {
-  #storm-results-v2 .r-tabs {
-    gap: 8px;
-    padding: 0 9px;
+  #storm-results-v2 .r-tabs-list {
+    gap: 16px;
   }
 
-  #storm-results-v2 .r-tab {
-    flex: 1;
-    min-width: 0;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 11px;
-    padding: 12px 0;
+  #storm-results-v2 .r-tab i.fas {
+    display: none;
   }
+}
 
-  #storm-results-v2 .r-summary .r-caption,
-  #storm-results-v2 .r-summary small {
-    overflow-wrap: anywhere;
+/* Heights of the table frame where the page scrolls (stated last: section 9 sets the
+   base values later in the file than section 1).  On a phone: three quarters of the
+   screen, never less than about six rows; held sideways: nearly the whole screen.  The
+   frame scrolls inside itself, so the header row stays in view. */
+@media (max-width: 575.98px) {
+  #storm-results-v2 .r-overflow {
+    min-height: 300px;
+    max-height: 75vh;
+    max-height: 75svh;
   }
+}
 
-  #storm-results-v2 .r-summary button {
-    padding: 12px 8px;
+@media (max-height: 519px) {
+  #storm-results-v2 .r-overflow {
+    min-height: 240px;
+    max-height: calc(100vh - 48px);
+    max-height: calc(100svh - 48px);
   }
 }
 

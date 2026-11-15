@@ -1187,11 +1187,34 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         with mock.patch("sa.core.predictor.get_model_metadata", return_value=other_model):
             results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
             panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
-        self.assertContains(results, "gnn_recommender_v1 (v4_physical, primary_action_v3)")
+        # The Info tab says it in words first and keeps the identifiers as labelled detail.
+        self.assertContains(results, "<dd>Graph model, five runs averaged")
+        self.assertContains(results, "<dt>Model id</dt><dd><code>gnn_recommender_v1</code></dd>")
+        self.assertContains(results, "<dt>Feature contract</dt><dd><code>v4_physical</code></dd>")
+        self.assertContains(results, "<dt>Target contract</dt><dd><code>primary_action_v3</code></dd>")
+        digest = self.GNN_METADATA["weights_sha256"]
+        self.assertContains(results, f'<dt>Weights digest</dt><dd><code title="{digest}">{digest[:12]}</code></dd>')
         self.assertContains(panel, "gnn_recommender_v1 (v4_physical)")
         for response in (results, panel):
             self.assertNotContains(response, "a_later_model")
         self.assertEqual(results.context["results_v2_data"]["session"]["model_metadata"], {**self.GNN_METADATA, "recorded": True})
+
+    def test_info_tab_shortens_the_weights_digest_and_keeps_it_whole_in_the_title(self):
+        digest = "0123456789abcdef" * 4
+        self._with_metadata({"model_kind": "gnn", "model_id": "gnn_recommender_v1", "weights_sha256": digest})
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+        self.assertContains(results, f'<dt>Weights digest</dt><dd><code title="{digest}">0123456789ab</code></dd>')
+
+    def test_describe_model_reads_every_kind(self):
+        from sa.services import describe_model
+
+        self.assertEqual(describe_model({"model_kind": "gnn"})["summary"], "Graph model, five runs averaged")
+        self.assertEqual(describe_model({"model_kind": "mlp"})["summary"], "Plain neural network (MLP), one conduit at a time")
+        for meta in (None, {}, {"model_kind": "none"}):
+            described = describe_model(meta)
+            self.assertEqual(described["summary"], "None (recommendations are switched off)")
+            self.assertIsNone(described["model_id"])
+            self.assertIsNone(described["weights_digest_short"])
 
     def test_pages_name_no_model_when_none_ran(self):
         self._with_metadata({**dict.fromkeys(self.GNN_METADATA), "model_kind": "none", "gnn_enabled": False})
