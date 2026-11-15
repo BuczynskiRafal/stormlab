@@ -509,3 +509,64 @@ class ErrorPageTests(TestCase):
         source = open(loader.get_template("500.html").origin.name, encoding="utf-8").read()
         for dependency in ("{% extends", "{% url", "user.", "registration_open", "messages"):
             self.assertNotIn(dependency, source.split("{% endcomment %}")[1], dependency)
+
+
+@override_settings(DEBUG=False, ROOT_URLCONF=__name__)
+class PageTitleTests(TestCase):
+    """Every <title> is "<page> · StormLab", the product named once, at the end.
+
+    base.html appends the suffix; a page that writes it as well doubles it. The home
+    page alone leads with the product ("StormLab · Decision support ...").
+    """
+
+    HOME_TITLE = "StormLab · Decision support for storm sewer design"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_user(email="titles@example.com")
+        cls.session = make_session(cls.user, n_conduits=1, n_nodes=2, n_subcatchments=1)
+
+    def setUp(self):
+        self.client.raise_request_exception = False
+
+    def title_of(self, response) -> str:
+        found = re.findall(r"<title>(.*?)</title>", response.content.decode(), re.DOTALL)
+        self.assertEqual(len(found), 1, "one <title> per page")
+        return " ".join(found[0].split())
+
+    def assert_titles(self, pages):
+        for url, page in pages:
+            with self.subTest(url=url):
+                title = self.title_of(self.client.get(url))
+                self.assertEqual(title, f"{page} · StormLab")
+                self.assertEqual(title.count("StormLab"), 1)
+
+    def test_public_pages(self):
+        self.assertEqual(self.title_of(self.client.get(reverse("sa:index"))), self.HOME_TITLE)
+        self.assert_titles(
+            [
+                (reverse("sa:about"), "About"),
+                (reverse("sa:method"), "Method"),
+                (reverse("accounts:login"), "Log in"),
+                (reverse("accounts:register"), "Sign up"),
+                ("/no-such-page/", "Page not found"),
+                ("/test-errors/400/", "Bad request"),
+                ("/test-errors/403/", "Access denied"),
+                ("/test-errors/500/", "Server error"),
+            ]
+        )
+
+    def test_pages_behind_the_login(self):
+        self.client.force_login(self.user)
+        file_name = self.session.swmm_model.file.name.rsplit("/", 1)[-1]
+        self.assertEqual(self.title_of(self.client.get(reverse("sa:index"))), self.HOME_TITLE)
+        self.assert_titles(
+            [
+                (reverse("sa:analysis"), "Analysis"),
+                (reverse("sa:history"), "History"),
+                (reverse("sa:analysis_results", args=[self.session.id]), f"{file_name} · Results"),
+                (reverse("sa:conduit_detail", args=[self.session.id, "C1"]), f"Conduit C1 · {file_name}"),
+                (reverse("accounts:user_profile"), "Your account"),
+                (reverse("accounts:logout"), "Log out"),
+            ]
+        )
