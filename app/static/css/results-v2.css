@@ -1047,6 +1047,17 @@
   text-decoration: underline;
 }
 
+/* A long element name is cut with an ellipsis instead of widening the pinned column
+   until nothing else fits beside it; the link's title carries the full name. */
+#storm-results-v2 .r-pin .r-id {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 /* Flooding mark & numbers */
 #storm-results-v2 .r-floodmark {
   display: inline-flex;
@@ -1440,6 +1451,10 @@
 
   #storm-results-v2 .r-pin {
     min-width: 72px;
+  }
+
+  #storm-results-v2 .r-pin .r-id {
+    max-width: 38vw;
   }
 }
 

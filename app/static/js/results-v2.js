@@ -621,8 +621,8 @@
         const panelUrl = r.panel_url || r.panelUrl || r.detail_url || r.link;
         if (active === 'conduits') {
           return panelUrl
-            ? `<a class="r-id" href="${esc(panelUrl)}" title="Open conduit ${esc(r.id)} panel">${esc(r.id)}</a>`
-            : `<span class="r-id">${esc(r.id)}</span>`;
+            ? `<a class="r-id" href="${esc(panelUrl)}" title="Open the panel of conduit ${esc(r.id)}">${esc(r.id)}</a>`
+            : `<span class="r-id" title="${esc(r.id)}">${esc(r.id)}</span>`;
         }
 
         if (active === 'nodes') {
