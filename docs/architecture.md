@@ -270,15 +270,15 @@ The user model is `accounts.User` (`app/accounts/models.py`), which signs in wit
 
 ## Front end
 
-The pages are server-rendered Django templates: `app/sa/templates/sa/` holds one template per page (`analysis.html`, `analysis_results.html`, `conduit_panel.html`, `history.html` and the public pages `index.html`, `about.html` and `method.html`) and a few partials, all extending `app/storm_analysis/templates/base.html`. There is no build step and no package manager for the browser code; `app/static/js/` holds plain scripts and `app/static/css/` plain stylesheets.
+The pages are server-rendered Django templates: `app/sa/templates/sa/` holds one template per page (`analysis.html`, `analysis_results.html`, `conduit_panel.html`, `history.html` and the public pages `index.html`, `about.html` and `method.html`) and a few partials, all extending `app/storm_analysis/templates/base.html`, which also renders the queued `django.contrib.messages` under the header. Next to it live the error pages: `400.html`, `403.html` and `404.html` extend `base.html`; `500.html` is self-contained, because Django renders it without a request or context processors. There is no build step and no package manager for the browser code; `app/static/js/` holds plain scripts and `app/static/css/` plain stylesheets.
 
 | Page | Script | Role |
 |---|---|---|
-| every page | `main.js` | tooltips, back-to-top button; on the history page the filter form and single and bulk delete (`fetch` to `/session/<id>/delete/` and `/sessions/bulk-delete/` with the CSRF token) |
+| every page | `main.js` | tooltips, back-to-top button (lifted above the footer, shown only while scrolling up on phones); the file drop zones (analysis form, avatar); on the analysis form the inline error for an empty submit, the progress state and the double-submit guard; on the account page focus on the first rejected field; on the history page the filter form, the error disclosure and single and bulk delete (`fetch` to `/session/<id>/delete/` and `/sessions/bulk-delete/` with the CSRF token, then the last page that still exists) |
 | results | `results-v2.js` | tabs (Map, Conduits, Nodes, Subcatchments, Info), summary cards, search, filters, sorting, column chooser, inline check details, CSV export of the visible rows |
 | results | `network-map.js` | the network drawn as SVG in the browser: subcatchment outlines, outlet lines, links, nodes, names |
 | conduit panel | `conduit-panel.js` | longitudinal profile (SVG) and the detail tabs |
-| About, Method | `docs.js` | table of contents: anchor offset below the header and the active entry while scrolling |
+| About, Method | `docs.js` | table of contents: anchor offset below the header and the active entry while scrolling (a clicked entry stays active; near the end of the page the activation line moves down); the edge fade and the scroll hint of the wide figures |
 | Method | `method-graph.js` | the figure that shows, on the Rakowiec network, which conduits the model reads for a selected conduit |
 
 **How data reaches the scripts.** `AnalysisResultsView` (`app/sa/views.py`) loads the session with its conduits, nodes and subcatchments and passes two payloads that `analysis_results.html` embeds with `json_script`:
