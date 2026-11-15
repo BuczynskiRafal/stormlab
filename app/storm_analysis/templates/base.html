@@ -8,7 +8,10 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+    {# Square icons cut from logo.png with transparent padding; the touch icon has a white ground because iOS paints transparency black. #}
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32.png' %}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'img/icon-512.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/apple-touch-icon.png' %}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
@@ -24,17 +27,18 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% versioned_static 'css/app.css' %}">
     {% block extra_css %}{% endblock %}
-    <title>
-        {% block title %} {% endblock %}
-    </title>
+    {# Every page is "Page · StormLab"; a page that needs another form (the home page) overrides head_title. #}
+    <title>{% block head_title %}{% block title %}{% endblock %} · StormLab{% endblock %}</title>
 </head>
 
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
 {% with url_name=request.resolver_match.url_name %}
 <header class="site-header">
     <div class="containerwide site-header-inner">
-        <a href="{% url 'sa:index' %}" class="site-brand" aria-label="Stormwater analysis - home">
-            <img src="{% static 'img/logo.png' %}" alt="Logo" height="50" width="50">
+        <a href="{% url 'sa:index' %}" class="site-brand" aria-label="StormLab, home">
+            <img src="{% static 'img/logo.png' %}" alt="" height="50" width="41">
+            <span class="site-wordmark" aria-hidden="true">StormLab</span>
         </a>
         <button class="navbar-toggler site-nav-toggler collapsed" type="button" data-bs-toggle="collapse"
                 data-bs-target="#siteNavCollapse" aria-controls="siteNavCollapse" aria-expanded="false"
@@ -57,14 +61,14 @@
                     {% if user.is_authenticated %}
                         <form action="{% url 'accounts:logout' %}" method="post">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-primary btn-sm">Logout</button>
+                            <button type="submit" class="btn btn-outline-primary btn-sm">Log out</button>
                         </form>
-                        <a href="{% url 'accounts:user_profile' %}" class="site-avatar-link" aria-label="Your profile">
-                            <img src="{{ user.get_avatar_url }}" class="profile-image" alt="Profile image" height="50" width="50">
+                        <a href="{% url 'accounts:user_profile' %}" class="site-avatar-link" aria-label="Your account">
+                            <img src="{{ user.get_avatar_url }}" class="profile-image" alt="" height="50" width="50">
                         </a>
                     {% else %}
-                        <a class="btn btn-outline-primary btn-sm" href="{% url 'accounts:login' %}">Login</a>
-                        {% if registration_open %}<a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">Sign-up</a>{% endif %}
+                        <a class="btn btn-outline-primary btn-sm" href="{% url 'accounts:login' %}">Log in</a>
+                        {% if registration_open %}<a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">Sign up</a>{% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -87,14 +91,14 @@
 </div>
 {% endif %}
 
-<main class="containerwide content-wrapper">
+<main class="containerwide content-wrapper" id="main-content" tabindex="-1">
     {% block content%}{% endblock %}
 </main>
 
 <footer class="site-footer">
     <div class="containerwide site-footer-inner">
-        <a href="{% url 'sa:index' %}" class="site-footer-brand" aria-label="Stormwater analysis - home">
-            <img src="{% static 'img/logo.png' %}" alt="Logo" height="30" width="30">
+        <a href="{% url 'sa:index' %}" class="site-footer-brand" aria-label="StormLab, home">
+            <img src="{% static 'img/logo.png' %}" alt="" height="30" width="25">
         </a>
         <p class="site-footer-copy">&copy; Rafał Buczyński {% now "Y" %}</p>
         <ul class="nav site-footer-nav">

@@ -2,7 +2,7 @@
 {% load sa_static %}
 {% load sa_labels %}
 
-{% block title %}{{ session.swmm_model.file|file_label }} · Results · StormLab{% endblock %}
+{% block title %}{{ session.swmm_model.file|file_label }} · Results{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% versioned_static 'css/results-v2.css' %}">

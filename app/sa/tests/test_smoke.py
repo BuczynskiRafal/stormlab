@@ -50,6 +50,59 @@ class SiteChromeContractTests(TestCase):
         self.assertContains(response, 'data-bs-target="#siteNavCollapse"')
         self.assertContains(response, 'id="siteNavCollapse"')
 
+    def test_skip_link_is_the_first_focusable_element_and_targets_main(self):
+        html = self.client.get(reverse("sa:index")).content.decode()
+        body = html[html.index("<body>") :]
+
+        first_link = re.search(r"<(a|button)\b[^>]*>", body).group(0)
+        self.assertIn('class="skip-link" href="#main-content"', first_link)
+        self.assertIn('<main class="containerwide content-wrapper" id="main-content" tabindex="-1">', body)
+
+    def test_brand_is_named_stormlab_in_text_and_for_screen_readers(self):
+        response = self.client.get(reverse("sa:index"))
+
+        self.assertContains(response, 'aria-label="StormLab, home"', count=2)
+        self.assertContains(response, '<span class="site-wordmark" aria-hidden="true">StormLab</span>')
+        self.assertNotContains(response, "Stormwater analysis - home")
+
+    def test_every_title_names_the_page_then_the_product(self):
+        self.assertContains(
+            self.client.get(reverse("sa:index")), "<title>StormLab · Decision support for storm sewer design</title>"
+        )
+        for name, title in (("sa:about", "About"), ("sa:method", "Method"), ("accounts:login", "Log in")):
+            with self.subTest(page=name):
+                self.assertContains(self.client.get(reverse(name)), f"<title>{title} · StormLab</title>")
+
+    def test_auth_actions_are_two_word_verbs(self):
+        anonymous = self.client.get(reverse("sa:index"))
+        self.assertContains(anonymous, ">Log in</a>")
+        self.assertContains(anonymous, ">Sign up</a>")
+        self.assertNotContains(anonymous, ">Login<")
+        self.assertNotContains(anonymous, "Sign-up")
+
+        self.client.force_login(make_user(email="chrome@example.com"))
+        member = self.client.get(reverse("sa:index"))
+        self.assertContains(member, ">Log out</button>")
+        self.assertNotContains(member, ">Logout<")
+
+    def test_square_icons_are_linked(self):
+        response = self.client.get(reverse("sa:index"))
+
+        self.assertContains(response, 'rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32.png"')
+        self.assertContains(response, 'rel="apple-touch-icon" sizes="180x180" href="/static/img/apple-touch-icon.png"')
+        self.assertNotContains(response, 'rel="icon" type="image/png" href="/static/img/logo.png"')
+
+    def test_icon_files_are_square_and_small(self):
+        from pathlib import Path
+
+        from PIL import Image
+
+        img_dir = Path(__file__).resolve().parents[2] / "static" / "img"
+        for name, size in (("favicon-32.png", 32), ("apple-touch-icon.png", 180), ("icon-512.png", 512)):
+            with self.subTest(icon=name), Image.open(img_dir / name) as icon:
+                self.assertEqual(icon.size, (size, size))
+                self.assertLess((img_dir / name).stat().st_size, 16 * 1024)
+
     def test_login_page_renders_the_auth_card_without_a_green_submit(self):
         response = self.client.get(reverse("accounts:login"))
 

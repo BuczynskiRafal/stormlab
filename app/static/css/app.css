@@ -1387,6 +1387,61 @@ small {
     width: auto;
 }
 
+/* The brand is a link: logo + wordmark. justify-content keeps it at the left edge
+   now that the flank grows with flex: 1 above the collapse breakpoint. */
+.site-brand {
+    gap: 0.55rem;
+    justify-content: flex-start;
+    color: var(--ink);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+}
+
+.site-wordmark {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.site-brand:hover .site-wordmark {
+    color: var(--water-700);
+}
+
+.site-brand:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 4px;
+}
+
+/* Skip link: the first focusable element of every page, off-screen until focused. */
+.skip-link {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: calc(var(--z-header) + 1);
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-sm);
+    background-color: var(--water-700);
+    color: #ffffff;
+    font-weight: 600;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+    color: #ffffff;
+}
+
+/* <main> takes focus from the skip link only; it never needs a visible ring. */
+#main-content:focus {
+    outline: none;
+}
+
 .site-nav .nav {
     gap: 0.25rem;
     flex-wrap: wrap;
