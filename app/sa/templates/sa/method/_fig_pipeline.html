@@ -1,5 +1,6 @@
 <figure class="method-fig method-fig--pipeline">
-  <div class="method-fig-scroll">
+  {# Wide drawing: on a phone it keeps a legible size and scrolls sideways; docs.js adds the edge fade and the hint while there is more to see. #}
+  <div class="method-fig-scroll" tabindex="0" role="region" aria-label="Figure 1, scrolls sideways">
     <svg viewBox="0 0 720 528" role="img" aria-labelledby="mf-pipeline-title mf-pipeline-desc" xmlns="http://www.w3.org/2000/svg">
       <title id="mf-pipeline-title">From a model file to a recommendation</title>
       <desc id="mf-pipeline-desc">Flow diagram. A SWMM model file (.inp) is uploaded and scanned so that the engine cannot read or write other files. It is simulated with EPA SWMM 5.2 using the options declared in the file, which produces a results report. From the results three branches run in parallel. Hydraulic verification applies 7 design checks to every conduit: filling, two velocity checks, two slope checks, depth and cover. Catchment categories come from the model&#x27;s tags or from a classifier that maps 12 inputs to 12 land-cover categories. The third branch, highlighted as the main path, builds the conduit graph, in which every conduit is a node with 66 physical features, and passes it to the graph model: 2 graph steps, 5 training runs averaged, giving the probability of each of 9 actions. All three branches end in the results: map, tables, conduit panel and CSV export, stored per analysis session.</desc>
@@ -57,5 +58,6 @@
       <text class="mf-body" x="20" y="508">Stored per analysis; the map, tables and panels read from it.</text>
     </svg>
   </div>
+  <p class="method-fig-hint" hidden>Scroll to see the rest <span aria-hidden="true">→</span></p>
   <figcaption><strong>Figure 1.</strong> One analysis, from upload to results. The simulation supplies the physics; the models only read its outcome.</figcaption>
 </figure>

@@ -205,3 +205,44 @@
         updateActive();
     });
 })();
+
+/*
+ * Wide figures of the Method page (.method-fig-scroll). On a narrow screen a drawing
+ * keeps a legible size and scrolls sideways; without a hint half of it went unnoticed.
+ * While a scroller overflows it gets .is-scrollable (edge fades in method-figures.css)
+ * and .is-at-start / .is-at-end, and the "Scroll to see the rest" line under the figure
+ * is shown until the reader has scrolled it.
+ */
+(function () {
+    'use strict';
+
+    var SCROLLED_PX = 24;
+    var scrollers = document.querySelectorAll('.method-fig-scroll');
+    if (!scrollers.length) {
+        return;
+    }
+
+    Array.prototype.forEach.call(scrollers, function (scroller) {
+        var figure = scroller.closest('figure');
+        var hint = figure ? figure.querySelector('.method-fig-hint') : null;
+        var scrolled = false;
+
+        function sync() {
+            var overflow = scroller.scrollWidth - scroller.clientWidth > 1;
+            var left = scroller.scrollLeft;
+            if (left > SCROLLED_PX) {
+                scrolled = true;
+            }
+            scroller.classList.toggle('is-scrollable', overflow);
+            scroller.classList.toggle('is-at-start', left <= 1);
+            scroller.classList.toggle('is-at-end', left >= scroller.scrollWidth - scroller.clientWidth - 1);
+            if (hint) {
+                hint.hidden = !overflow || scrolled;
+            }
+        }
+
+        scroller.addEventListener('scroll', sync, { passive: true });
+        window.addEventListener('resize', sync);
+        sync();
+    });
+})();

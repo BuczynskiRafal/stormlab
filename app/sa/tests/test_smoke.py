@@ -356,12 +356,36 @@ class MethodPageContractTests(TestCase):
     def test_figures_are_rendered_with_text_alternatives(self):
         html = self.response.content.decode()
 
-        self.assertEqual(html.count('<svg viewBox="'), 3, "three static figures, drawn in the template")
+        self.assertEqual(html.count('<figure class="method-fig '), 3, "three static figures, drawn in the template")
         self.assertEqual(html.count("<title"), 4, "the page title and one title per static figure")
         self.assertEqual(html.count("<desc"), 3, "every static figure describes itself to a screen reader")
-        self.assertEqual(html.count("<figcaption"), 4)
+        # Figure 2 is two drawings (stacked on phones); only the first is announced, its
+        # description covers both panels.
+        self.assertEqual(html.count('role="img" aria-labelledby="mf-'), 3)
+        self.assertEqual(html.count("<figcaption"), 5)
         self.assertContains(self.response, "data-method-graph")
         self.assertContains(self.response, "data/method-graph.json")
+
+    def test_all_five_figures_are_numbered_in_page_order(self):
+        html = self.response.content.decode()
+
+        self.assertEqual(re.findall(r"<strong>Figure (\d)\.</strong>", html), ["1", "2", "3", "4", "5"])
+
+    def test_figure_two_stacks_its_panels_instead_of_scrolling(self):
+        html = self.response.content.decode()
+        figure = html[html.index('<figure class="method-fig method-fig--conduit-graph">') :]
+        figure = figure[: figure.index("</figure>")]
+
+        self.assertNotIn("method-fig-scroll", figure)
+        self.assertIn('class="method-fig-panel method-fig-panel--graph" viewBox="392 0 328 334"', figure)
+
+    def test_wide_figures_scroll_with_a_keyboard_focus_and_a_hint(self):
+        self.assertContains(self.response, 'class="method-fig-scroll" tabindex="0" role="region"', count=2)
+        self.assertContains(self.response, '<p class="method-fig-hint" hidden>Scroll to see the rest', count=2)
+
+    def test_results_table_stacks_on_phones_with_labelled_values(self):
+        self.assertContains(self.response, 'class="docs-table method-stack method-results"')
+        self.assertContains(self.response, '<td data-label="MLP + neighbourhood">0.886</td>')
 
     def test_about_limitations_anchor_linked_from_the_method_page_exists(self):
         self.assertContains(self.response, f"{reverse('sa:about')}#limitations")

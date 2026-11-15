@@ -27,8 +27,12 @@
     max-width: 72ch;
 }
 
-/* A sentence that belongs to the chart above it, not to the running text. */
-.docs-section p.method-figure-note {
+/* The caption of the dot plot (Figure 5): it belongs to the chart above it. */
+.method-dots-figure {
+    margin: 0 0 1.5rem;
+}
+
+.docs-section .method-figure-note {
     margin-top: -0.9rem;
     font-size: 0.86rem;
     line-height: 1.55;
@@ -335,6 +339,15 @@
 
     .method-stack td[data-label] {
         margin-top: 0.35rem;
+    }
+
+    /* The results table has four numeric columns: each value on its own line, the
+       model name on the left and the value on the right. */
+    .docs-table.method-results td[data-label] {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        font-variant-numeric: tabular-nums;
     }
 
     .method-stack td[data-label]::before {

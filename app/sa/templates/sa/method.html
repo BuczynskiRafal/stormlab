@@ -366,6 +366,7 @@
                     both, with a reach of one, two or four links per step. The chart shows
                     the variants that decide the question.
                 </p>
+                <figure class="method-dots-figure">
                 <div class="method-dots" role="img"
                      aria-label="Test accuracy by direction and reach. Inflow side, two links: 0.893. Inflow side, one link: 0.885. Both sides, one link: 0.883. Outflow side, four links: 0.877. Outflow side, two links: 0.871. Outflow side, one link: 0.858. No neighbours: 0.876.">
                     <div class="method-dots-row method-dots-row--served">
@@ -409,10 +410,11 @@
                         <span></span>
                     </div>
                 </div>
-                <p class="method-figure-note">
-                    Test accuracy of the main action, mean of five runs. The axis starts at
-                    0.84 to make the differences visible.
-                </p>
+                <figcaption class="method-figure-note">
+                    <strong>Figure 5.</strong> Test accuracy of the main action, mean of five
+                    runs. The axis starts at 0.84 to make the differences visible.
+                </figcaption>
+                </figure>
                 <p>
                     Reading the inflow side wins. Reading the outflow side is no better than
                     reading no neighbours at all, however far it reaches. The preference for
@@ -501,15 +503,15 @@
                     accuracy.
                 </p>
                 <div class="docs-table-wrapper">
-                    <table class="docs-table">
+                    <table class="docs-table method-stack method-results">
                         <thead>
                             <tr><th>Measure</th><th>Graph model</th><th>MLP + neighbourhood</th><th>MLP</th><th>Simple rule</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>Accuracy (main action)</td><td><strong>0.893</strong></td><td>0.886</td><td>0.876</td><td>0.331</td></tr>
-                            <tr><td>Macro-F1 (nine actions)</td><td><strong>0.814</strong></td><td>0.813</td><td>0.805</td><td>0.203</td></tr>
-                            <tr><td>Brier score (lower is better)</td><td><strong>0.053</strong></td><td>0.056</td><td>0.061</td><td>n/a</td></tr>
-                            <tr><td>Accuracy, five runs averaged</td><td><strong>0.907</strong></td><td>0.893</td><td>0.884</td><td>n/a</td></tr>
+                            <tr><td>Accuracy (main action)</td><td data-label="Graph model"><strong>0.893</strong></td><td data-label="MLP + neighbourhood">0.886</td><td data-label="MLP">0.876</td><td data-label="Simple rule">0.331</td></tr>
+                            <tr><td>Macro-F1 (nine actions)</td><td data-label="Graph model"><strong>0.814</strong></td><td data-label="MLP + neighbourhood">0.813</td><td data-label="MLP">0.805</td><td data-label="Simple rule">0.203</td></tr>
+                            <tr><td>Brier score (lower is better)</td><td data-label="Graph model"><strong>0.053</strong></td><td data-label="MLP + neighbourhood">0.056</td><td data-label="MLP">0.061</td><td data-label="Simple rule">n/a</td></tr>
+                            <tr><td>Accuracy, five runs averaged</td><td data-label="Graph model"><strong>0.907</strong></td><td data-label="MLP + neighbourhood">0.893</td><td data-label="MLP">0.884</td><td data-label="Simple rule">n/a</td></tr>
                         </tbody>
                     </table>
                 </div>
