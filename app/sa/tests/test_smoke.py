@@ -621,6 +621,11 @@ class OneDateAndZoneFormatTests(TestCase):
         self.assertIn('<span class="history-date-day">5 Mar 2026</span>', history)
         self.assertIn('<span class="history-date-time">04:43 UTC</span>', history)
         self.assertIn('data-session-date="5 Mar 2026, 04:43 UTC"', history)
+        # A History card sets the two parts on one line, where the comma comes back.
+        from pathlib import Path
+
+        css = (Path(__file__).resolve().parents[2] / "static" / "css" / "app.css").read_text(encoding="utf-8")
+        self.assertIn('.history-date-day::after {\n        content: ",";', css)
         self.assertIn("Member since 5 Mar 2026</p>", account)
         for html in (results, history, account):
             self.assertNotIn("05 Mar", html)

@@ -2436,6 +2436,11 @@ tr.selected:hover td:first-child {
         font-size: 0.85rem;
     }
 
+    /* On one line the date reads as everywhere else: "15 Nov 2026, 04:43 UTC". */
+    .history-date-day::after {
+        content: ",";
+    }
+
     .history-table .count-chip {
         min-width: 0;
         padding: 0;
