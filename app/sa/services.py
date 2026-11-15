@@ -578,7 +578,8 @@ class CalculationRetrievalService:
         nodes_links: dict[str, str] = {}
 
         def panel_href(conduit_name: str, fragment: str) -> str | None:
-            # A legal SWMM name may contain "/", which no URL pattern of ours accepts.
+            # The ``path`` converter of the conduit URL takes "/" and every other printable
+            # character; only a name it cannot carry at all (a line break) has no page.
             try:
                 return reverse("sa:conduit_detail", args=[session.id, conduit_name]) + fragment
             except NoReverseMatch:
@@ -1058,7 +1059,7 @@ class NavigationService:
                 return None
             try:
                 return reverse("sa:conduit_detail", args=[session.id, name])
-            except NoReverseMatch:  # a legal SWMM name with "/" has no page
+            except NoReverseMatch:  # a name the URL cannot carry (a line break) has no page
                 return None
 
         return {

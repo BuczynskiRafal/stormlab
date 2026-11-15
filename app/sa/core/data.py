@@ -15,7 +15,7 @@ from .enums import RecommendationCategory
 from .inp_structure import check_file_structure
 from .nodes import NodeFeatureEngineeringService
 from .predictor import GNN_CONFIG, _LazyModelProxy, get_gnn_recommendation, get_recommendation, gnn_enabled, recommendation
-from .round import max_slope, min_slope  # Re-export for backwards compatibility
+from .round import max_slope, min_slope  # listed in __all__ below; nothing in the repository imports them from here
 from .services import HydraulicCalculationsService, SimulationRunnerService, TraceAnalysisService
 from .subcatchments import SubcatchmentFeatureEngineeringService
 

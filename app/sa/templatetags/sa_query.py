@@ -16,7 +16,10 @@ def querystring(context, **overrides) -> str:
     valid ``href`` attribute. Keys whose value is ``None`` or empty are dropped, so a
     link never carries ``?status=&sort=``.
 
-    Django gained a built-in ``{% querystring %}`` in 5.1; this project runs 5.0.
+    Django has a built-in ``{% querystring %}`` since 5.1, and the project runs 5.2. This
+    tag stays, and shadows it in the templates that load this library, because it
+    differs where the History links need it to: the built-in keeps a parameter whose
+    value is empty (``?q=alpha&status=&page=3``) and every value of a repeated key.
     """
     request = context.get("request")
     params = request.GET.copy() if request is not None else QueryDict(mutable=True)
