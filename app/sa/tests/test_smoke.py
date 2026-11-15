@@ -556,6 +556,25 @@ class PageTitleTests(TestCase):
             ]
         )
 
+    def test_no_page_ships_an_inline_style_block(self):
+        """Styles live in the static stylesheets, where the scoping tests and the cache see them."""
+        public = [reverse("sa:index"), reverse("sa:about"), reverse("sa:method"), reverse("accounts:login")]
+        public += [reverse("accounts:register"), "/no-such-page/", "/test-errors/403/", "/test-errors/500/"]
+        for url in public:
+            with self.subTest(url=url):
+                self.assertNotIn("<style", self.client.get(url).content.decode())
+        self.client.force_login(self.user)
+        for url in (
+            reverse("sa:analysis"),
+            reverse("sa:history"),
+            reverse("sa:analysis_results", args=[self.session.id]),
+            reverse("sa:conduit_detail", args=[self.session.id, "C1"]),
+            reverse("accounts:user_profile"),
+            reverse("accounts:logout"),
+        ):
+            with self.subTest(url=url):
+                self.assertNotIn("<style", self.client.get(url).content.decode())
+
     def test_pages_behind_the_login(self):
         self.client.force_login(self.user)
         file_name = self.session.swmm_model.file.name.rsplit("/", 1)[-1]

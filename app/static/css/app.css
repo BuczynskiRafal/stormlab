@@ -3022,11 +3022,17 @@ tr.selected:hover td:first-child {
 
 .conduit-page h1,
 .conduit-page h2,
+.conduit-page h3,
 .conduit-page h6 {
     font-family: var(--font-body);
     color: var(--cp-text);
     text-align: left;
     margin: 0;
+}
+
+/* Node names and group titles: level-3 headings in the panel's body type. */
+.conduit-page h3 {
+    letter-spacing: normal;
 }
 
 .conduit-page a {
@@ -3470,6 +3476,22 @@ tr.selected:hover td:first-child {
     text-decoration: underline;
 }
 
+/* The conduit on display in a node card's list: plain text where its neighbours are links. */
+.conduit-page .chain-current {
+    display: inline-block;
+    margin: 0 8px 2px 0;
+    color: var(--cp-text);
+}
+
+/* Long element names wrap instead of widening the page. */
+.conduit-page .panel-page-title,
+.conduit-page .node-card-name,
+.conduit-page .chain-link,
+.conduit-page .chain-current {
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+
 .conduit-page .node-card-missing,
 .conduit-page .panel-empty {
     color: var(--cp-muted);
@@ -3757,6 +3779,15 @@ tr.selected:hover td:first-child {
 
 .conduit-page .property span {
     color: var(--cp-muted);
+}
+
+/* A help line under a property label ("model score, in percentage points"). */
+.conduit-page .property-help {
+    display: block;
+    margin-top: 2px;
+    color: var(--cp-muted);
+    font-size: var(--cp-fs-eyebrow);
+    font-weight: 400;
 }
 
 .conduit-page .property b {

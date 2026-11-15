@@ -6,21 +6,6 @@
 
 {% block title %}Conduit {{ conduit.conduit_name }} · {{ session.swmm_model.file|file_label }}{% endblock %}
 
-{% block extra_css %}
-{% comment %}
-Two rules the panel needs beside its skin in app.css (block "conduit-panel"): the h3
-reset mirrors the one for h1, h2 and h6 there, so the node names and the group titles
-keep their look as level-3 headings; .chain-current is the conduit on display in the
-node card lists, plain text where its neighbours are links.
-{% endcomment %}
-<style>
-.conduit-page h3 { font-family: var(--font-body); color: var(--cp-text); text-align: left; margin: 0; letter-spacing: normal; }
-.conduit-page .chain-current { display: inline-block; margin: 0 8px 2px 0; color: var(--cp-text); }
-.conduit-page .property-help { display: block; margin-top: 2px; color: var(--cp-muted); font-size: var(--cp-fs-eyebrow); font-weight: 400; }
-.conduit-page .panel-page-title, .conduit-page .node-card-name, .conduit-page .chain-link, .conduit-page .chain-current { overflow-wrap: anywhere; min-width: 0; }
-</style>
-{% endblock %}
-
 {% block content %}
 {% comment %}
 The whole page carries its own skin (CSS block "conduit-panel", tokens --cp-*): flat
