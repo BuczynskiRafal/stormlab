@@ -216,7 +216,7 @@
    */
   const FILL_CLASSES = ['nm-f-0', 'nm-f-1', 'nm-f-2', 'nm-f-3', 'nm-f-4'];
   const FILL_BOUNDS = [25, 50, 75, 100];
-  const FILL_LABELS = ['0-25 %', '25-50 %', '50-75 %', '75-100 %', 'Full (>= 100 %)'];
+  const FILL_LABELS = ['0\u201325%', '25\u201350%', '50\u201375%', '75\u2013100%', 'Full (\u2265 100%)'];
 
   /** The three colouring modes, in the order the switch shows them. */
   const MODES = [
@@ -266,11 +266,11 @@
   const CARD_FIELDS = {
     link: [
       {label: 'Recommendation', key: 'action_label'},
-      {label: 'Model confidence', key: 'confidence', unit: '%', digits: 1},
+      {label: 'Model score', key: 'confidence', unit: '%', digits: 1},
       {label: 'Checks passed', format: checksText},
       {label: 'Filling', format: fillingText},
-      {label: 'Max. flow', key: 'flow', unit: 'm\u00b3/s', digits: 3},
-      {label: 'Max. velocity', key: 'velocity', unit: 'm/s', digits: 2},
+      {label: 'Max flow', key: 'flow', unit: 'm\u00b3/s', digits: 3},
+      {label: 'Max velocity', key: 'velocity', unit: 'm/s', digits: 2},
       {label: 'Diameter', format: diameterText},
       {label: 'Slope', key: 'slope', unit: '\u2030', digits: 2},
       {label: 'Length', key: 'length', unit: 'm', digits: 2}
@@ -278,10 +278,10 @@
     node: [
       {label: 'Ground elevation', key: 'ground', unit: 'm', digits: 2},
       {label: 'Node invert', key: 'invert', unit: 'm', digits: 2},
-      {label: 'Node depth', key: 'depth', unit: 'm', digits: 2},
-      {label: 'Max. water depth', key: 'waterDepth', unit: 'm', digits: 2},
-      {label: 'Flooding volume', key: 'floodVolume', unit: 'm\u00b3', digits: 1, factor: 1000},
-      {label: 'Flooding duration', key: 'floodHours', unit: 'h', digits: 2}
+      {label: 'Manhole depth', key: 'depth', unit: 'm', digits: 2},
+      {label: 'Max water depth', key: 'waterDepth', unit: 'm', digits: 2},
+      {label: 'Flood volume', key: 'floodVolume', unit: 'm\u00b3', digits: 1, factor: 1000},
+      {label: 'Flood duration', key: 'floodHours', unit: 'h', digits: 2}
     ],
     poly: [
       {label: 'Category', key: 'category_label'},
@@ -525,7 +525,9 @@
       NUMBER_FORMATS.set(digits, format);
     }
     const text = format.format(scaled);
-    return unit ? `${text} ${unit}` : text;
+    // A space between a number and its unit, none before the percent sign.
+    if (!unit) return text;
+    return unit === '%' ? `${text}%` : `${text} ${unit}`;
   }
 
   /**

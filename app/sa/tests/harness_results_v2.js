@@ -1470,6 +1470,11 @@ function runEmpiricalTests() {
 
   const headerCols = lines[0].split(',');
   assert.ok(headerCols[0].includes('Conduit'), 'Header must contain Conduit');
+  // The table speaks the shared vocabulary; the exported headers keep their wording.
+  const shownHeaders = $$('#r-table th button').map(b => b.getAttribute('aria-label'));
+  assert.ok(shownHeaders.includes('Sort by Checks passed'), 'The table header reads "Checks passed"');
+  assert.ok(!shownHeaders.includes('Sort by Validation'), 'No "Validation" header on screen');
+  assert.ok(headerCols.includes('"Validation [passed / 7]"'), 'The CSV header is unchanged: ' + lines[0]);
   // The CSV is exported data, not a display layer: the category stays the raw code and
   // the action column keeps the wording it has always had.
   assert.ok(lines[1].includes('"urban_weakly_impervious"'), 'The CSV must keep the category code, got: ' + lines[1]);

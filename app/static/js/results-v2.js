@@ -116,14 +116,18 @@
       ? rawData.catchments
       : (Array.isArray(rawData.subcatchments) ? rawData.subcatchments : []);
 
-    // Column definition helper
-    const C = (key, label, unit, group, kind = 'number', digits = 2) => ({
+    // Column definition helper.  ``csv`` is the header the CSV export writes for the
+    // column; it defaults to "label [unit]" and is spelled out where the label on screen
+    // has changed since: the exported files keep their headers, because downstream
+    // comparisons read them by name.
+    const C = (key, label, unit, group, kind = 'number', digits = 2, csv = null) => ({
       key,
       label,
       unit,
       group,
       kind,
-      digits
+      digits,
+      csv: csv || label + (unit ? ` [${unit}]` : '')
     });
 
     const schemas = {
@@ -140,16 +144,16 @@
           C('slope', 'Slope', '‰', 'Geometry', 'number', 2),
           C('coverIn', 'Inlet cover', 'm', 'Geometry', 'number', 2),
           C('coverOut', 'Outlet cover', 'm', 'Geometry', 'number', 2),
-          C('minDiameter', 'Min. diameter', 'm', 'Geometry', 'number', 3),
-          C('minSlope', 'Min. slope', '‰', 'Geometry', 'number', 2),
-          C('flow', 'Max. flow', 'm³/s', 'Hydraulics', 'number', 3),
-          C('velocity', 'Max. velocity', 'm/s', 'Hydraulics', 'number', 2),
-          C('filling', 'Water depth', 'm', 'Hydraulics', 'number', 3),
+          C('minDiameter', 'Min diameter', 'm', 'Geometry', 'number', 3, 'Min. diameter [m]'),
+          C('minSlope', 'Min slope', '‰', 'Geometry', 'number', 2, 'Min. slope [‰]'),
+          C('flow', 'Max flow', 'm³/s', 'Hydraulics', 'number', 3, 'Max. flow [m³/s]'),
+          C('velocity', 'Max velocity', 'm/s', 'Hydraulics', 'number', 2, 'Max. velocity [m/s]'),
+          C('filling', 'Max water depth', 'm', 'Hydraulics', 'number', 3, 'Water depth [m]'),
           C('fillPercent', 'Filling', '% of diameter', 'Hydraulics', 'fill', 0),
           C('category', 'Catchment category', '', 'Assessment', 'category'),
-          C('validation', 'Validation', 'passed / 7', 'Assessment', 'checks'),
+          C('validation', 'Checks passed', '/ 7', 'Assessment', 'checks', 2, 'Validation [passed / 7]'),
           C('action', 'Recommendation', '', 'Assessment', 'action'),
-          C('confidence', 'Model confidence', '%', 'Assessment', 'number', 1)
+          C('confidence', 'Model score', '%', 'Assessment', 'number', 1, 'Model confidence [%]')
         ],
         overview: ['id', 'diameter', 'flow', 'velocity', 'fillPercent', 'category', 'validation', 'action'],
         technical: ['id', 'diameter', 'slope', 'flow', 'velocity', 'filling', 'fillPercent', 'validation', 'minDiameter', 'minSlope']
@@ -161,10 +165,10 @@
           C('id', 'Node', '', 'Identity', 'id'),
           C('invert', 'Node invert', 'm', 'Geometry', 'number', 2),
           C('ground', 'Ground elevation', 'm', 'Geometry', 'number', 2),
-          C('depth', 'Node depth', 'm', 'Geometry', 'number', 2),
-          C('waterDepth', 'Max. water depth', 'm', 'Simulation', 'number', 2),
-          C('floodHours', 'Flooding duration', 'h', 'Flooding', 'number', 2),
-          C('floodVolume', 'Flooding volume', '10⁶ l', 'Flooding', 'number', 3)
+          C('depth', 'Manhole depth', 'm', 'Geometry', 'number', 2, 'Node depth [m]'),
+          C('waterDepth', 'Max water depth', 'm', 'Simulation', 'number', 2, 'Max. water depth [m]'),
+          C('floodHours', 'Flood duration', 'h', 'Flooding', 'number', 2, 'Flooding duration [h]'),
+          C('floodVolume', 'Flood volume', '10⁶ L', 'Flooding', 'number', 3, 'Flooding volume [10⁶ l]')
         ],
         overview: ['id', 'invert', 'depth', 'waterDepth', 'floodHours', 'floodVolume'],
         technical: ['id', 'ground', 'invert', 'depth', 'waterDepth']
@@ -652,7 +656,7 @@
         const isExp = expanded === r.id;
         const failed = valCount < 7;
         return `
-          <button type="button" class="r-checkbutton ${failed ? 'r-failed' : ''}" data-validation="${esc(r.id)}" aria-expanded="${String(isExp)}" aria-controls="r-checks-${esc(r.id)}" aria-label="Validation ${esc(r.id)}: ${valCount} of 7 checks passed. ${isExp ? 'Hide' : 'Show'} checks">
+          <button type="button" class="r-checkbutton ${failed ? 'r-failed' : ''}" data-validation="${esc(r.id)}" aria-expanded="${String(isExp)}" aria-controls="r-checks-${esc(r.id)}" aria-label="Design checks of ${esc(r.id)}: ${valCount} of 7 passed. ${isExp ? 'Hide' : 'Show'} the checks">
             <i class="fas ${failed ? 'fa-exclamation-circle' : 'fa-check-circle'} me-1" aria-hidden="true"></i>${valCount}/7
             <span aria-hidden="true">${isExp ? '−' : '+'}</span>
           </button>
@@ -666,7 +670,7 @@
         const isBad = r.flags ? !r.flags[0] : (fillingM > 0.827 * diaM);
         const clamped = Math.max(0, Math.min(fillPct, 100));
         return `
-          <span class="r-fillcell ${isBad ? 'r-fillbad' : ''}" title="${fmt(fillingM, 3)} m / ${fmt(diaM, 3)} m · ${isBad ? 'Filling limit exceeded (>82.7%)' : 'Filling check passed'}">
+          <span class="r-fillcell ${isBad ? 'r-fillbad' : ''}" title="${fmt(fillingM, 3)} m / ${fmt(diaM, 3)} m · ${isBad ? 'Filling limit exceeded (> 82.7%)' : 'Filling check passed'}">
             <span class="r-meter" aria-hidden="true"><span style="width:${clamped}%"></span></span>
             <b>${isBad ? '! ' : ''}${fmt(fillPct, 0)}%</b>
           </span>
@@ -814,9 +818,9 @@
                     <div class="r-checkpanelhead">
                       <h3>
                         <i class="fas fa-clipboard-check me-2" aria-hidden="true"></i>
-                        ${esc(r.id)} · Technical validation · ${valCount}/7 passed
+                        ${esc(r.id)} · Design checks · ${valCount}/7 passed
                       </h3>
-                      <button type="button" class="r-close" data-close-checks aria-label="Close validation details">×</button>
+                      <button type="button" class="r-close" data-close-checks aria-label="Close the design checks">×</button>
                     </div>
                     ${checkGrid(r)}
                   </div>
@@ -1011,7 +1015,7 @@
         return v !== null && v !== undefined ? String(v) : '';
       }
 
-      const header = cols.map(c => quote(c.label + (c.unit ? ` [${c.unit}]` : ''))).join(',');
+      const header = cols.map(c => quote(c.csv)).join(',');
       const bodyLines = data.map(r => cols.map(c => quote(csvValue(c, r))).join(','));
       const csvContent = '\uFEFF' + [header, ...bodyLines].join('\r\n');
 
@@ -1179,7 +1183,7 @@
           renderTable();
           const targetBtn = $(`#r-table [data-validation="${conduitId}"]`);
           if (targetBtn) targetBtn.focus();
-          announce(expanded ? `Validation details for ${expanded}` : 'Validation details closed');
+          announce(expanded ? `Design checks of ${expanded}` : 'Design checks closed');
         } else if (closeChecksBtn) {
           const prior = expanded;
           expanded = null;
