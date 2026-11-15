@@ -122,10 +122,15 @@ class AnalysisService:
         except Exception:
             logger.exception("Analysis of session %s failed", session.id)
             message = unexpected_failure_message(session.id)
-        session.status = "failed"
-        session.error_message = message
-        session.save()
+        CalculationPersistenceService.mark_failed(session, message)
         return session, False
+
+
+class SessionGone(Exception):
+    """The session was deleted (or finished elsewhere) while its analysis was running."""
+
+
+DELETED_WHILE_RUNNING = "This analysis was deleted while it was running."
 
 
 class CalculationPersistenceService:
@@ -180,6 +185,21 @@ class CalculationPersistenceService:
         return CalculationSession.objects.create(user=user, swmm_model=swmm_model, frost_zone=frost_zone, status="processing")
 
     @staticmethod
+    def mark_failed(session: CalculationSession, message: str) -> bool:
+        """Record the failure of a session that is still processing; ``False`` if it is gone.
+
+        A conditional ``UPDATE`` rather than ``save()``: ``save()`` on a row the user deleted
+        meanwhile would insert it again (Django falls back from UPDATE to INSERT).
+        """
+        now = timezone.now()
+        updated = CalculationSession.objects.filter(pk=session.pk, status="processing").update(
+            status="failed", error_message=message, updated_at=now
+        )
+        session.status, session.updated_at = "failed", now
+        session.error_message = message if updated else DELETED_WHILE_RUNNING
+        return bool(updated)
+
+    @staticmethod
     def save_calculation_results(session: CalculationSession, data_manager: DataManager) -> bool:
         """
         Save calculation results from DataManager to database.
@@ -193,6 +213,16 @@ class CalculationPersistenceService:
         """
         try:
             with transaction.atomic():
+                # Claim the session first: the UPDATE matches only a row that still exists
+                # and still runs, and holds the write lock until the results are in, so a
+                # delete either happened before (nothing is written) or waits for the commit.
+                now = timezone.now()
+                claimed = CalculationSession.objects.filter(pk=session.pk, status="processing").update(
+                    status="completed", updated_at=now
+                )
+                if not claimed:
+                    raise SessionGone(session.pk)
+
                 # Save conduit data
                 CalculationPersistenceService._save_conduit_data(session, data_manager.dfc)
 
@@ -205,19 +235,20 @@ class CalculationPersistenceService:
                 # Capture the drawable geometry; its absence is a normal state, not a failure
                 CalculationPersistenceService._save_geometry(session, data_manager.inp)
 
-                # Update session status
                 session.status = "completed"
-                session.updated_at = timezone.now()
-                session.save()
+                session.updated_at = now
 
-                logger.info(f"Successfully saved calculation results for session {session.id}")
+                logger.info("Saved the calculation results of session %s", session.id)
                 return True
 
+        except SessionGone:
+            logger.info("Session %s was deleted while it was running; its results are discarded", session.id)
+            session.status = "failed"
+            session.error_message = DELETED_WHILE_RUNNING
+            return False
         except Exception:
             logger.exception("Saving the results of session %s failed", session.id)
-            session.status = "failed"
-            session.error_message = unexpected_failure_message(session.id)
-            session.save()
+            CalculationPersistenceService.mark_failed(session, unexpected_failure_message(session.id))
             return False
 
     @staticmethod
