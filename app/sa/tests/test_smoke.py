@@ -142,7 +142,7 @@ class MethodPageContractTests(TestCase):
         self.assertContains(self.response, "data/method-graph.json")
 
     def test_about_limitations_anchor_linked_from_the_method_page_exists(self):
-        self.assertContains(self.response, f'{reverse("sa:about")}#limitations')
+        self.assertContains(self.response, f"{reverse('sa:about')}#limitations")
         self.assertContains(self.client.get(reverse("sa:about")), 'id="limitations"')
 
 
