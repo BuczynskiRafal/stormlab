@@ -367,6 +367,7 @@ group('no data: the message only, no pipe or shaft outline', () => {
     assert.strictEqual(elements(html, role).length, 0, `no ${role} without data`);
   }
   assert.ok(/no data/.test(svg.attrs['aria-label']));
+  assert.strictEqual(svg.attrs['data-state'], 'message', 'the message may fit a narrow card');
 });
 
 /** The <title> texts inside every element with the given data-role, in document order. */

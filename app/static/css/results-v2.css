@@ -405,6 +405,41 @@
   display: none;
 }
 
+/* The row hides no scroll bar's worth of hint: a fade at an edge beyond which more
+   tabs wait (results-v2.js sets data-more-left / data-more-right). */
+#storm-results-v2 .r-tabs {
+  position: relative;
+}
+
+#storm-results-v2 .r-tabs::before,
+#storm-results-v2 .r-tabs::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 1px;
+  width: 40px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+}
+
+#storm-results-v2 .r-tabs::before {
+  left: 0;
+  border-top-left-radius: inherit;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0), var(--r-white) 70%);
+}
+
+#storm-results-v2 .r-tabs::after {
+  right: 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), var(--r-white) 70%);
+}
+
+#storm-results-v2 .r-tabs[data-more-left=true]::before,
+#storm-results-v2 .r-tabs[data-more-right=true]::after {
+  opacity: 1;
+}
+
 #storm-results-v2 .r-tabs-actions {
   display: flex;
   align-items: center;
@@ -1501,6 +1536,17 @@
 @media (max-width: 380px) {
   #storm-results-v2 .r-tabs-list {
     gap: 16px;
+  }
+
+  /* The toggle and the two tools no longer share a row: the tools take a row of their
+     own, two buttons of equal width, instead of stepping out under the toggle. */
+  #storm-results-v2 .r-tools {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
+  #storm-results-v2 .r-tools .r-button {
+    flex: 1 1 0;
   }
 
   #storm-results-v2 .r-tab i.fas {

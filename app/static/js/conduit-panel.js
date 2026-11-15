@@ -96,6 +96,8 @@
     function showMessage(svg, text, label) {
         svg.innerHTML = '<text x="290" y="128" text-anchor="middle">' + esc(text) + '</text>';
         svg.setAttribute('aria-label', label);
+        // app.css lets a message fit a narrow card instead of scrolling with the drawing.
+        svg.setAttribute('data-state', 'message');
     }
 
     /**
@@ -132,6 +134,7 @@
             showMessage(svg, NO_DATA_TEXT, 'Longitudinal profile of conduit ' + d.name + ': no data.');
             return 0;
         }
+        svg.setAttribute('data-state', 'drawing');
 
         const eMax = Math.max(d.inletElevation, d.outletElevation);
         const eMin = Math.min(inv1, inv2);

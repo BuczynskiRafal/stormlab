@@ -1264,6 +1264,21 @@
       new ResizeObserver(updateOverflow).observe(overflowArea);
     }
     window.addEventListener('resize', updateOverflow);
+
+    // On a narrow screen the tab row scrolls sideways; a fade at the edge that hides
+    // more tabs says so (data-more-left / data-more-right on .r-tabs, see results-v2.css).
+    const tabRow = $('.r-tabs');
+    const tabList = $('.r-tabs-list');
+    if (tabRow && tabList) {
+      const updateTabEdges = () => {
+        const end = tabList.scrollWidth - tabList.clientWidth;
+        tabRow.dataset.moreLeft = String(tabList.scrollLeft > 1);
+        tabRow.dataset.moreRight = String(end > 1 && tabList.scrollLeft < end - 1);
+      };
+      tabList.addEventListener('scroll', updateTabEdges, { passive: true });
+      window.addEventListener('resize', updateTabEdges);
+      updateTabEdges();
+    }
   }
 
   if (document.readyState === 'loading') {

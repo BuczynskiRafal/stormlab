@@ -249,6 +249,32 @@ class ResultsV2CSSIsolationTests(TestCase):
         )
 
 
+class ResultsV2PhoneLeftoversTests(TestCase):
+    """Small-screen details of the results page and the conduit panel."""
+
+    @staticmethod
+    def _static(folder: str, name: str) -> str:
+        return (Path(__file__).resolve().parent.parent.parent / "static" / folder / name).read_text(encoding="utf-8")
+
+    def test_the_tab_row_fades_at_an_edge_with_more_tabs_behind_it(self):
+        css = self._static("css", "results-v2.css")
+        script = self._static("js", "results-v2.js")
+        self.assertIn("#storm-results-v2 .r-tabs[data-more-right=true]::after", css)
+        self.assertIn("#storm-results-v2 .r-tabs[data-more-left=true]::before", css)
+        self.assertIn("tabList.addEventListener('scroll', updateTabEdges, { passive: true });", script)
+
+    def test_the_tools_take_a_row_of_their_own_on_the_narrowest_phones(self):
+        css = self._static("css", "results-v2.css")
+        narrow = css[css.index("@media (max-width: 380px) {") :]
+        self.assertRegex(narrow, r"\.r-tools \{\s*flex: 1 1 100%;\s*margin-left: 0;")
+        self.assertRegex(narrow, r"\.r-tools \.r-button \{\s*flex: 1 1 0;")
+
+    def test_the_no_data_message_of_the_profile_fits_a_phone(self):
+        css = self._static("css", "app.css")
+        self.assertRegex(css, r'\.conduit-page \.conduit-profile\[data-state="message"\] \{\s*min-width: 0;')
+        self.assertIn("svg.setAttribute('data-state', 'message');", self._static("js", "conduit-panel.js"))
+
+
 class ResultsV2JavaScriptEmpiricalHarnessTests(TestCase):
     """Execute the Node.js empirical interaction harness verifying all 8 interactive criteria."""
 

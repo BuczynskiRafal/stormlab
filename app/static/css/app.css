@@ -3282,6 +3282,24 @@ tr.selected:hover td:first-child {
     fill: var(--cp-muted);
 }
 
+/* "No data to draw the profile" instead of a drawing (data-state set by
+   conduit-panel.js): it fits the card instead of scrolling sideways, so a phone does
+   not cut it off.  Below the drawing's minimum width the message is set larger in
+   viewBox units, as the drawing then shrinks with the card. */
+.conduit-page .conduit-profile[data-state="message"] {
+    min-width: 0;
+}
+
+@media (max-width: 619.98px) {
+    .conduit-page .conduit-profile[data-state="message"] {
+        height: 160px;
+    }
+
+    .conduit-page .conduit-profile[data-state="message"] text {
+        font-size: 21px;
+    }
+}
+
 .conduit-profile .cp-small {
     font-size: 10px;
 }
