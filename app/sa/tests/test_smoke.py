@@ -557,6 +557,15 @@ class PageTitleTests(TestCase):
             ]
         )
 
+    def test_no_template_asks_for_a_bootstrap_tooltip_and_main_js_sets_none_up(self):
+        from pathlib import Path
+
+        app_dir = Path(__file__).resolve().parents[2]
+        self.assertNotIn("bootstrap.Tooltip", (app_dir / "static" / "js" / "main.js").read_text(encoding="utf-8"))
+        for template in app_dir.rglob("templates/**/*.html"):
+            with self.subTest(template=template.name):
+                self.assertNotIn('data-bs-toggle="tooltip"', template.read_text(encoding="utf-8"))
+
     def test_no_page_ships_an_inline_style_block(self):
         """Styles live in the static stylesheets, where the scoping tests and the cache see them."""
         public = [reverse("sa:index"), reverse("sa:about"), reverse("sa:method"), reverse("accounts:login")]

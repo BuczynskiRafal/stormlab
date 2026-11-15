@@ -1,14 +1,3 @@
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (tooltipTriggerEl) {
-        new bootstrap.Tooltip(tooltipTriggerEl, {
-            animation: true,
-            delay: { "show": 800, "hide": 100 },
-            placement: 'auto',
-            html: false
-        });
-    });
-});
-
 const initBackToTop = function() {
     const button = document.getElementById('backToTop');
     if (!button) {
