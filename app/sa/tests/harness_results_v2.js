@@ -871,7 +871,7 @@ function workspaceMarkup(options) {
           </div>
           <div class="r-viewline">
             <span id="r-filter-summary"></span>
-            <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear filters</button>
+            <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear Filters</button>
           </div>
           <div class="r-selection" id="r-column-selection" hidden>
             <div class="r-selectionhead">
@@ -879,7 +879,7 @@ function workspaceMarkup(options) {
               <div class="r-presets">
                 <button type="button" class="r-preset" data-preset="overview">Overview</button>
                 <button type="button" class="r-preset" data-preset="technical" id="r-technical-preset">Hydraulics</button>
-                <button type="button" class="r-preset" data-preset="all">All columns</button>
+                <button type="button" class="r-preset" data-preset="all">All Columns</button>
                 <button type="button" class="r-close" id="r-close-columns">&times;</button>
               </div>
             </div>
@@ -972,7 +972,7 @@ function workspaceMarkup(options) {
           </div>
           <div class="r-viewline">
             <span id="r-filter-summary"></span>
-            <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear filters</button>
+            <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear Filters</button>
           </div>
           <div class="r-selection" id="r-column-selection" hidden>
             <div class="r-selectionhead">
@@ -980,7 +980,7 @@ function workspaceMarkup(options) {
               <div class="r-presets">
                 <button type="button" class="r-preset" data-preset="overview">Overview</button>
                 <button type="button" class="r-preset" data-preset="technical" id="r-technical-preset">Hydraulics</button>
-                <button type="button" class="r-preset" data-preset="all">All columns</button>
+                <button type="button" class="r-preset" data-preset="all">All Columns</button>
                 <button type="button" class="r-close" id="r-close-columns">&times;</button>
               </div>
             </div>

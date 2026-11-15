@@ -2584,7 +2584,7 @@
       const toTable = document.createElement('button');
       toTable.type = 'button';
       toTable.className = 'nm-card-table';
-      toTable.textContent = 'Show in table';
+      toTable.textContent = 'Show in Table';
       toTable.addEventListener('click', () => {
         // The only event this module ever sends out, and the only way a gesture on the
         // map changes the tab.  Selecting an element emits nothing: if it did, one

@@ -225,7 +225,7 @@ class FormCostLimitTests(SimpleTestCase):
         self.assertEqual(
             errors[0].messages,
             [
-                "SWMM file would write an estimated 688 MB of results (elements × report steps × about 24 bytes); "
+                "The SWMM file would write an estimated 688 MB of results (elements × report steps × about 24 bytes); "
                 "the limit is 200 MB. Lengthen REPORT_STEP or shorten the simulation."
             ],
         )
@@ -239,7 +239,7 @@ class FormCostLimitTests(SimpleTestCase):
 
         self.assertEqual([e.code for e in errors], ["simulation_too_long"])
         self.assertEqual(
-            errors[0].messages, ["SWMM file simulates 204 hours (START to END in [OPTIONS]); the limit is 168 hours."]
+            errors[0].messages, ["The SWMM file simulates 204 hours (START to END in [OPTIONS]); the limit is 168 hours."]
         )
 
     def test_an_end_date_hidden_in_a_second_options_section_counts(self):
@@ -258,7 +258,7 @@ class FormCostLimitTests(SimpleTestCase):
         self.assertEqual(
             errors[0].messages,
             [
-                "SWMM file asks for an estimated 221 million element routing steps (elements × simulated time "
+                "The SWMM file asks for an estimated 221 million element routing steps (elements × simulated time "
                 "÷ ROUTING_STEP); the limit is 100 million. Lengthen ROUTING_STEP or shorten the simulation."
             ],
         )
@@ -283,7 +283,7 @@ class FormCostLimitTests(SimpleTestCase):
         self.assertEqual([e.code for e in errors], ["too_many_elements"])
         self.assertEqual(
             errors[0].messages,
-            ["SWMM file has 51 elements (conduits, nodes and subcatchments); the limit is 50."],
+            ["The SWMM file has 51 elements (conduits, nodes and subcatchments); the limit is 50."],
         )
 
     @override_settings(MAX_SIMULATION_HOURS=12, MAX_MODEL_ELEMENTS=51, MAX_OUTPUT_MB=1, MAX_ROUTING_MILLIONS=1)

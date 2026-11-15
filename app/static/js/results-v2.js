@@ -719,7 +719,7 @@
 
       const scrollBtn = $('#r-scroll-columns');
       if (scrollBtn) {
-        scrollBtn.textContent = canScrollRight ? 'More columns to the right' : 'Back to first columns';
+        scrollBtn.textContent = canScrollRight ? 'More Columns to the Right' : 'Back to First Columns';
       }
     }
 
@@ -791,7 +791,7 @@
                 <strong>No matching ${schemas[active].name.toLowerCase()}</strong>
                 <p>Try refining your search or clear active filters.</p>
                 <button type="button" class="r-button" data-clear>
-                  <i class="fas fa-filter-circle-xmark me-1" aria-hidden="true"></i>Clear filters
+                  <i class="fas fa-filter-circle-xmark me-1" aria-hidden="true"></i>Clear Filters
                 </button>
               </td>
             </tr>

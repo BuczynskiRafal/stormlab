@@ -956,7 +956,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertRegex(code, r"setAttribute\('role',\s*'group'\)")
         self.assertRegex(code, r"setAttribute\('aria-label',\s*'Selected element'\)")
         self.assertRegex(code, r"setAttribute\('aria-label',\s*'Close selection'\)")
-        self.assertIn("'Show in table'", code)
+        self.assertIn("'Show in Table'", code)
 
         self.assertEqual(code.count("createElement('a')"), 1, "the card builds exactly one anchor")
         branch = re.search(r"const href = [^;]*detail_url[^;]*;", code)

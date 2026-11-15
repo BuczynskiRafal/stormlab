@@ -47,7 +47,7 @@ ACTION_MEANINGS: dict[str, str] = {
     "slope_increase": "Velocity too low; steeper slope",
     "slope_reduction": "Velocity too high; gentler slope",
     "depth_increase": "Insufficient cover; deeper invert",
-    "pump": "Gravity outflow not possible; pumping station",
+    "pump": "Gravity outflow not possible; pump station",
     "tank": "Retention to reduce peak flow",
     "seepage_boxes": "Infiltration to relieve the network",
 }
