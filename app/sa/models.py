@@ -52,6 +52,12 @@ class CalculationSession(models.Model):
     frost_zone = models.FloatField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="processing")
     error_message = models.TextField(blank=True, null=True)
+    model_metadata = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="The recommendation model that produced the results, as get_model_metadata() described it "
+        "when the analysis completed; empty for sessions completed before it was recorded",
+    )
 
     class Meta:
         ordering = ["-created_at"]

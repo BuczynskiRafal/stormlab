@@ -14,7 +14,6 @@ from __future__ import annotations
 import decimal
 import json
 import math
-import os
 import uuid
 from unittest import mock
 
@@ -23,6 +22,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from sa.models import CalculationSession
 from sa.services import CalculationRetrievalService, ConduitPanelService, fill_percent
 from sa.core.geometry import NETMAP_MAX_ELEMENTS, NETMAP_MAX_POINTS
 from .factories import (
@@ -1122,27 +1122,36 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertIn("simple_rule_passed", c)
         self.assertIsInstance(c["simple_rule_passed"], bool)
 
-    def test_pages_name_the_running_model_when_the_gnn_is_enabled(self):
-        meta = {
-            "model_kind": "gnn",
-            "model_id": "gnn_recommender_v1",
-            "feature_contract": "v4_physical",
-            "target_contract": "primary_action_v3",
-        }
-        with mock.patch("sa.services.get_model_metadata", return_value=meta):
+    GNN_METADATA = {
+        "model_kind": "gnn",
+        "model_id": "gnn_recommender_v1",
+        "weights_sha256": "ab" * 32,
+        "feature_contract": "v4_physical",
+        "target_contract": "primary_action_v3",
+        "gnn_enabled": True,
+    }
+
+    def _with_metadata(self, metadata):
+        CalculationSession.objects.filter(pk=self.session.pk).update(model_metadata=metadata)
+        self.session.refresh_from_db()
+
+    def test_pages_name_the_model_the_session_recorded(self):
+        self._with_metadata(self.GNN_METADATA)
+        other_model = {**self.GNN_METADATA, "model_id": "a_later_model"}
+        with mock.patch("sa.core.predictor.get_model_metadata", return_value=other_model):
             results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
             panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
         self.assertContains(results, "gnn_recommender_v1 (v4_physical, primary_action_v3)")
         self.assertContains(panel, "gnn_recommender_v1 (v4_physical)")
+        for response in (results, panel):
+            self.assertNotContains(response, "a_later_model")
+        self.assertEqual(results.context["results_v2_data"]["session"]["model_metadata"], {**self.GNN_METADATA, "recorded": True})
 
     def test_pages_name_no_model_when_none_ran(self):
-        with (
-            mock.patch.dict(os.environ, {"GNN_ENABLED": "false"}),
-            mock.patch("sa.core.predictor._sha256_file_safe", return_value=None),
-        ):
-            results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
-            panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
-            payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
+        self._with_metadata({**dict.fromkeys(self.GNN_METADATA), "model_kind": "none", "gnn_enabled": False})
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+        panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
+        payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
         for response in (results, panel):
             self.assertEqual(response.status_code, 200)
             self.assertNotContains(response, "mlp_historical")
@@ -1152,6 +1161,18 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertIsNone(payload["session"]["model_metadata"]["model_id"])
         csv = self.client.get(reverse("sa:export_session_csv", args=[self.session.id, "conduits"]))
         self.assertEqual(csv.status_code, 200)
+
+    def test_a_session_from_before_the_metadata_was_stored_names_no_current_model(self):
+        self._with_metadata(None)
+        with mock.patch("sa.core.predictor.get_model_metadata", return_value=self.GNN_METADATA):
+            results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+            panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
+        meta = results.context["results_v2_data"]["session"]["model_metadata"]
+        self.assertIs(meta["recorded"], False)
+        self.assertEqual({key: value for key, value in meta.items() if key != "recorded"}, dict.fromkeys(self.GNN_METADATA))
+        self.assertEqual(panel.context["panel"].model_metadata, meta)
+        for response in (results, panel):
+            self.assertNotContains(response, "gnn_recommender_v1")
 
     def test_server_csv_export_for_all_kinds(self):
         for kind in ("conduits", "nodes", "catchments"):

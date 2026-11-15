@@ -31,6 +31,10 @@ class DemoAnalysisTests(TestCase):
         session = CalculationSession.objects.get(user=self.user)
         results_url = reverse("sa:analysis_results", args=[session.id])
         self.assertEqual(session.status, "completed")
+        # The model that produced the results is recorded with them.
+        self.assertEqual(session.model_metadata["model_kind"], "gnn")
+        self.assertEqual(session.model_metadata["model_id"], "gnn_recommender_v1")
+        self.assertEqual(len(session.model_metadata["weights_sha256"]), 64)
         self.assertRedirects(response, results_url, fetch_redirect_response=False)
 
         page = self.client.get(results_url)

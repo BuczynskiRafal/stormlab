@@ -84,6 +84,22 @@ def simple_band_rule_passed(filling: Any, diameter: Any, velocity: Any) -> bool:
     return (0.2 <= ratio <= 0.7) and (0.8 <= vel_f <= 3.0)
 
 
+MODEL_METADATA_KEYS = ("model_kind", "model_id", "weights_sha256", "feature_contract", "target_contract", "gnn_enabled")
+
+
+def session_model_metadata(session: CalculationSession) -> dict[str, Any]:
+    """The model that produced *session*'s results, in the shape of ``get_model_metadata()``.
+
+    Read from the session, never from the model installed now, so an old analysis keeps
+    naming the model it ran with. ``recorded`` is ``False`` for a session completed before
+    the metadata was stored; every other key is then ``None`` ("not recorded").
+    """
+    stored = session.model_metadata if isinstance(session.model_metadata, dict) else None
+    if stored is None:
+        return {**dict.fromkeys(MODEL_METADATA_KEYS), "recorded": False}
+    return {**dict.fromkeys(MODEL_METADATA_KEYS), **stored, "recorded": True}
+
+
 class AnalysisService:
     """Service responsible for running SWMM analysis."""
 
@@ -217,8 +233,9 @@ class CalculationPersistenceService:
                 # and still runs, and holds the write lock until the results are in, so a
                 # delete either happened before (nothing is written) or waits for the commit.
                 now = timezone.now()
+                metadata = get_model_metadata()
                 claimed = CalculationSession.objects.filter(pk=session.pk, status="processing").update(
-                    status="completed", updated_at=now
+                    status="completed", updated_at=now, model_metadata=metadata
                 )
                 if not claimed:
                     raise SessionGone(session.pk)
@@ -237,6 +254,7 @@ class CalculationPersistenceService:
 
                 session.status = "completed"
                 session.updated_at = now
+                session.model_metadata = metadata
 
                 logger.info("Saved the calculation results of session %s", session.id)
                 return True
@@ -935,7 +953,7 @@ class CalculationRetrievalService:
         session_meta = {
             "id": session.id,
             "frost_zone": clean(session.frost_zone),
-            "model_metadata": get_model_metadata(),
+            "model_metadata": session_model_metadata(session),
         }
 
         return {
@@ -1290,7 +1308,7 @@ class ConduitPanelService:
             prediction_others=prediction_others,
             confidence_margin=confidence_margin,
             simple_rule_passed=simple_rule,
-            model_metadata=get_model_metadata(),
+            model_metadata=session_model_metadata(session),
         )
 
     @staticmethod

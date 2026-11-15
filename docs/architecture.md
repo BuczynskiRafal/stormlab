@@ -200,7 +200,7 @@ All but `GNN_ENABLED` are read once, when `predictor.py` is imported. `GNN_MAX_H
 
 **Never a partial ensemble.** `load_gnn_model_weights` first checks that every member file, the spec and the imputation plan exist, and otherwise refuses with a `GNNModelLoadError` that lists what is missing; the error is logged and the loader returns `None`. A missing member therefore means no GNN, not a smaller ensemble. `DataManager` then falls back to the optional MLP service, whose model file (`recommendations_classifier_path` in `predictor.py`) the repository does not ship. With the GNN enabled and no model, the analysis fails with `RecommendationModelUnavailable` and stores nothing. With `GNN_ENABLED=false` it completes with `recommendation` set to `-` and all confidences 0.0. The Django system check `sa.E001` (`app/sa/checks.py`) also reports missing model files when the project starts, unless `GNN_ENABLED` switches the GNN off.
 
-**Metadata.** `get_model_metadata()` returns `model_kind` (`gnn`, `mlp` or `none`), `model_id`, `weights_sha256` (sha256 over the concatenated hex digests of the five files in run order, `None` if one is missing), `feature_contract`, `target_contract` (both read from the spec) and `gnn_enabled`. The results page (Info tab) and the conduit panel show it. It is computed from the current configuration when a page is rendered and is not stored with the session.
+**Metadata.** `get_model_metadata()` returns `model_kind` (`gnn`, `mlp` or `none`), `model_id`, `weights_sha256` (sha256 over the concatenated hex digests of the five files in run order, `None` if one is missing), `feature_contract`, `target_contract` (both read from the spec) and `gnn_enabled`. It is stored on the session (`CalculationSession.model_metadata`) in the same `UPDATE` that completes it. The results page (Info tab) and the conduit panel show the stored value through `session_model_metadata` (`app/sa/services.py`), with the same keys plus `recorded`; a session completed before the field existed has `recorded` false and every other key `None`, rather than naming the model installed today.
 
 **Catchment classifier.** `SubcatchmentFeatureEngineeringService.subcatchments_classify` (`app/sa/core/subcatchments.py`) assigns one of 12 categories to every subcatchment. Tags take precedence:
 
@@ -233,6 +233,7 @@ erDiagram
         float frost_zone
         string status "processing, completed, failed"
         text error_message
+        json model_metadata
     }
     ConduitData {
         string conduit_name
@@ -265,7 +266,7 @@ The user model is `accounts.User` (`app/accounts/models.py`), which signs in wit
 
 **Stored:** per session, the hydraulic results and the seven flags of every conduit, the diameter and slope figures, the recommendation and its nine scores; the node and subcatchment tables; the frost zone; and the drawable geometry as JSON (`SessionGeometry.data`, produced by `extract_geometry` in `app/sa/core/geometry.py` from the `.inp` sections alone, with an automatic schematic layout when the file has no coordinates).
 
-**Not stored:** the uploaded file. `SWMMModel.file` is a `FileField`, but the view assigns the file name to it and saves, so nothing is written under `MEDIA_ROOT`; the temporary copy, the `.rpt` and the `.out` are deleted when the request ends. The model metadata is not stored either. The `media` volume therefore holds avatars only.
+**Not stored:** the uploaded file. `SWMMModel.file` is a `FileField`, but the view assigns the file name to it and saves, so nothing is written under `MEDIA_ROOT`; the temporary copy, the `.rpt` and the `.out` are deleted when the request ends. The `media` volume therefore holds avatars only.
 
 ## Front end
 
