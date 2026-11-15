@@ -18,6 +18,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
+from .core.inp_encoding import utf8_chunks
 from .forms import SWMMModelForm
 from .models import CalculationSession, ConduitData, NodeData, SubcatchmentData, SWMMModel
 from .services import AnalysisService, CalculationRetrievalService, ConduitPanelService, NavigationService
@@ -209,7 +210,9 @@ class AnalysisView(LoginRequiredMixin, View):
         """Create temporary file from uploaded file, cleaning up on write error."""
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".inp")
         try:
-            for chunk in uploaded_file.chunks():
+            # The copy is UTF-8 whatever the upload's encoding, so that the engine, swmmio
+            # and the upload gates all read the same bytes (see sa.core.inp_encoding).
+            for chunk in utf8_chunks(uploaded_file.chunks):
                 temp_file.write(chunk)
             temp_file.close()
             return temp_file.name

@@ -176,6 +176,28 @@ class FormConduitShapeTests(SimpleTestCase):
         self.assertEqual([e.code for e in self._errors(text)], ["conduit_shape"])
 
 
+class FormEncodingTests(SimpleTestCase):
+    """A Windows-1250 file is scanned as the UTF-8 copy the engine will read."""
+
+    def _errors(self, payload: bytes) -> list:
+        uploaded = SimpleUploadedFile("x.inp", payload, content_type="application/octet-stream")
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        return [] if form.is_valid() else form.errors.as_data().get("file", [])
+
+    def test_a_windows_1250_model_with_polish_letters_is_accepted(self):
+        self.assertEqual(self._errors(_read_fixture("polish_cp1250.inp")), [])
+
+    def test_the_line_limit_applies_to_the_transcoded_line(self):
+        # 600 letters "ż" are 601 bytes in Windows-1250 but 1201 in the UTF-8 copy the
+        # engine reads, which it would split into two lines.
+        comment = (";" + "ż" * 600 + "\n").encode("cp1250")
+        self.assertLessEqual(len(comment), 1023)
+
+        errors = self._errors(_read_fixture("flow_units_cms.inp") + comment)
+
+        self.assertEqual([e.code for e in errors], ["unsafe_input"])
+
+
 class FormSizeLimitTests(SimpleTestCase):
     def _form(self, size: int):
         uploaded = SimpleUploadedFile("huge.inp", b"[OPTIONS]\nFLOW_UNITS CMS\n", content_type="application/octet-stream")

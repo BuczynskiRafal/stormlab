@@ -273,6 +273,9 @@
                         but are not passed to it; for an untagged subcatchment, or one whose tag
                         names none of the twelve categories, it assumes the average of its
                         training data.</li>
+                    <li>A model file that is not UTF-8 is read as Windows-1250, the code page of
+                        SWMM on Polish Windows. Names and comments written in another code page
+                        may show different letters in the results.</li>
                     <li>Only circular conduits are assessed (shapes <code>CIRCULAR</code> and
                         <code>FORCE_MAIN</code>). A model with conduits of another shape, such as
                         rectangular or egg-shaped sections, is refused at upload; weirs, orifices

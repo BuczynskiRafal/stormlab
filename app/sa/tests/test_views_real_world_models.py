@@ -230,3 +230,16 @@ class NonCircularConduitTests(RealWorldUploadTestCase):
             response, "StormLab assesses circular conduits only; these conduits have another shape: K5 (RECT_CLOSED)."
         )
         self.assertFalse(CalculationSession.objects.exists())
+
+
+class WindowsEncodedModelTests(RealWorldUploadTestCase):
+    def test_a_windows_1250_model_with_polish_letters_is_analysed(self):
+        payload = (Path(__file__).resolve().parent / "data" / "polish_cp1250.inp").read_bytes()
+        with self.assertRaises(UnicodeDecodeError):
+            payload.decode("utf-8")
+
+        session = self.assert_completed(self.upload(payload))
+
+        names = set(session.subcatchments.values_list("subcatchment_name", flat=True))
+        self.assertIn("\u015a1", names)  # "Ś1", spelled as in the file
+        self.assertEqual(session.conduits.count(), 21)
