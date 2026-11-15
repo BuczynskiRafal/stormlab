@@ -1,3 +1,4 @@
+import math
 from collections.abc import Iterable
 
 from django import forms
@@ -117,7 +118,7 @@ class SWMMModelForm(forms.ModelForm):
         except OptionValueError as error:
             raise ValidationError(
                 "StormLab cannot read %(option)s %(value)s in [OPTIONS]; write dates as MM/DD/YYYY, "
-                "times as HH:MM:SS and the report step as HH:MM:SS longer than zero.",
+                "times as HH:MM:SS and the report and routing steps as HH:MM:SS longer than zero.",
                 code="option_value",
                 params={"option": error.option, "value": error.value},
             ) from None
@@ -128,11 +129,47 @@ class SWMMModelForm(forms.ModelForm):
                 code="simulation_too_long",
                 params={"hours": f"{hours:g}" if hours < 1e6 else f"{hours:.0f}", "limit": limit},
             )
-        steps, limit = period.report_steps, settings.MAX_REPORT_STEPS
-        if steps > limit:
+        work, limit = routing_work(elements, period), settings.MAX_ROUTING_MILLIONS * 1e6
+        if work > limit:
             raise ValidationError(
-                "SWMM file asks for %(steps)d report steps (reporting period / REPORT_STEP); the limit is "
-                "%(limit)d. Lengthen REPORT_STEP or shorten the simulation.",
-                code="too_many_report_steps",
-                params={"steps": steps, "limit": limit},
+                "SWMM file asks for an estimated %(work)s million element routing steps (elements × simulated time "
+                "÷ ROUTING_STEP); the limit is %(limit)d million. Lengthen ROUTING_STEP or shorten the simulation.",
+                code="too_much_routing",
+                params={"work": _millions(work), "limit": settings.MAX_ROUTING_MILLIONS},
             )
+        size, limit = output_bytes(elements, period), settings.MAX_OUTPUT_MB * 1e6
+        if size > limit:
+            raise ValidationError(
+                "SWMM file would write an estimated %(size)s MB of results (elements × report steps × about "
+                "%(row)d bytes); the limit is %(limit)d MB. Lengthen REPORT_STEP or shorten the simulation.",
+                code="output_too_large",
+                params={"size": _millions(size), "row": OUTPUT_BYTES_PER_ELEMENT_STEP, "limit": settings.MAX_OUTPUT_MB},
+            )
+
+
+def _millions(value: float) -> str:
+    """``value`` in millions, rounded up so that a refused file never reads as within its limit."""
+    return f"{math.ceil(value / 1e6):,}"
+
+
+OUTPUT_BYTES_PER_ELEMENT_STEP = 24
+"""Bytes the engine writes per element and report step, measured on the shipped networks.
+
+A subcatchment writes 8 values, a node 6 and a link 5, four bytes each, so a typical mix
+averages about 24 bytes; it is an estimate, used for the binary output limit only.
+"""
+
+MIN_ELEMENTS_PER_ROUTING_STEP = 50
+"""A routing step costs about as much as 50 elements even in a tiny model (measured), so
+the routing estimate never counts fewer, or a four-element file with a 0.01 s step would
+pass while running for minutes."""
+
+
+def output_bytes(elements: int, period) -> float:
+    """Estimated size of the engine's binary output, in bytes."""
+    return float(elements) * period.report_steps * OUTPUT_BYTES_PER_ELEMENT_STEP
+
+
+def routing_work(elements: int, period) -> float:
+    """Estimated element routing steps: what the engine's run time grows with."""
+    return float(max(elements, MIN_ELEMENTS_PER_ROUTING_STEP)) * period.routing_steps

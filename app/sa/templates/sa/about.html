@@ -274,10 +274,10 @@
                         names none of the twelve categories, it assumes the average of its
                         training data.</li>
                     <li>An analysis runs while the page waits, so a model may have at most 5,000
-                        conduits, nodes and subcatchments, simulate at most 72 hours and write
-                        at most 1,000 report steps (simulated period divided by
-                        <code>REPORT_STEP</code>). These are the defaults; an installation may set
-                        other limits.</li>
+                        conduits, nodes and subcatchments and simulate at most a week. Very short
+                        report or routing steps over a long period are refused too, with a
+                        message saying which step to lengthen. These are the defaults; an
+                        installation may set other limits.</li>
                     <li>A model file that is not UTF-8 is read as Windows-1250, the code page of
                         SWMM on Polish Windows. Names and comments written in another code page
                         may show different letters in the results.</li>

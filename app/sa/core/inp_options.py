@@ -50,7 +50,16 @@ def read_flow_units(lines: Iterable[str]) -> str | None:
 # Simulated period and report steps, for the cost limits of the upload form
 # ---------------------------------------------------------------------------
 
-PERIOD_OPTIONS = ("START_DATE", "START_TIME", "END_DATE", "END_TIME", "REPORT_START_DATE", "REPORT_START_TIME", "REPORT_STEP")
+PERIOD_OPTIONS = (
+    "START_DATE",
+    "START_TIME",
+    "END_DATE",
+    "END_TIME",
+    "REPORT_START_DATE",
+    "REPORT_START_TIME",
+    "REPORT_STEP",
+    "ROUTING_STEP",
+)
 """The option keywords the period is computed from. The engine matches a keyword by prefix
 (``END_DATE_X`` sets END_DATE) and no SWMM 5.2 option word is a prefix of another, so a
 token names the one word it starts with."""
@@ -60,6 +69,7 @@ DEFAULT_DATE = datetime(2004, 1, 1)
 input without END_DATE therefore ends before it starts and the engine refuses it)."""
 
 DEFAULT_REPORT_STEP_SECONDS = 15 * 60
+DEFAULT_ROUTING_STEP_SECONDS = 20.0
 
 _MONTHS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
 _DATE = re.compile(r"^(\d+|[A-Za-z]{3})[/-](\d+)[/-](\d+)$")
@@ -80,6 +90,13 @@ class OptionValueError(ValueError):
 class SimulationPeriod:
     duration_seconds: float
     report_steps: int
+    routing_step_seconds: float = DEFAULT_ROUTING_STEP_SECONDS
+
+    @property
+    def routing_steps(self) -> float:
+        """Simulated time over ROUTING_STEP: exact for a fixed step, an estimate when
+        VARIABLE_STEP lets the engine shorten the step (ROUTING_STEP is then the longest one)."""
+        return self.duration_seconds / self.routing_step_seconds
 
     @property
     def duration_hours(self) -> float:
@@ -136,6 +153,15 @@ def parse_clock_seconds(option: str, value: str) -> float:
     return hours * 3600.0 + minutes * 60.0 + seconds
 
 
+def parse_routing_seconds(option: str, value: str) -> float:
+    """ROUTING_STEP in seconds. Unlike the report step, the engine reads a bare number here as
+    *seconds* (``30``, ``0.5``, ``1e1``) and only otherwise as hours:minutes:seconds."""
+    text = value.strip()
+    if _DECIMAL_HOURS.match(text):
+        return float(text)
+    return parse_clock_seconds(option, text)
+
+
 def simulation_period(lines: Iterable[tuple[str, str | None]]) -> SimulationPeriod:
     """How long the file simulates and how many report steps that writes, with SWMM's defaults.
 
@@ -146,7 +172,7 @@ def simulation_period(lines: Iterable[tuple[str, str | None]]) -> SimulationPeri
 
     Raises:
         OptionValueError: for a date, time or step in a form this reader does not know,
-            or a report step that is not longer than zero.
+            or a report or routing step that is not longer than zero.
     """
     options = period_options(lines)
 
@@ -165,6 +191,11 @@ def simulation_period(lines: Iterable[tuple[str, str | None]]) -> SimulationPeri
         step = parse_clock_seconds("REPORT_STEP", options["REPORT_STEP"])
         if step <= 0:
             raise OptionValueError("REPORT_STEP", options["REPORT_STEP"])
+    routing = DEFAULT_ROUTING_STEP_SECONDS
+    if "ROUTING_STEP" in options:
+        routing = parse_routing_seconds("ROUTING_STEP", options["ROUTING_STEP"])
+        if routing <= 0:
+            raise OptionValueError("ROUTING_STEP", options["ROUTING_STEP"])
     duration = max(0.0, (end - start).total_seconds())
     reported = max(0.0, (end - report_start).total_seconds())
-    return SimulationPeriod(duration_seconds=duration, report_steps=int(reported // step))
+    return SimulationPeriod(duration_seconds=duration, report_steps=int(reported // step), routing_step_seconds=routing)

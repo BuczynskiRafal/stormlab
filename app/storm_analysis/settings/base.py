@@ -119,14 +119,16 @@ MAX_INP_BYTES = env_int("MAX_INP_BYTES", 50 * 1024 * 1024, minimum=1)
 
 # What one analysis may cost, checked by the upload form from the file itself. A run lives
 # inside a request (gunicorn timeout 180 s) and writes its binary output to /tmp (a 512 MB
-# tmpfs in production), whose size grows with elements x report steps.
-# Simulated time, START to END: design storms run for hours; 72 h keeps a 3-day event with
-# its drain-down and is 6x the 12-hour demo networks.
-MAX_SIMULATION_HOURS = env_int("MAX_SIMULATION_HOURS", 72, minimum=1)
-# Report steps over the reporting period (period / REPORT_STEP); the Rakowiec model has 240.
-MAX_REPORT_STEPS = env_int("MAX_REPORT_STEPS", 1000, minimum=1)
+# tmpfs in production, shared by the workers).
 # Conduits + nodes + subcatchments; an estate-scale network has a few hundred (Rakowiec 162).
 MAX_MODEL_ELEMENTS = env_int("MAX_MODEL_ELEMENTS", 5000, minimum=1)
+# Simulated time, START to END: a week covers any design storm with its drain-down.
+MAX_SIMULATION_HOURS = env_int("MAX_SIMULATION_HOURS", 168, minimum=1)
+# Estimated binary output: elements x report steps x about 24 bytes, in MB (10^6 bytes).
+MAX_OUTPUT_MB = env_int("MAX_OUTPUT_MB", 200, minimum=1)
+# Estimated routing work in millions of element routing steps: elements (at least 50)
+# x simulated time / ROUTING_STEP. 100 million took about 45 s of engine time when measured.
+MAX_ROUTING_MILLIONS = env_int("MAX_ROUTING_MILLIONS", 100, minimum=1)
 
 # Upload limits (50 MB max .inp model + request overhead; stream files > 5 MB via temporary file)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52 * 1024 * 1024

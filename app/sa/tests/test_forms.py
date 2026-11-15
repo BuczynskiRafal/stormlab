@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile, TemporaryUploadedFile
@@ -213,14 +214,31 @@ class FormCostLimitTests(SimpleTestCase):
         lines = [f"{name:<21}{value}" if line.startswith(name + " ") else line for line in text.split("\n")]
         return "\n".join(lines)
 
-    def test_the_audited_eight_day_one_second_run_is_refused_for_its_duration(self):
-        text = self._option("REPORT_STEP", "00:00:01", self._option("END_DATE", "06/25/2022"))
+    def test_the_audited_eight_day_one_second_run_is_refused_for_its_output(self):
+        # Six and a half days are within the week; 561,600 one-second report steps of 51 elements are not.
+        text = self._option("REPORT_STEP", "00:00:01", self._option("END_DATE", "06/23/2022"))
 
         errors = self._errors(text)
 
+        self.assertEqual([e.code for e in errors], ["output_too_large"])
+        self.assertEqual(
+            errors[0].messages,
+            [
+                "SWMM file would write an estimated 688 MB of results (elements × report steps × about 24 bytes); "
+                "the limit is 200 MB. Lengthen REPORT_STEP or shorten the simulation."
+            ],
+        )
+
+    def test_a_day_reported_every_minute_is_accepted(self):
+        text = self._option("REPORT_STEP", "00:01:00", self._option("END_DATE", "06/18/2022"))
+        self.assertEqual(self._errors(text), [])
+
+    def test_more_than_a_week_is_refused(self):
+        errors = self._errors(self._option("END_DATE", "06/25/2022"))
+
         self.assertEqual([e.code for e in errors], ["simulation_too_long"])
         self.assertEqual(
-            errors[0].messages, ["SWMM file simulates 204 hours (START to END in [OPTIONS]); the limit is 72 hours."]
+            errors[0].messages, ["SWMM file simulates 204 hours (START to END in [OPTIONS]); the limit is 168 hours."]
         )
 
     def test_an_end_date_hidden_in_a_second_options_section_counts(self):
@@ -231,17 +249,25 @@ class FormCostLimitTests(SimpleTestCase):
         text = "\n".join(line for line in self.DEMO.split("\n") if not line.startswith(("START_DATE", "REPORT_START")))
         self.assertEqual([e.code for e in self._errors(text)], ["simulation_too_long"])
 
-    def test_too_many_report_steps_are_refused_with_the_count_and_the_limit(self):
-        errors = self._errors(self._option("REPORT_STEP", "00:00:30"))
+    def test_a_tiny_routing_step_is_refused_with_the_estimate_and_the_limit(self):
+        # 12 hours at 0.01 s are 4.32 million steps, counted as 51 elements each.
+        errors = self._errors(self._option("ROUTING_STEP", "0.01"))
 
-        self.assertEqual([e.code for e in errors], ["too_many_report_steps"])
+        self.assertEqual([e.code for e in errors], ["too_much_routing"])
         self.assertEqual(
             errors[0].messages,
             [
-                "SWMM file asks for 1440 report steps (reporting period / REPORT_STEP); the limit is 1000. "
-                "Lengthen REPORT_STEP or shorten the simulation."
+                "SWMM file asks for an estimated 221 million element routing steps (elements × simulated time "
+                "÷ ROUTING_STEP); the limit is 100 million. Lengthen ROUTING_STEP or shorten the simulation."
             ],
         )
+
+    def test_a_tiny_model_counts_as_fifty_elements_per_routing_step(self):
+        from sa.forms import routing_work
+
+        period = mock.Mock(routing_steps=1_000_000)
+        self.assertEqual(routing_work(4, period), 50_000_000)
+        self.assertEqual(routing_work(5000, period), 5_000_000_000)
 
     def test_an_unreadable_period_option_is_named(self):
         errors = self._errors(self._option("END_DATE", "2022-06-18"))
@@ -259,9 +285,12 @@ class FormCostLimitTests(SimpleTestCase):
             ["SWMM file has 51 elements (conduits, nodes and subcatchments); the limit is 50."],
         )
 
-    @override_settings(MAX_SIMULATION_HOURS=12, MAX_REPORT_STEPS=48, MAX_MODEL_ELEMENTS=51)
-    def test_limits_follow_the_settings_and_a_file_at_the_limits_passes(self):
+    @override_settings(MAX_SIMULATION_HOURS=12, MAX_MODEL_ELEMENTS=51, MAX_OUTPUT_MB=1, MAX_ROUTING_MILLIONS=1)
+    def test_limits_follow_the_settings_and_a_file_within_them_passes(self):
+        # The demo: 12 hours, 51 x 48 x 24 B = 0.06 MB, 51 x 720 = 0.04 million routing steps.
         self.assertEqual(self._errors(self.DEMO), [])
+        with self.settings(MAX_SIMULATION_HOURS=11):
+            self.assertEqual([e.code for e in self._errors(self.DEMO)], ["simulation_too_long"])
 
     def test_the_shipped_examples_pass(self):
         for path in (Path(settings.BASE_DIR).parent / "examples").glob("*.inp"):
