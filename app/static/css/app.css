@@ -321,30 +321,6 @@ a {
     color: var(--water-700);
 }
 
-.accordion-item {
-    position: relative;
-}
-
-.accordion-item .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-header .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-collapse {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-body {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
 #sessionsTable {
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
@@ -369,83 +345,6 @@ a {
     border-radius: 0;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
-}
-
-.accordion-item .accordion-button:not(.collapsed) {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-button::before,
-.accordion-item .accordion-button::after {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-#accordionMenu .accordion-item:first-child,
-#accordionMenu .accordion-item:first-child .accordion-header,
-#accordionMenu .accordion-item:first-child .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-    border-radius: 12px 12px 0 0 !important;  /* bije .accordion-item poniżej (też !important) */
-}
-
-.accordion-header {
-    transition: all 0.2s ease-in-out;
-}
-
-.accordion-header.sticky {
-    position: fixed;
-    z-index: var(--z-sticky-bar);
-    background-color: var(--slate-band-top);
-    box-shadow: var(--shadow-1);
-    padding: 0;
-    margin: 0;
-    border-radius: 0;
-    transition: none;
-}
-
-.accordion-header.sticky .accordion-button {
-    border-radius: 0;
-    margin: 0;
-}
-
-.accordion-body {
-    position: relative;
-}
-
-.accordion-header.sticky .accordion-button {
-    border: 1px solid var(--slate-300);
 }
 
 .card {
@@ -596,10 +495,63 @@ a {
     width: 100%;
 }
 
+/* Visually hidden but in place: the input keeps keyboard focus and the browser's
+   validation bubble anchors to the drop zone, not to a point 9999 px off-screen.
+   The ring on the wrapper (:focus-within) shows where the focus is. */
 .file-input-wrapper input[type=file] {
     position: absolute;
-    left: -9999px;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
     opacity: 0;
+}
+
+.file-input-wrapper:focus-within .file-input-display {
+    outline: 2px solid var(--water-600);
+    outline-offset: 2px;
+    border-color: var(--water-600);
+}
+
+.file-input-wrapper.has-error .file-input-display {
+    border-color: var(--bad);
+    background-color: var(--bad-wash);
+}
+
+/* Compact variant (avatar on the account page): one row, icon on the left. */
+.file-input-wrapper--compact .file-input-display {
+    gap: 0.9rem;
+    min-height: 0;
+    padding: 0.85rem 1rem;
+    text-align: left;
+    font-weight: 400;
+}
+
+.file-input-wrapper--compact .file-input-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    text-align: left;
+}
+
+.file-input-wrapper--compact .file-input-icon {
+    flex: none;
+    margin: 0;
+    font-size: 1.6rem;
+}
+
+.file-input-wrapper--compact .file-input-text {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.file-input-wrapper--compact .file-input-display:hover {
+    transform: none;
 }
 
 .file-input-display {
@@ -1253,57 +1205,6 @@ thead th:not(:where(.conduit-page *)) {
     background-color: var(--bad-wash);
     border-color: transparent;
     color: var(--bad);
-}
-
-/* ============================================================
-   ACCORDION REFINEMENTS
-   ============================================================ */
-
-.accordion {
-    border-radius: var(--radius-md);
-}
-
-.accordion-item {
-    border: 1px solid var(--slate-300);
-    border-radius: var(--radius-md) !important;  /* bije .accordion-item:last-of-type Bootstrapa */
-    margin-bottom: 0.75rem;
-    overflow: hidden;
-}
-
-.accordion-button {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--ink);
-    /* To samo pasmo co .card-header - nagłówek sekcji wyników ma być widoczną
-       krawędzią, nie kolejnym odcieniem papieru. */
-    background-color: var(--slate-band-top);
-    background-image: linear-gradient(to bottom, var(--slate-band-top) 0%, var(--slate-band-bottom) 100%);
-    padding: 1rem 1.25rem;
-    border: none;
-    border-bottom: 1px solid var(--slate-300);
-}
-
-.accordion-button:not(.collapsed) {
-    background-color: var(--slate-band-bottom);
-    background-image: none;
-    color: var(--ink);
-    box-shadow: none;
-}
-
-.accordion-button:focus {
-    box-shadow: none;
-    border-color: var(--rule-strong);
-}
-
-.accordion-button::after {
-    background-size: 1rem;
-    opacity: 0.6;
-}
-
-.accordion-body {
-    padding: 0;
-    background-color: var(--surface-0);
 }
 
 /* ============================================================
@@ -1983,7 +1884,6 @@ tr.selected:hover td:first-child {
    bar and the row checkboxes are styled higher up in this file; what follows is the
    page frame, the filter bar, the count chips and the two empty states. */
 
-
 /* Filter bar: search grows, the three selects keep their natural width. */
 .history-filters {
     display: flex;
@@ -2486,6 +2386,190 @@ tr.selected:hover td:first-child {
     }
 }
 /* END auth */
+
+/* BEGIN account */
+/* ============================================================
+   ACCOUNT PAGE (/accounts/user/profile/)
+   ============================================================ */
+
+.account-page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0.5rem 0 2rem;
+}
+
+.account-header {
+    margin-bottom: 1.5rem;
+}
+
+.account-kicker {
+    margin: 0 0 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* The heading is the e-mail address: left-aligned like the cards and broken
+   anywhere, because an address has no spaces to wrap at. */
+.account-title {
+    margin: 0 0 0.3rem;
+    font-size: 1.9rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.account-meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.account-card {
+    margin-bottom: 1.25rem;
+    padding: 1.5rem;
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+    scroll-margin-top: calc(var(--header-h) + 1rem);
+}
+
+.account-card.has-errors {
+    border-color: var(--bad);
+}
+
+.account-card-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.25rem;
+}
+
+.account-card-lede {
+    margin: 0 0 1.25rem;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.account-field {
+    margin-bottom: 1rem;
+}
+
+.account-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.account-optional {
+    font-weight: 400;
+    color: var(--muted);
+}
+
+.account-field input {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+    color: var(--text);
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-sm);
+}
+
+.account-field input:focus {
+    border-color: var(--water-600);
+    outline: none;
+}
+
+.account-field input:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+}
+
+.account-field.has-error input {
+    border-color: var(--bad);
+}
+
+.account-help {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.account-help ul {
+    margin: 0.2rem 0 0;
+    padding-left: 1.1rem;
+}
+
+.account-error,
+.account-form-error {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--bad);
+}
+
+.account-form-error {
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--bad);
+    border-radius: var(--radius-sm);
+    background-color: var(--bad-wash);
+}
+
+.account-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.account-actions .btn {
+    min-height: 40px;
+}
+
+.account-avatar {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+}
+
+.account-avatar-image {
+    flex: none;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--slate-300);
+}
+
+.account-avatar-form {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+@media (max-width: 575.98px) {
+    .account-title {
+        font-size: 1.5rem;
+    }
+
+    .account-card {
+        padding: 1.25rem 1rem;
+    }
+
+    .account-avatar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .account-avatar-image {
+        width: 72px;
+        height: 72px;
+    }
+}
+/* END account */
 
 /* BEGIN conduit-panel */
 /* Skin of the conduit panel. The page carries its own light palette, which takes

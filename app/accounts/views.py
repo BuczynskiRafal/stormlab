@@ -3,12 +3,18 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model, login, update_session_auth_hash
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import PasswordChangeForm
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import Resolver404, resolve
 
-from accounts.forms import CustomUserCreationForm, EmailAuthenticationForm, UserAvatarForm, UserForm, UserProfileForm
+from accounts.forms import (
+    AVATAR_HINT,
+    AccountPasswordChangeForm,
+    CustomUserCreationForm,
+    EmailAuthenticationForm,
+    UserAvatarForm,
+    UserForm,
+)
 
 User = get_user_model()
 
@@ -86,63 +92,60 @@ class LogoutView(auth_views.LogoutView):
 
 @login_required(login_url="/accounts/login/")
 def user_profile(request):
-    user_form = UserForm(instance=request.user)
-    profile_form = UserProfileForm(instance=request.user)
-    password_form = PasswordChangeForm(user=request.user)
-    avatar_form = UserAvatarForm(instance=request.user)
+    """The account page: three always-open sections, each a form of its own.
+
+    ``user_profile_forms`` names the section that was submitted: 0 account details,
+    1 password, 3 avatar (2, the removed "additional information" form, is refused).
+    A rejected form comes back with its errors inline; ``error_section`` lets the
+    page move focus to it.
+    """
+    user = request.user
+    user_form = UserForm(instance=user)
+    password_form = AccountPasswordChangeForm(user=user)
+    avatar_form = UserAvatarForm(instance=user)
+    error_section = None
 
     if request.method == "POST":
         action = request.POST.get("user_profile_forms")
 
         if action == "0":
-            user_form = UserForm(request.POST, request.FILES, instance=request.user)
+            user_form = UserForm(request.POST, instance=user)
             if user_form.is_valid():
                 user_form.save()
-                messages.success(request, "Your profile was successfully updated!")
+                messages.success(request, "Your account details were saved.")
                 return redirect("accounts:user_profile")
-            messages.error(request, "Please correct the errors in the profile form.")
+            error_section = "account"
 
         elif action == "1":
-            password_form = PasswordChangeForm(data=request.POST, user=request.user)
+            password_form = AccountPasswordChangeForm(data=request.POST, user=user)
             if password_form.is_valid():
                 password_form.save()
                 update_session_auth_hash(request, password_form.user)
-                messages.success(request, "Your password was successfully updated!")
+                messages.success(request, "Your password was changed.")
                 return redirect("accounts:user_profile")
-            messages.error(request, "Please correct the errors in the password form.")
-
-        elif action == "2":
-            profile_form = UserProfileForm(request.POST, request.FILES, instance=request.user)
-            if profile_form.is_valid():
-                profile_form.save()
-                messages.success(request, "Your additional information was successfully updated!")
-                return redirect("accounts:user_profile")
-            messages.error(request, "Please correct the errors in the additional information form.")
+            error_section = "password"
 
         elif action == "3":
-            avatar_form = UserAvatarForm(request.POST, request.FILES, instance=request.user)
+            avatar_form = UserAvatarForm(request.POST, request.FILES, instance=user)
             if avatar_form.is_valid():
                 avatar_form.save()
-                messages.success(request, "Your avatar was successfully updated!")
+                messages.success(request, "Your avatar was updated.")
                 return redirect("accounts:user_profile")
-            messages.error(request, "Please correct the errors in the avatar upload.")
+            error_section = "avatar"
 
         else:
-            messages.error(request, "Invalid form submission.")
+            messages.error(request, "The form could not be read. Reload the page and try again.")
             return redirect("accounts:user_profile")
+
+        # A ModelForm writes the rejected values onto its instance while validating;
+        # reload it so the heading and the header avatar still show what is saved.
+        user.refresh_from_db()
 
     context = {
         "user_form": user_form,
-        "profile_form": profile_form,
         "password_form": password_form,
         "avatar_form": avatar_form,
+        "avatar_hint": AVATAR_HINT,
+        "error_section": error_section,
     }
-
     return render(request, "accounts/user_profile.html", context)
-
-
-@login_required(login_url="/accounts/login/")
-def profile(request, id):
-    user = request.user
-    context = {"user": user}
-    return render(request, "accounts/profile.html", context)

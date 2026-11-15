@@ -41,90 +41,77 @@ const initBackToTop = function() {
     syncVisibility();
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const accordionHeaders = document.querySelectorAll('.accordion-header');
-    const accordionItems = document.querySelectorAll('.accordion-item');
+/**
+ * File controls built as .file-input-wrapper[data-file-input]: a visually hidden
+ * <input type="file"> and a <label> drop zone. The label opens the picker by itself;
+ * this adds the chosen file's name and size, and drag and drop.
+ */
+const formatBytes = function(bytes) {
+    if (bytes >= 1024 * 1024) {
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    return Math.max(1, Math.round(bytes / 1024)) + ' kB';
+};
 
-    // Pins the open section's header under the navigation bar while that section
-    // scrolls past (the accordions of the profile page).
-    function handleStickyHeaders() {
-        if (accordionItems.length === 0) return;
+const initFileInputs = function() {
+    document.querySelectorAll('[data-file-input]').forEach(function(wrapper) {
+        const input = wrapper.querySelector('input[type="file"]');
+        const display = wrapper.querySelector('.file-input-display');
+        const name = wrapper.querySelector('[data-file-name]');
+        const detail = wrapper.querySelector('[data-file-detail]');
+        if (!input || !display) return;
 
-        const header = document.querySelector('header');
-        const headerHeight = header ? header.offsetHeight : 0;
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const sync = function() {
+            const file = input.files && input.files[0];
+            display.classList.toggle('file-input-selected', Boolean(file));
+            if (file) {
+                wrapper.classList.remove('has-error');
+            }
+            if (name) name.textContent = file ? file.name : name.dataset.emptyText;
+            if (detail) detail.textContent = file ? formatBytes(file.size) : detail.dataset.emptyText;
+            wrapper.dispatchEvent(new CustomEvent('file-input:change', { bubbles: true, detail: { file: file || null } }));
+        };
 
-        // Get current position of navigation header
-        const headerRect = header ? header.getBoundingClientRect() : null;
-        const navBottomPosition = headerRect ? Math.max(0, headerRect.bottom) : 0;
+        input.addEventListener('change', sync);
 
-        accordionItems.forEach((item) => {
-            const accordionHeader = item.querySelector('.accordion-header');
-            const collapse = item.querySelector('.accordion-collapse');
-            // An accordion item without a header or a collapse pane is not ours to stick.
-            if (!accordionHeader || !collapse) return;
-
-            const itemRect = item.getBoundingClientRect();
-            const itemTop = itemRect.top + scrollTop;
-            const itemBottom = itemRect.bottom + scrollTop;
-
-            const isExpanded = collapse.classList.contains('show');
-            const shouldBeSticky = isExpanded &&
-                                 scrollTop > (itemTop - headerHeight) &&
-                                 scrollTop < (itemBottom - headerHeight - 100);
-
-            if (shouldBeSticky) {
-                accordionHeader.classList.add('sticky');
-
-                // Position sticky header to follow navigation bar smoothly
-                accordionHeader.style.top = navBottomPosition + 'px';
-
-                // Add appropriate class based on nav position
-                if (navBottomPosition > 0) {
-                    accordionHeader.classList.add('sticky-with-nav');
-                    accordionHeader.classList.remove('sticky-top');
-                } else {
-                    accordionHeader.classList.add('sticky-top');
-                    accordionHeader.classList.remove('sticky-with-nav');
-                }
-
-                // Keep original position and width
-                const itemCurrentRect = item.getBoundingClientRect();
-                accordionHeader.style.left = itemCurrentRect.left + 'px';
-                accordionHeader.style.width = item.offsetWidth + 'px';
-
-                // Adjust accordion content padding
-                collapse.style.paddingTop = (accordionHeader.offsetHeight || 60) + 'px';
-            } else {
-                accordionHeader.classList.remove('sticky', 'sticky-with-nav', 'sticky-top');
-                accordionHeader.style.top = '';
-                accordionHeader.style.left = '';
-                accordionHeader.style.width = '';
-                collapse.style.paddingTop = '';
+        display.addEventListener('dragover', function(event) {
+            event.preventDefault();
+            display.classList.add('drag-over');
+        });
+        display.addEventListener('dragleave', function() {
+            display.classList.remove('drag-over');
+        });
+        display.addEventListener('drop', function(event) {
+            event.preventDefault();
+            display.classList.remove('drag-over');
+            if (event.dataTransfer && event.dataTransfer.files.length > 0) {
+                input.files = event.dataTransfer.files;
+                sync();
             }
         });
-    }
 
-    // Throttle scroll events for better performance
-    let ticking = false;
-    function requestTick() {
-        if (!ticking) {
-            requestAnimationFrame(handleStickyHeaders);
-            ticking = true;
-            setTimeout(() => { ticking = false; }, 16);
-        }
-    }
-
-    window.addEventListener('scroll', requestTick);
-    window.addEventListener('resize', handleStickyHeaders);
-
-    // Handle accordion toggle events
-    accordionHeaders.forEach(header => {
-        header.addEventListener('click', function() {
-            // Small delay to allow accordion animation to start
-            setTimeout(handleStickyHeaders, 50);
-        });
+        // A page restored from the back/forward cache keeps the chosen file.
+        sync();
     });
+};
+
+/**
+ * The account page names the section whose form was rejected; move focus to its first
+ * invalid field so the error is the next thing a keyboard or screen reader user meets.
+ */
+const focusRejectedSection = function() {
+    const page = document.querySelector('[data-error-section]');
+    if (!page) return;
+    const section = document.getElementById(page.dataset.errorSection);
+    if (!section) return;
+    const field = section.querySelector('[aria-invalid="true"]') || section.querySelector('input:not([type="hidden"])');
+    section.scrollIntoView({ block: 'start' });
+    if (field) field.focus({ preventScroll: true });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    initFileInputs();
+    focusRejectedSection();
 
     // =========================================================================
     // Keyboard Navigation for Detail Pages
