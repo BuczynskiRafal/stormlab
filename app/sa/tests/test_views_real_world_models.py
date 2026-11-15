@@ -217,3 +217,16 @@ class FailureMessageTests(RealWorldUploadTestCase):
         self.assertIn(f"analysis number {session.id}", session.error_message)
         self.assertNotIn("bad report", response.content.decode())
         self.assertIn("SimulationReportError", "\n".join(logs.output))
+
+
+class NonCircularConduitTests(RealWorldUploadTestCase):
+    def test_a_rectangular_conduit_is_refused_before_anything_runs(self):
+        text = re.sub(r"^(K5\s+)CIRCULAR(\s+)0\.3", r"\1RECT_CLOSED\g<2>0.6  0.4", demo_text(), flags=re.MULTILINE)
+
+        response = self.upload(text)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, "StormLab assesses circular conduits only; these conduits have another shape: K5 (RECT_CLOSED)."
+        )
+        self.assertFalse(CalculationSession.objects.exists())

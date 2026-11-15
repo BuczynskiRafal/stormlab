@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 
 from .core.inp_options import read_flow_units
 from .core.inp_safety import find_unsafe_input
+from .core.inp_structure import listing, non_circular_conduits, survey_inp
 from .models import INP_EXTENSION_MESSAGE, SWMMModel, has_inp_extension
 
 MAX_SCANNED_BYTES = 1024 * 1024
@@ -75,5 +76,16 @@ class SWMMModelForm(forms.ModelForm):
                 "Uploaded models must be self-contained, without references to other files.",
                 code="unsafe_input",
                 params={"line": unsafe.line, "reason": unsafe.reason},
+            )
+        try:
+            survey = survey_inp(uploaded.chunks())
+        finally:
+            uploaded.seek(0)
+        other_shapes = non_circular_conduits(survey)
+        if other_shapes:
+            raise ValidationError(
+                "StormLab assesses circular conduits only; these conduits have another shape: %(conduits)s.",
+                code="conduit_shape",
+                params={"conduits": listing(other_shapes)},
             )
         return uploaded

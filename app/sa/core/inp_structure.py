@@ -159,6 +159,35 @@ def check_structure(survey: InpSurvey) -> None:
         raise AnalysisInputError(f"These links refer to a node the model does not define: {listing(undefined)}.")
 
 
+CIRCULAR_SHAPES = ("CIRCULAR", "FORCE_MAIN")
+"""Cross-section keywords whose ``Geom1`` is the diameter of an open circle.
+
+The checks and the recommendation model treat ``Geom1`` as a pipe diameter, so only
+these are accepted:
+
+* ``CIRCULAR`` - the circle itself.
+* ``FORCE_MAIN`` - a circle of diameter ``Geom1`` (``Geom2`` is the Hazen-Williams C or
+  Darcy-Weisbach roughness used only while it runs full). Partly full it is routed as a
+  circular conduit with its Manning n, so filling, velocity and slope mean what they
+  mean for ``CIRCULAR``.
+
+``FILLED_CIRCULAR`` is not accepted: its sediment layer (``Geom2``) changes the flow
+area and SWMM measures depth from the top of the sediment, so the filling ratio would
+be computed against the wrong section. Every other shape (``RECT_CLOSED``, ``EGG``,
+``IRREGULAR``, ``DUMMY``...) has no single diameter. The engine matches the keyword by
+prefix, so this does too.
+"""
+
+
+def non_circular_conduits(survey: InpSurvey) -> list[str]:
+    """``"NAME (SHAPE)"`` for every conduit whose cross-section is not circular, in file order.
+
+    Cross-sections of weirs and orifices are not conduits and are ignored.
+    """
+    conduits = {name for section, name, _, _ in survey.links if section == "CONDUITS"}
+    return [f"{name} ({shape})" for name, shape in survey.shapes if name in conduits and not shape.startswith(CIRCULAR_SHAPES)]
+
+
 def check_file_structure(path: str, *, chunk_size: int = 64 * 1024) -> None:
     """:func:`check_structure` on the file at *path*."""
     with open(path, "rb") as handle:

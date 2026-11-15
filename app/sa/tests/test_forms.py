@@ -135,6 +135,47 @@ class FormFileNameTests(SimpleTestCase):
         self.assertEqual([e.code for e in form.errors.as_data()["file"]], ["extension"])
 
 
+class FormConduitShapeTests(SimpleTestCase):
+    """The checks treat Geom1 as a diameter, so other cross-sections are refused at upload."""
+
+    DEMO = (Path(settings.BASE_DIR).parent / "examples" / "demo_network_coordinates.inp").read_text(encoding="utf-8")
+
+    def _errors(self, text: str) -> list:
+        uploaded = SimpleUploadedFile("x.inp", text.encode("utf-8"), content_type="application/octet-stream")
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        return [] if form.is_valid() else form.errors.as_data().get("file", [])
+
+    def _with_shapes(self, shapes: dict[str, str]) -> str:
+        text = self.DEMO
+        for name, shape in shapes.items():
+            text = text.replace(f"{name:<17}CIRCULAR    ", f"{name:<17}{shape:<12}", 1)
+            self.assertIn(f"{name:<17}{shape}", text)
+        return text
+
+    def test_conduits_of_another_shape_are_named_with_their_shape(self):
+        errors = self._errors(self._with_shapes({"K5": "RECT_CLOSED", "K6": "EGG", "K7": "RECT_OPEN", "K8": "EGG", "K9": "ARCH"}))
+
+        self.assertEqual([e.code for e in errors], ["conduit_shape"])
+        self.assertEqual(
+            errors[0].messages,
+            [
+                "StormLab assesses circular conduits only; these conduits have another shape: "
+                "K5 (RECT_CLOSED), K6 (EGG), K7 (RECT_OPEN) and 2 more."
+            ],
+        )
+
+    def test_force_main_and_lower_case_circular_conduits_are_accepted(self):
+        self.assertEqual(self._errors(self._with_shapes({"K5": "FORCE_MAIN", "K6": "circular"})), [])
+
+    def test_a_weir_with_a_rectangular_opening_is_not_a_conduit(self):
+        weir = "[WEIRS]\nW1  J3  O1  TRANSVERSE  0.5  3.33  NO  0  0\n\n[XSECTIONS]\nW1  RECT_OPEN  1  1  0  0\n"
+        self.assertEqual(self._errors(self.DEMO.replace("[XSECTIONS]\n", weir, 1)), [])
+
+    def test_crlf_files_are_read_too(self):
+        text = self._with_shapes({"K5": "TRAPEZOIDAL"}).replace("\n", "\r\n")
+        self.assertEqual([e.code for e in self._errors(text)], ["conduit_shape"])
+
+
 class FormSizeLimitTests(SimpleTestCase):
     def _form(self, size: int):
         uploaded = SimpleUploadedFile("huge.inp", b"[OPTIONS]\nFLOW_UNITS CMS\n", content_type="application/octet-stream")

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from sa.core.errors import AnalysisInputError
-from sa.core.inp_structure import check_structure, survey_inp
+from sa.core.inp_structure import check_structure, non_circular_conduits, survey_inp
 from sa.core.services import engine_errors
 
 EXAMPLES = Path(__file__).resolve().parents[4] / "examples"
@@ -124,3 +124,26 @@ def test_engine_errors_are_read_in_order_without_paths(tmp_path):
         "ERROR 303: cannot open file model.inp",
     ]
     assert engine_errors(tmp_path / "missing.rpt") == []
+
+
+def test_only_conduits_of_another_shape_are_reported_weirs_are_not():
+    assert non_circular_conduits(survey(NETWORK)) == ["C2 (RECT_CLOSED)"]
+
+
+@pytest.mark.parametrize("shape", [b"CIRCULAR", b"circular", b"FORCE_MAIN", b"force_main"])
+def test_circular_and_force_main_conduits_are_accepted(shape):
+    text = NETWORK.replace(b'"RECT_CLOSED"', shape)
+
+    assert non_circular_conduits(survey(text)) == []
+
+
+@pytest.mark.parametrize("shape", [b"FILLED_CIRCULAR", b"EGG", b"IRREGULAR", b"DUMMY", b"SEMICIRCULAR", b"TRAPEZOIDAL"])
+def test_other_shapes_including_filled_circular_are_reported(shape):
+    text = NETWORK.replace(b'"RECT_CLOSED"', shape)
+
+    assert non_circular_conduits(survey(text)) == [f"C2 ({shape.decode()})"]
+
+
+def test_every_shipped_example_has_circular_conduits_only():
+    for path in EXAMPLES.glob("*.inp"):
+        assert non_circular_conduits(survey(path.read_bytes())) == [], path.name
