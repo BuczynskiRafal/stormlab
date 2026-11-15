@@ -20,7 +20,8 @@
  * in the caption under the drawing.
  *
  * The two water levels are different SWMM results and are drawn as they are: in a manhole
- * the node's maximum water depth, in the pipe the conduit's maximum filling. The maxima
+ * the node's maximum water depth, in the pipe the conduit's maximum water depth (the
+ * panel's "Max water depth", the same words the titles and the caption use). The maxima
  * fall at different times, so the levels may not meet at the wall; the <title> of each
  * water element and the caption under the drawing say which is which.
  */
@@ -356,7 +357,7 @@
 
         const slope = Number.isFinite(d.slope) ? d.slope : 1000 * (inv1 - inv2) / d.length;
         const fillingPercent = 100 * Math.min(Math.max(d.filling, 0), d.diameter) / d.diameter;
-        const waterTitle = 'Max conduit depth ' + nf(Math.min(Math.max(d.filling, 0), d.diameter), 2)
+        const waterTitle = 'Max water depth in the conduit: ' + nf(Math.min(Math.max(d.filling, 0), d.diameter), 2)
             + ' m (' + nf(fillingPercent, 0) + '%)';
         const diameterMm = Math.round(d.diameter * 1000);
         const lengthText = nf(d.length, 1);
@@ -447,7 +448,7 @@
         if (!exaggeration) {
             return '';
         }
-        return 'Water: manhole = max node depth · pipe = max conduit depth'
+        return 'Max water depth: of each node in its manhole, of the conduit in the pipe'
             + (exaggeration > 1 ? ' · vertical exaggeration ×' + exaggeration : '');
     }
 
