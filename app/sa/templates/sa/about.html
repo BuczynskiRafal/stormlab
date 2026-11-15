@@ -58,6 +58,11 @@
                     considering. The decision, the sizing and the check by re-simulation stay with
                     the designer.
                 </p>
+                <p>
+                    This page explains how to use the application and how to read its results.
+                    How the network becomes a graph, how the model was trained and what the
+                    experiments showed is described on the <a href="{% url 'sa:method' %}">Method</a> page.
+                </p>
             </section>
 
             <section id="tour" class="docs-section">
@@ -93,13 +98,18 @@
                 </ol>
 
                 <h3 id="verification">Hydraulic verification</h3>
+                <p>
+                    Filling and velocity are the peak values of the simulation. The slope
+                    limits are computed for the conduit's diameter with a Manning roughness
+                    of 0.013; depth and cover are measured at both ends of the conduit.
+                </p>
                 <div class="docs-table-wrapper">
                     <table class="docs-table">
                         <thead>
                             <tr><th>Check</th><th>Criterion</th><th>Source</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>Maximum filling</td><td>h/D ≤ 0.827</td><td>full capacity of a circular section</td></tr>
+                            <tr><td>Maximum filling</td><td>h/D ≤ 0.827, diameter 0.2 to 2.0 m</td><td>full capacity of a circular section</td></tr>
                             <tr><td>Minimum velocity</td><td>v ≥ 0.7 m/s</td><td>PN-EN 752</td></tr>
                             <tr><td>Maximum velocity</td><td>v ≤ 5.0 m/s</td><td>WTP design guidelines</td></tr>
                             <tr><td>Minimum slope</td><td>shear stress ≥ 1.5 Pa (self-cleansing)</td><td>tractive force criterion</td></tr>
@@ -131,6 +141,8 @@
                     and rainfall above it, and the design requirements. Two GraphSAGE layers
                     aggregate information from the inflow side, reaching four links upstream.
                     The application serves the mean of five training runs of this model.
+                    The <a href="{% url 'sa:method' %}#graph">Method</a> page shows the graph
+                    and what the model reads for a conduit.
                 </p>
                 <p>
                     The output is a probability for each action rather than a single verdict.
@@ -198,6 +210,8 @@
                     the same 66 features of a single conduit without its neighbours. The graph
                     model is more accurate by 1.73 percentage points (95% CI 0.96 to 2.45).
                     Averaging the five runs, as the application does, raises its accuracy to 0.907.
+                    The experiments behind these numbers are on the
+                    <a href="{% url 'sa:method' %}#experiments">Method</a> page.
                 </p>
 
                 <h3>Case study: Rakowiec, Wrocław</h3>
@@ -248,6 +262,14 @@
                         or a new diameter.</li>
                     <li>Each action refers to one conduit. Measures designed jointly for a
                         sequence of conduits are outside the nine actions.</li>
+                    <li>The frost zone chosen for an analysis sets the minimum cover in the
+                        verification. The recommendation model was trained with a required cover
+                        of 0.8 m and reads that value in every zone, so its suggestions do not
+                        change with the zone.</li>
+                    <li>The recommendation model reads land cover from the tags of the model
+                        file. Categories assigned by the classifier are shown in the results
+                        but are not passed to it; for an untagged subcatchment it assumes the
+                        average of its training data.</li>
                     <li>The model was trained on dynamic wave results. Files that declare another
                         routing method are analysed as declared, and recommendations for them are
                         less reliable.</li>

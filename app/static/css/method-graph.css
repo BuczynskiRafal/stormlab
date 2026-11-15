@@ -1,0 +1,817 @@
+/*
+ * method-graph.css - the "What the model reads" figure (sa/method/_receptive_field.html).
+ * Loaded after app.css; uses only its design tokens. Every selector is scoped to
+ * .method-graph. The stroke widths of the map lines are mirrored in
+ * MethodGraph.prototype.strokeWidth in method-graph.js (arrowhead sizes follow them).
+ *
+ * Layout follows the width of the figure, not of the window: map and readout sit
+ * side by side from 640 px of figure width and stack below that.
+ *
+ * Before the data arrives (and without JavaScript) the controls, the map and the
+ * readout keep their final size, invisible, so nothing moves when the figure is
+ * drawn; only the fallback sentence shows, in the middle of the map.
+ */
+
+.method-graph {
+    /* Second-step tone: a mid water blue with 3.3:1 against --surface-0 (3.2:1 on
+       --surface-1), so the lines pass the 3:1 minimum for graphics. */
+    --mg-step2: #5294BD;
+    /* Width / height of the drawn network; method-graph.js resets it from the data. */
+    --mg-map-aspect: 929 / 1000;
+    container: method-graph / inline-size;
+    margin: 1.75rem 0 2.25rem;
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-0);
+    color: var(--text);
+    font-family: var(--font-body);
+    overflow: hidden;
+}
+
+/* The UA rule for [hidden] loses against the display values below. */
+.method-graph [hidden] {
+    display: none !important;
+}
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+
+.method-graph__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1.25rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--rule-soft);
+    background-color: var(--surface-1);
+}
+
+.method-graph__field {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.method-graph__label {
+    margin: 0;
+    padding: 0;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.method-graph__select {
+    /* A fixed width: the options arrive with the data and must not re-wrap the bar. */
+    width: 9.5rem;
+    max-width: 100%;
+    padding: 0.3rem 2rem 0.3rem 0.65rem;
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-sm);
+    /* Chevron from two gradients, so it takes the token colour. */
+    background-color: var(--surface-0);
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--slate-500) 50%),
+        linear-gradient(135deg, var(--slate-500) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.86rem;
+    line-height: 1.4;
+    appearance: none;
+    cursor: pointer;
+}
+
+.method-graph__select:hover {
+    border-color: var(--slate-500);
+}
+
+.method-graph__select:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+}
+
+.method-graph__steps {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+/* A floated legend is laid out like any other box inside the fieldset. */
+.method-graph__steps > legend {
+    float: left;
+    width: auto;
+}
+
+.method-graph__steps > legend + * {
+    clear: none;
+}
+
+.method-graph__toggle {
+    display: inline-flex;
+    padding: 2px;
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-pill);
+    background-color: var(--surface-2);
+}
+
+.method-graph__step {
+    position: relative;
+    margin: 0;
+    cursor: pointer;
+}
+
+.method-graph__step input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.method-graph__step span {
+    display: block;
+    padding: 0.22rem 0.85rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    color: var(--muted);
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.method-graph__step:hover span {
+    color: var(--ink);
+}
+
+.method-graph__step input:checked + span {
+    border-color: var(--slate-300);
+    background-color: var(--surface-0);
+    box-shadow: var(--shadow-1);
+    color: var(--water-700);
+}
+
+.method-graph__step input:focus-visible + span {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+}
+
+/* ============================================================
+   BODY: MAP + READOUT
+   ============================================================ */
+
+/* Engineering paper: a faint water-tinted grid under the network. It lies on the
+   body, so it also fills the map column where the readout is taller than the map. */
+.method-graph__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    background-color: var(--surface-0);
+    background-image:
+        linear-gradient(var(--water-050) 1px, transparent 1px),
+        linear-gradient(90deg, var(--water-050) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: -1px -1px;
+}
+
+.method-graph__map {
+    position: relative;
+    min-width: 0;
+    aspect-ratio: var(--mg-map-aspect);
+}
+
+.method-graph:not(.is-ready) .method-graph__controls,
+.method-graph:not(.is-ready) .method-graph__readout {
+    visibility: hidden;
+}
+
+.method-graph:not(.is-ready) .method-graph__svg {
+    display: none;
+}
+
+/* Fills the box the aspect ratio reserves, so loading changes no size at all. */
+.method-graph__svg {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.method-graph__svg.is-pointing {
+    cursor: pointer;
+}
+
+.method-graph__readout {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    min-width: 0;
+    /* The height the filled readout takes (with "+ n more" closed), reserved
+       before it is filled; measured for each legend layout below. One column: */
+    min-height: 39rem;
+    padding: 0.95rem 1rem 1rem;
+    border-top: 1px solid var(--rule-soft);
+    background-color: var(--surface-1);
+}
+
+@container method-graph (min-width: 480px) {
+    .method-graph__readout {
+        min-height: 35.5rem; /* two legend columns */
+    }
+}
+
+@container method-graph (min-width: 640px) {
+    .method-graph__body {
+        grid-template-columns: minmax(0, 1fr) 15.5rem;
+    }
+
+    .method-graph__readout {
+        min-height: 39rem; /* beside the map, one legend column */
+        border-top: 0;
+        border-left: 1px solid var(--rule-soft);
+    }
+}
+
+/* ============================================================
+   MAP LINES
+   ============================================================ */
+
+.method-graph__line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke 160ms ease, stroke-width 160ms ease;
+}
+
+.method-graph__line.is-dim {
+    stroke: var(--slate-300);
+    stroke-width: 1.5px;
+}
+
+.method-graph__line.is-step1,
+.method-graph__line.is-step2 {
+    stroke-width: calc(1.75px + var(--mg-weight, 0) * 7px);
+}
+
+.method-graph__line.is-step1 {
+    stroke: var(--water-700);
+}
+
+/* Dashed, so the two steps differ by more than their colour. */
+.method-graph__line.is-step2 {
+    stroke: var(--mg-step2);
+    stroke-dasharray: 5 3;
+    stroke-linecap: butt;
+}
+
+.method-graph__line.is-selected {
+    stroke: var(--ink);
+    stroke-width: 4px;
+}
+
+/* Paper-coloured outline that lifts the selection off its neighbours. */
+.method-graph__halo {
+    fill: none;
+    stroke: var(--surface-0);
+    stroke-width: 8px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.method-graph__line.is-dim.is-hover {
+    stroke: var(--slate-500);
+    stroke-width: 2.5px;
+}
+
+.method-graph__line.is-step1.is-hover,
+.method-graph__line.is-step2.is-hover {
+    stroke: var(--water-600);
+}
+
+.method-graph__arrow {
+    fill: var(--slate-500);
+    opacity: 0.55;
+    transition: fill 160ms ease;
+}
+
+.method-graph__arrow.is-step1 {
+    fill: var(--water-700);
+    opacity: 1;
+}
+
+.method-graph__arrow.is-step2 {
+    fill: var(--mg-step2);
+    opacity: 1;
+}
+
+.method-graph__arrow.is-selected {
+    fill: var(--ink);
+    opacity: 1;
+}
+
+.method-graph__arrow.is-hidden {
+    display: none;
+}
+
+.method-graph__node {
+    fill: var(--slate-500);
+    opacity: 0.55;
+}
+
+.method-graph__node.is-in-view {
+    fill: var(--surface-0);
+    stroke: var(--ink);
+    stroke-width: 1px;
+    opacity: 1;
+}
+
+.method-graph__outfall {
+    fill: var(--surface-0);
+    stroke: var(--ink);
+    stroke-width: 1.5px;
+}
+
+/* Keyboard focus: a ring around the selected conduit; the paths get no outline. */
+.method-graph__hit {
+    fill: none;
+    stroke: none;
+    pointer-events: none;
+    outline: none;
+}
+
+.method-graph__focus-ring {
+    fill: none;
+    stroke: var(--water-600);
+    stroke-width: 2px;
+    visibility: hidden;
+}
+
+.method-graph.is-map-focused .method-graph__focus-ring {
+    visibility: visible;
+}
+
+/* Overview of the whole network; the rectangle is the part the map shows. */
+.method-graph__inset-bg {
+    fill: var(--surface-0);
+    stroke: var(--slate-300);
+    stroke-width: 1px;
+}
+
+.method-graph__inset-network,
+.method-graph__inset-mark {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.method-graph__inset-network {
+    stroke: var(--slate-500);
+    stroke-width: 1px;
+    opacity: 0.45;
+}
+
+.method-graph__inset-mark {
+    stroke-width: 2px;
+}
+
+.method-graph__inset-mark.is-step1 {
+    stroke: var(--water-700);
+}
+
+.method-graph__inset-mark.is-step2 {
+    stroke: var(--mg-step2);
+    stroke-dasharray: 2.5 1.5;
+    stroke-linecap: butt;
+}
+
+.method-graph__inset-mark.is-selected {
+    stroke: var(--ink);
+}
+
+.method-graph__inset-window {
+    fill: none;
+    stroke: var(--water-600);
+    stroke-width: 1px;
+}
+
+/* While the map pans, colours change at once instead of fading mid-flight. */
+.method-graph.is-panning .method-graph__line,
+.method-graph.is-panning .method-graph__arrow {
+    transition: none;
+}
+
+/* ============================================================
+   MAP LABELS
+   ============================================================ */
+
+.method-graph__label-text,
+.method-graph__hover-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    dominant-baseline: central;
+    paint-order: stroke;
+    stroke: var(--surface-0);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+.method-graph__label-text.is-step1 {
+    fill: var(--water-700);
+}
+
+.method-graph__label-text.is-step2 {
+    fill: var(--muted);
+}
+
+.method-graph__label-text.is-selected {
+    fill: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.method-graph__label-text.is-outfall {
+    fill: var(--ink);
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.method-graph__leader {
+    stroke: var(--slate-500);
+    stroke-width: 0.75px;
+    opacity: 0.8;
+}
+
+.method-graph__hover-label {
+    fill: var(--ink);
+    text-anchor: middle;
+    visibility: hidden;
+}
+
+.method-graph__hover-label.is-visible {
+    visibility: visible;
+}
+
+/* ============================================================
+   READOUT
+   ============================================================ */
+
+.method-graph .method-graph__summary,
+.method-graph .method-graph__panel {
+    min-width: 0;
+}
+
+/* Room for the longest content - title, eight rows, the "+ n more" line and a
+   three-line note - is always reserved, so the readout keeps its height. */
+.method-graph .method-graph__panel {
+    min-height: 19rem;
+}
+
+.method-graph .method-graph__eyebrow,
+.method-graph .method-graph__list-title {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    line-height: 1.3;
+    text-transform: uppercase;
+}
+
+.method-graph .method-graph__name {
+    margin: 0.1rem 0 0.6rem;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 1.45rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.method-graph .method-graph__counts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.method-graph .method-graph__count {
+    padding-top: 0.35rem;
+    border-top: 2px solid var(--rule-soft);
+}
+
+.method-graph .method-graph__count.is-active {
+    border-top-color: var(--water-600);
+}
+
+.method-graph .method-graph__count dt {
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+
+.method-graph .method-graph__count dd {
+    margin: 0;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.method-graph .method-graph__count.is-active dd {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.method-graph .method-graph__list-title {
+    margin-bottom: 0.45rem;
+}
+
+.method-graph .method-graph__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.method-graph .method-graph__row {
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr) 3.1rem;
+    align-items: center;
+    gap: 0.5rem;
+    height: 1.5rem;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.method-graph .method-graph__row-name {
+    overflow: hidden;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.method-graph .method-graph__row-self {
+    margin-left: 0.3rem;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+}
+
+.method-graph .method-graph__row-value {
+    color: var(--text);
+    text-align: right;
+}
+
+.method-graph .method-graph__bar {
+    display: block;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background-color: var(--surface-2);
+    overflow: hidden;
+}
+
+.method-graph .method-graph__bar-fill {
+    display: block;
+    width: calc(var(--mg-share, 0) * 100%);
+    min-width: 2px;
+    height: 100%;
+    border-radius: inherit;
+    background-color: var(--water-700);
+}
+
+.method-graph .method-graph__row.is-selected .method-graph__bar-fill {
+    background-color: var(--ink);
+}
+
+.method-graph .method-graph__row.is-step2 .method-graph__bar-fill {
+    background-color: transparent;
+    background-image: repeating-linear-gradient(90deg, var(--mg-step2) 0 4px, transparent 4px 6px);
+}
+
+/* "+ n more": the rest of the list, opened in place. Closed, it is one line. */
+.method-graph .method-graph__more {
+    margin: 0.2rem 0 0;
+}
+
+.method-graph .method-graph__more-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 1.35rem;
+    border-radius: var(--radius-sm);
+    color: var(--water-700);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.35rem;
+    list-style: none;
+    cursor: pointer;
+}
+
+.method-graph .method-graph__more-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.method-graph .method-graph__more-toggle::after {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 150ms ease;
+}
+
+.method-graph .method-graph__more[open] > .method-graph__more-toggle::after {
+    transform: translateY(1px) rotate(-135deg);
+}
+
+.method-graph .method-graph__more-toggle:hover {
+    color: var(--ink);
+}
+
+.method-graph .method-graph__more-toggle:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 2px;
+}
+
+.method-graph .method-graph__list--rest {
+    margin-top: 0.15rem;
+}
+
+/* Announced, never shown. */
+.method-graph .method-graph__status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.method-graph .method-graph__note {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.method-graph .method-graph__note.is-head {
+    margin-top: 0.6rem;
+    padding-left: 0.6rem;
+    border-left: 2px solid var(--warn);
+    color: var(--text);
+}
+
+/* Legend */
+.method-graph .method-graph__legend {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.4rem 1rem;
+    margin: auto 0 0;
+    padding: 0.75rem 0 0;
+    border-top: 1px solid var(--rule-soft);
+    list-style: none;
+}
+
+@container method-graph (min-width: 480px) {
+    .method-graph .method-graph__legend {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@container method-graph (min-width: 640px) {
+    .method-graph .method-graph__legend {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.method-graph .method-graph__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text);
+    font-size: 0.78rem;
+    line-height: 1.3;
+}
+
+/* Out of use in one-step mode: muted text (still readable), faded swatch. */
+.method-graph .method-graph__legend-item.is-inactive {
+    color: var(--muted);
+}
+
+.method-graph .method-graph__legend-item.is-inactive .method-graph__swatch {
+    opacity: 0.4;
+}
+
+.method-graph .method-graph__swatch {
+    flex: 0 0 auto;
+    width: 1.4rem;
+    height: 3px;
+    border-radius: var(--radius-pill);
+    background-color: var(--slate-300);
+}
+
+.method-graph .method-graph__legend-item.is-selected .method-graph__swatch {
+    height: 4px;
+    background-color: var(--ink);
+}
+
+.method-graph .method-graph__legend-item.is-step1 .method-graph__swatch {
+    background-color: var(--water-700);
+}
+
+.method-graph .method-graph__legend-item.is-step2 .method-graph__swatch {
+    border-radius: 0;
+    background-color: transparent;
+    background-image: repeating-linear-gradient(90deg, var(--mg-step2) 0 5px, transparent 5px 8px);
+}
+
+.method-graph .method-graph__legend-item.is-outfall .method-graph__swatch {
+    width: 9px;
+    height: 9px;
+    margin: 0 calc((1.4rem - 9px) / 2);
+    border: 1.5px solid var(--ink);
+    background-color: var(--surface-0);
+}
+
+/* ============================================================
+   FALLBACK AND CAPTION
+   ============================================================ */
+
+/* Centred in the room the map will take. */
+.method-graph .method-graph__fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: none;
+    margin: 0;
+    padding: 1.5rem;
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.method-graph__caption {
+    padding: 0.7rem 1rem 0.8rem;
+    border-top: 1px solid var(--rule-soft);
+    background-color: var(--surface-1);
+    color: var(--muted);
+    font-size: 0.86rem;
+    line-height: 1.55;
+}
+
+/* ============================================================
+   MOTION AND PRINT
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .method-graph__line,
+    .method-graph__arrow,
+    .method-graph__step span,
+    .method-graph .method-graph__more-toggle::after {
+        transition: none;
+    }
+}
+
+@media print {
+    .method-graph {
+        break-inside: avoid;
+        border-color: var(--slate-500);
+    }
+
+    .method-graph__controls,
+    .method-graph__focus-ring,
+    .method-graph__hover-label {
+        display: none !important;
+    }
+
+    .method-graph__body {
+        background-image: none;
+    }
+}

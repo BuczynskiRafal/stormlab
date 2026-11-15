@@ -49,6 +49,7 @@
                         <li><a href="{% url 'sa:index' %}" class="nav-link{% if url_name == 'index' %} is-active{% endif %}">Home</a></li>
                         <li><a href="{% url 'sa:analysis' %}" class="nav-link{% if url_name == 'analysis' or url_name == 'analysis_results' or url_name == 'conduit_detail' %} is-active{% endif %}">Analysis</a></li>
                         <li><a href="{% url 'sa:history' %}" class="nav-link{% if url_name == 'history' %} is-active{% endif %}">History</a></li>
+                        <li><a href="{% url 'sa:method' %}" class="nav-link{% if url_name == 'method' %} is-active{% endif %}">Method</a></li>
                         <li><a href="{% url 'sa:about' %}" class="nav-link{% if url_name == 'about' %} is-active{% endif %}">About</a></li>
                     </ul>
                 </nav>
@@ -83,6 +84,7 @@
         </a>
         <p class="site-footer-copy">&copy; Rafał Buczyński {% now "Y" %}</p>
         <ul class="nav site-footer-nav">
+            <li class="nav-item"><a href="{% url 'sa:method' %}" class="nav-link">Method</a></li>
             <li class="nav-item"><a href="{% url 'sa:about' %}" class="nav-link">About</a></li>
         </ul>
     </div>

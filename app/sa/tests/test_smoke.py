@@ -7,6 +7,8 @@ and template work, not to test view logic.
 
 from __future__ import annotations
 
+import re
+
 from django.test import TestCase
 from django.urls import reverse
 
@@ -23,6 +25,11 @@ class PublicPageTests(TestCase):
 
     def test_about_renders_for_anonymous_visitor(self):
         response = self.client.get(reverse("sa:about"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_method_renders_for_anonymous_visitor(self):
+        response = self.client.get(reverse("sa:method"))
 
         self.assertEqual(response.status_code, 200)
 
@@ -76,6 +83,67 @@ class StylesheetContractTests(TestCase):
         response = self.client.get(reverse("sa:about"))
 
         self.assertNotContains(response, "<style")
+
+    def test_header_and_footer_link_to_the_method_page(self):
+        response = self.client.get(reverse("sa:index"))
+
+        self.assertContains(response, f'href="{reverse("sa:method")}"', count=3)
+
+    def test_method_link_is_marked_active_on_the_method_page_only(self):
+        active = f'href="{reverse("sa:method")}" class="nav-link is-active"'
+
+        self.assertContains(self.client.get(reverse("sa:method")), active, count=1)
+        self.assertNotContains(self.client.get(reverse("sa:about")), active)
+
+
+class MethodPageContractTests(TestCase):
+    """The Method page: its assets, its figures and the anchors other pages link to."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.url = reverse("sa:method")
+
+    def setUp(self):
+        self.response = self.client.get(self.url)
+
+    def test_serves_its_styles_and_scripts_as_static_files(self):
+        for asset in ("css/docs.css", "css/method.css", "js/docs.js", "js/method-graph.js"):
+            self.assertContains(self.response, asset)
+
+    def test_has_no_inline_style_or_script_block(self):
+        self.assertNotContains(self.response, "<style")
+        self.assertNotContains(self.response, "<script>")
+
+    def test_every_entry_of_the_table_of_contents_has_its_target(self):
+        """A link without a target would leave docs.js with a dead entry and the reader with a dead click."""
+        html = self.response.content.decode()
+        anchors = re.findall(r'class="docs-nav-link[^"]*" href="#([^"]+)"', html)
+
+        self.assertGreaterEqual(len(anchors), 10)
+        for anchor in anchors:
+            self.assertEqual(html.count(f'id="{anchor}"'), 1, f"#{anchor} must exist exactly once")
+
+    def test_anchors_linked_from_the_about_page_exist(self):
+        about = self.client.get(reverse("sa:about")).content.decode()
+        linked = set(re.findall(re.escape(self.url) + r"#([a-z-]+)", about))
+
+        self.assertEqual(linked, {"graph", "experiments"})
+        for anchor in linked:
+            self.assertContains(self.response, f'id="{anchor}"')
+
+    def test_figures_are_rendered_with_text_alternatives(self):
+        html = self.response.content.decode()
+
+        self.assertEqual(html.count('<svg viewBox="'), 3, "three static figures, drawn in the template")
+        self.assertEqual(html.count("<title"), 4, "the page title and one title per static figure")
+        self.assertEqual(html.count("<desc"), 3, "every static figure describes itself to a screen reader")
+        self.assertEqual(html.count("<figcaption"), 4)
+        self.assertContains(self.response, "data-method-graph")
+        self.assertContains(self.response, "data/method-graph.json")
+
+    def test_about_limitations_anchor_linked_from_the_method_page_exists(self):
+        self.assertContains(self.response, f'{reverse("sa:about")}#limitations')
+        self.assertContains(self.client.get(reverse("sa:about")), 'id="limitations"')
 
 
 class AuthenticatedPageTests(TestCase):

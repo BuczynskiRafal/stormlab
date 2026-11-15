@@ -807,6 +807,27 @@ footer {
     margin-bottom: 0;
 }
 
+.feature-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.85rem;
+    color: var(--water-700);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.feature-link:hover,
+.feature-link:focus-visible {
+    color: var(--water-600);
+    text-decoration: underline;
+}
+
+.feature-link i {
+    font-size: 0.75em;
+}
+
 @media (max-width: 768px) {
     .features-grid {
         grid-template-columns: 1fr;
