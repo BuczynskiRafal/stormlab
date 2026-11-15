@@ -102,6 +102,8 @@ def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
     """Return provenance metadata for the active recommendation model.
 
     ``model_kind`` is ``"none"`` (with empty identity fields) when no model is available.
+    ``ensemble_members`` is the number of weight files whose outputs are averaged: the
+    configured members of the GNN, one for the MLP, ``None`` without a model.
     """
     enabled = gnn_enabled()
     resolved_name = model_name if model_name is not None else ("GNN" if enabled else "MLP")
@@ -115,6 +117,7 @@ def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
             "feature_contract": feature_contract,
             "target_contract": target_contract,
             "gnn_enabled": enabled,
+            "ensemble_members": len(gnn_model_paths),
         }
     mlp_sha256 = _sha256_file_safe(recommendations_classifier_path)
     if mlp_sha256 is None:
@@ -126,6 +129,7 @@ def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
             "feature_contract": None,
             "target_contract": None,
             "gnn_enabled": enabled,
+            "ensemble_members": None,
         }
     return {
         "model_kind": "mlp",
@@ -134,6 +138,7 @@ def get_model_metadata(model_name: Optional[str] = None) -> Dict[str, Any]:
         "feature_contract": "v1_historical_33",
         "target_contract": "historical_9class",
         "gnn_enabled": enabled,
+        "ensemble_members": 1,
     }
 
 

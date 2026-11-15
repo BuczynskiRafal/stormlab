@@ -36,6 +36,8 @@ class DemoAnalysisTests(TestCase):
         self.assertEqual(session.model_metadata["model_kind"], "gnn")
         self.assertEqual(session.model_metadata["model_id"], "gnn_recommender_v1")
         self.assertEqual(len(session.model_metadata["weights_sha256"]), 64)
+        # The five runs behind the results are stored with them, for the pages to name.
+        self.assertEqual(session.model_metadata["ensemble_members"], 5)
         self.assertRedirects(response, results_url, fetch_redirect_response=False)
 
         page = self.client.get(results_url)

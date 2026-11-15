@@ -21,7 +21,7 @@ from .models import CalculationSession, ConduitData, NodeData, SessionGeometry, 
 from .core.data import DataManager, RecommendationModelUnavailable
 from .core.errors import AnalysisInputError, unexpected_failure_message
 from .core.geometry import NETMAP_MAX_ELEMENTS, NETMAP_MAX_POINTS, extract_geometry
-from .core.predictor import get_model_metadata, gnn_model_paths
+from .core.predictor import get_model_metadata
 from .core.round import max_depth_value, max_filling, max_velocity_value, min_velocity_value
 from .labels import ACTION_LABELS, CATEGORY_LABELS, action_label, category_label
 
@@ -79,7 +79,9 @@ def describe_model(metadata: dict[str, Any] | None) -> dict[str, Any]:
 
     ``summary`` is the line a reader sees ("Graph model, five runs averaged"); the
     identifiers stay available for whoever needs them, with the weights digest also
-    shortened to its first 12 hex characters for display.  ``None`` or a metadata of
+    shortened to its first 12 hex characters for display.  The number of runs is the
+    ``ensemble_members`` stored with the session, never the configuration of today; a
+    session stored without it reads "Graph model", with no count.  ``None`` or a metadata of
     kind ``none`` describes the state without recommendations.  Metadata whose
     ``recorded`` is ``False`` (see session_model_metadata) belongs to a session completed
     before the model was stored with it: the model is then "not recorded", which is not
@@ -93,9 +95,12 @@ def describe_model(metadata: dict[str, Any] | None) -> dict[str, Any]:
         summary = "not recorded"
         note = "This analysis ran before StormLab stored which model produced its recommendations."
     elif kind == "gnn":
-        runs = len(gnn_model_paths)
-        count = _COUNT_WORDS[runs] if runs < len(_COUNT_WORDS) else str(runs)
-        summary = f"Graph model, {count} runs averaged" if runs > 1 else "Graph model"
+        runs = meta.get("ensemble_members")
+        if isinstance(runs, int) and not isinstance(runs, bool) and runs > 1:
+            count = _COUNT_WORDS[runs] if runs < len(_COUNT_WORDS) else str(runs)
+            summary = f"Graph model, {count} runs averaged"
+        else:
+            summary = "Graph model"
     elif kind == "mlp":
         summary = "Plain neural network (MLP), one conduit at a time"
     else:
@@ -127,7 +132,15 @@ def simple_band_rule_passed(filling: Any, diameter: Any, velocity: Any) -> bool:
     return (0.2 <= ratio <= 0.7) and (0.8 <= vel_f <= 3.0)
 
 
-MODEL_METADATA_KEYS = ("model_kind", "model_id", "weights_sha256", "feature_contract", "target_contract", "gnn_enabled")
+MODEL_METADATA_KEYS = (
+    "model_kind",
+    "model_id",
+    "weights_sha256",
+    "feature_contract",
+    "target_contract",
+    "gnn_enabled",
+    "ensemble_members",
+)
 
 
 def session_model_metadata(session: CalculationSession) -> dict[str, Any]:
