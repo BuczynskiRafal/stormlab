@@ -809,7 +809,6 @@ class CalculationRetrievalService:
                     "increaseSlope": inc_slope,
                     "reduce_slope": red_slope,
                     "reduceSlope": red_slope,
-                    "limits_assessed": limits_assessed,
                     # Validation Flags (all 7 fields + derived)
                     "val_max_fill": flag_max_fill,
                     "val_max_v": flag_max_v,
@@ -834,6 +833,10 @@ class CalculationRetrievalService:
                     # Confidences
                     "confidence": confidence_display,
                     "confidence_margin": confidence_margin,
+                    # A key added later goes after every existing key, so that the columns of
+                    # the server CSV keep their positions: whether the design criteria
+                    # covered the diameter.
+                    "limits_assessed": limits_assessed,
                 }
             )
 

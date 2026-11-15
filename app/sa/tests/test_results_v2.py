@@ -1184,6 +1184,39 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
             self.assertTrue(content.startswith("\ufeff"))
             self.assertGreaterEqual(len(content.strip().splitlines()), 2)
 
+    # The columns of the server CSV before any key was added (results of record): new
+    # keys may only be appended after them.
+    SERVER_CSV_COLUMNS = {
+        "conduits": (
+            "id,name,conduit_name,inlet,inlet_node,outlet,outlet_node,catchment,subcatchment,category,"
+            "sbc_category,diameter,geom1,length,slope,slope_per_mile,coverIn,inlet_ground_cover,coverOut,"
+            "outlet_ground_cover,inlet_max_depth,outlet_max_depth,depth,inlet_ground_elevation,"
+            "outlet_ground_elevation,flow,max_q,velocity,max_v,filling,fillPercent,fill_percent,minDiameter,"
+            "min_diameter,is_min_diameter,isMinDiameter,increase_dia,increaseDia,reduce_dia,reduceDia,minSlope,"
+            "min_required_slope,maxSlope,maxAllowableSlope,max_allowable_slope,increase_slope,increaseSlope,"
+            "reduce_slope,reduceSlope,val_max_fill,val_max_v,val_min_v,val_max_slope,val_min_slope,val_depth,"
+            "val_coverage,validation,passed_checks_count,failed_checks_count,simple_rule_passed,action,"
+            "recommendation,recommendation_label,detail_url,panel_url,link,confidence,confidence_margin"
+        ),
+        "nodes": (
+            "id,name,node_name,conduit,subcatchment,category,sbc_category,invert,invert_elevation,depth,"
+            "max_depth,ground,ground_elevation,waterDepth,max_water_depth,floodHours,hours_flooded,floodVolume,"
+            "flood_volume,is_flooded,detail_url,panel_url,link"
+        ),
+        "catchments": (
+            "id,name,subcatchment_name,outlet,conduit,category,area,impervious,perc_imperv,slope,perc_slope,"
+            "total_runoff_mg,runoff,peak_runoff,peak,runoff_coeff,coefficient,detail_url,panel_url,link"
+        ),
+    }
+
+    def test_server_csv_keeps_every_column_in_place_and_only_appends(self):
+        appended = {"conduits": ["limits_assessed"], "nodes": [], "catchments": []}
+        for kind, columns in self.SERVER_CSV_COLUMNS.items():
+            with self.subTest(kind=kind):
+                response = self.client.get(reverse("sa:export_session_csv", args=[self.session.id, kind]))
+                header = response.content.decode("utf-8").lstrip("\ufeff").splitlines()[0].split(",")
+                self.assertEqual(header, columns.split(",") + appended[kind])
+
     def test_server_csv_export_rejects_invalid_kind_and_foreign_user(self):
         bad_url = reverse("sa:export_session_csv", args=[self.session.id, "invalid"])
         self.assertEqual(self.client.get(bad_url).status_code, 400)
