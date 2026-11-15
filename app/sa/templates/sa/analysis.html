@@ -38,7 +38,7 @@
                         <p class="upload-help" id="{{ field.auto_id }}_helptext">
                             {{ field.help_text }}. Flow units must be CMS (SI){% if max_inp_bytes %}; up to {{ max_inp_bytes|filesizeformat }}{% endif %}. The file is analysed from a temporary copy and not kept.
                         </p>
-                        <div class="upload-error{% if not field.errors %} d-none{% endif %}" id="{{ field.auto_id }}_error" data-file-error aria-live="polite">{% for error in field.errors %}{{ error }} {% endfor %}</div>
+                        <div class="upload-error{% if not field.errors %} d-none{% endif %}" id="{{ field.auto_id }}_error" data-file-error data-extension-message="Choose a SWMM input file (.inp)." aria-live="polite">{% for error in field.errors %}{{ error }} {% endfor %}</div>
                     </div>
                     {% endwith %}
                     {% if swmm_form.zone %}

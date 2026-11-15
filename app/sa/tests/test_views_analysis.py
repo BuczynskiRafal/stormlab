@@ -149,7 +149,17 @@ class AnalysisFormTemplateTests(TestCase):
 
     def test_drop_zone_is_a_label_for_the_file_input(self):
         self.assertContains(self.response, '<label class="file-input-display" for="id_file" id="fileInputDisplay">')
-        self.assertContains(self.response, 'id="id_file_error" data-file-error aria-live="polite"')
+        self.assertContains(self.response, 'id="id_file_error" data-file-error data-extension-message=')
+
+    def test_a_file_without_the_inp_extension_gets_the_servers_message_before_upload(self):
+        from pathlib import Path
+
+        from sa.models import INP_EXTENSION_MESSAGE
+
+        self.assertContains(self.response, f'data-extension-message="{INP_EXTENSION_MESSAGE}"')
+        script = (Path(__file__).resolve().parents[2] / "static" / "js" / "main.js").read_text(encoding="utf-8")
+        self.assertIn("return /\\.inp$/i.test(file.name);", script)
+        self.assertIn("showError(EXTENSION_MESSAGE);", script)
 
     def test_frost_zones_are_labelled_from_their_depths_with_unchanged_values(self):
         html = self.response.content.decode()

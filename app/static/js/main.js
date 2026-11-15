@@ -123,6 +123,8 @@ const initFileInputs = function() {
  * The analysis form (#uploadForm).
  * - An empty "Upload & Analyse" shows an inline error under the drop zone instead of
  *   the browser bubble (the demo button has formnovalidate and is not checked).
+ * - A file whose name does not end in .inp (any letter case) gets the server's message
+ *   (data-extension-message) as soon as it is chosen, and is not uploaded.
  * - While SWMM runs (up to a minute) both buttons are disabled, a spinner and a status
  *   line are shown and the form is aria-busy; a second submit is ignored.
  * - Coming back with the Back button restores the form from the bfcache, where it
@@ -137,6 +139,8 @@ const initAnalysisForm = function() {
     const status = document.getElementById('uploadStatus');
     const buttons = Array.from(form.querySelectorAll('button[type="submit"]'));
     const EMPTY_MESSAGE = 'Choose a .inp file to analyse, or try the demo data.';
+    const EXTENSION_MESSAGE = (error && error.dataset.extensionMessage) || 'Choose a SWMM input file (.inp).';
+    const hasInpName = function(file) { return /\.inp$/i.test(file.name); };
     let busy = false;
 
     const showError = function(text) {
@@ -169,13 +173,29 @@ const initAnalysisForm = function() {
     }
     if (wrapper) {
         wrapper.addEventListener('file-input:change', function(event) {
-            if (event.detail.file) clearError();
+            const file = event.detail.file;
+            if (!file) return;
+            if (hasInpName(file)) {
+                clearError();
+            } else {
+                // Not the accepted look of a chosen file: the error state alone.
+                wrapper.querySelector('.file-input-display').classList.remove('file-input-selected');
+                showError(EXTENSION_MESSAGE);
+            }
         });
     }
 
     form.addEventListener('submit', function(event) {
         if (busy) {
             event.preventDefault();
+            return;
+        }
+        const demo = event.submitter && event.submitter.name === 'use_test_file';
+        const file = input && input.files && input.files[0];
+        if (!demo && file && !hasInpName(file)) {
+            event.preventDefault();
+            showError(EXTENSION_MESSAGE);
+            input.focus();
             return;
         }
         // Disabled buttons are left out of the form data, so the clicked one (the demo
