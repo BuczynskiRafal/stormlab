@@ -259,7 +259,7 @@ class LogoutTests(TestCase):
 
 
 class LoginPageTests(TestCase):
-    """The login form is the 420 px card of Etap 7, not the bare crispy form."""
+    """The login form is the 420 px auth card, not the bare crispy form."""
 
     def test_get_renders_the_card_and_the_water_coloured_submit(self) -> None:
         response = self.client.get(reverse("accounts:login"))
