@@ -64,8 +64,11 @@ class SessionOwnerMixin:
 
     def validate_completed_or_redirect(self, session):
         """Check if session is completed. Returns redirect response or None."""
+        if session.status == "processing":
+            messages.info(self.request, "This analysis is still running. Open it from History when it has finished.")
+            return redirect("sa:analysis")
         if session.status != "completed":
-            messages.warning(self.request, f"Analysis session is {session.status}.")
+            messages.warning(self.request, "This analysis failed, so it has no results. History shows why.")
             return redirect("sa:analysis")
         return None
 
@@ -288,7 +291,7 @@ class ConduitDetailView(LoginRequiredMixin, SessionOwnerMixin, TemplateView):
 
         conduit = session.conduits.filter(conduit_name=kwargs["conduit_name"]).first()
         if not conduit:
-            messages.error(request, f"Conduit '{kwargs['conduit_name']}' not found in this session.")
+            messages.error(request, f"This analysis has no conduit named “{kwargs['conduit_name']}”.")
             return redirect("sa:analysis_results", session_id=session.id)
 
         panel = ConduitPanelService.build(session, conduit)
@@ -466,7 +469,7 @@ class DeleteSessionView(LoginRequiredMixin, SessionOwnerMixin, View):
         except Exception:
             logger.exception("Deleting session %s failed", session_id)
             return JsonResponse(
-                {"success": False, "message": "An error occurred while deleting the session."},
+                {"success": False, "message": "The session could not be deleted. Try again."},
                 status=500,
             )
 
@@ -504,7 +507,9 @@ class BulkDeleteSessionsView(LoginRequiredMixin, View):
         try:
             sessions = CalculationSession.objects.filter(id__in=session_ids, user=request.user)
             if not sessions.exists():
-                return JsonResponse({"success": False, "message": "No valid sessions found."}, status=404)
+                return JsonResponse(
+                    {"success": False, "message": "None of the selected sessions exist any more. Reload the page."}, status=404
+                )
 
             deleted_count = SessionDeletionService.delete(sessions)
             logger.info("Bulk deleted %d sessions for user %s", deleted_count, request.user.id)
@@ -515,7 +520,7 @@ class BulkDeleteSessionsView(LoginRequiredMixin, View):
         except Exception:
             logger.exception("Bulk deleting sessions failed")
             return JsonResponse(
-                {"success": False, "message": "An error occurred while deleting sessions."},
+                {"success": False, "message": "The sessions could not be deleted. Try again."},
                 status=500,
             )
 
