@@ -594,7 +594,7 @@ class ConduitPanelTests(TestCase):
         # are listed by descending confidence (0.02 ×3, 0.01 ×3, 0.0 last).
         self.assertEqual(len(names), 8)
         # The recommended class is named by its label, above the eight others.
-        self.assertContains(response, '<div class="selected-value">No changes needed</div>')
+        self.assertContains(response, '<div class="selected-value">No changes</div>')
         self.assertEqual(names[:3], ["Increase diameter", "Reduce diameter", "Increase slope"])
         self.assertEqual(names[-1], "Increase depth")
         # Open by default; the summary names the classes instead of an action.

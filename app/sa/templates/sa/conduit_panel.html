@@ -2,6 +2,7 @@
 {% load static %}
 {% load sa_static %}
 {% load confidence_filters %}
+{% load sa_labels %}
 
 {% block title %}Conduit {{ conduit.conduit_name }} - Session {{ session.id }}{% endblock %}
 
@@ -104,7 +105,7 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                         <span style="width: {{ pct }}%;"></span>
                     </div>
                     {% endwith %}{% else %}
-                    <div class="selected-value">{{ conduit.recommendation|title }}</div>
+                    <div class="selected-value">{{ conduit.recommendation|action_label }}</div>
                     {% endif %}
                 </div>
 
@@ -209,8 +210,8 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                 <h6 class="propertygroup-title">Model</h6>
                 <div class="propertygrid">
                     <div class="property"><span>Subcatchment (model)</span><b>{{ conduit.subcatchment }}</b></div>
-                    <div class="property"><span>Subcatchment Category</span><b>{{ conduit.sbc_category }}</b></div>
-                    <div class="property"><span>Recommendation</span><b>{{ conduit.recommendation }}</b></div>
+                    <div class="property"><span>Subcatchment Category</span><b>{{ conduit.sbc_category|category_label }}</b></div>
+                    <div class="property"><span>Recommendation</span><b>{{ conduit.recommendation|action_label }}</b></div>
                     <div class="property"><span>Model Artifact</span><b>{% if panel.model_metadata.model_id %}{{ panel.model_metadata.model_id }} ({{ panel.model_metadata.feature_contract }}){% else %}None (recommendations are switched off){% endif %}</b></div>
                     {% if panel.confidence_margin is not None %}
                     <div class="property"><span>Top-2 Margin (&Delta;p)</span><b>{{ panel.confidence_margin|floatformat:1 }} pp</b></div>
@@ -244,7 +245,7 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                             <td class="num">{{ s.area|floatformat:3 }}</td>
                             <td class="num">{{ s.perc_imperv|floatformat:1 }}</td>
                             <td class="num">{{ s.perc_slope|floatformat:2 }}</td>
-                            <td>{{ s.category }}</td>
+                            <td>{{ s.category|category_label }}</td>
                             <td class="num">{{ s.total_runoff_mg|floatformat:3|default:"—" }}</td>
                             <td class="num">{{ s.peak_runoff|floatformat:3|default:"—" }}</td>
                             <td class="num">{{ s.runoff_coeff|floatformat:3|default:"—" }}</td>

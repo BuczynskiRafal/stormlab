@@ -75,3 +75,30 @@ class VersionedStaticTagTests(SimpleTestCase):
 
     def test_an_unknown_file_keeps_the_bare_static_url(self):
         self.assertEqual(self._render("css/no-such-file.css"), "/static/css/no-such-file.css")
+
+
+class LabelFilterTests(SimpleTestCase):
+    """``{% load sa_labels %}``: display labels, timestamps and file names."""
+
+    @staticmethod
+    def render(source: str, **context) -> str:
+        return Template("{% load sa_labels %}" + source).render(Context(context))
+
+    def test_codes_become_their_labels(self):
+        self.assertEqual(self.render("{{ v|action_label }}", v="slope_increase"), "Increase slope")
+        self.assertEqual(self.render("{{ v|category_label }}", v="urban_weakly_impervious"), "Urban, weakly impervious")
+        self.assertEqual(self.render("{{ v|category_label }}", v="-"), "—")
+
+    def test_timestamps_are_written_in_utc(self):
+        import datetime
+
+        moment = datetime.datetime(2026, 11, 15, 5, 43, tzinfo=datetime.timezone(datetime.timedelta(hours=1)))
+        self.assertEqual(self.render("{{ v|utc_datetime }}", v=moment), "15 Nov 2026, 04:43 UTC")
+        early = datetime.datetime(2026, 3, 5, 9, 7, tzinfo=datetime.timezone.utc)
+        self.assertEqual(self.render("{{ v|utc_datetime }}", v=early), "5 Mar 2026, 09:07 UTC")
+        self.assertEqual(self.render("{{ v|utc_datetime }}", v="yesterday"), "")
+
+    def test_file_label_is_the_bare_name(self):
+        self.assertEqual(self.render("{{ v|file_label }}", v="uploads/wroclaw_rakowiec.inp"), "wroclaw_rakowiec.inp")
+        self.assertEqual(self.render("{{ v|file_label }}", v="C:\\models\\net.inp"), "net.inp")
+        self.assertEqual(self.render("{{ v|file_label }}", v=""), "model.inp")

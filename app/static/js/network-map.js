@@ -180,26 +180,25 @@
    */
 
   /**
-   * The nine recommendation codes of the model, each with the class that paints it
-   * and the label the legend shows.
+   * The nine recommendation codes of the model, each with the class that paints it.
    *
-   * A copy of ``ACTIONS`` of results-v2.js (line 56) and deliberately a copy: the two
-   * files share no module system, and an import would make the map depend on the load
-   * order of the table.  The class names are written out in full rather than built
-   * from the code with a template, because a static test reads them out of this file
-   * and matches them against the rules of network-map.css - a name assembled at run
-   * time is invisible to that test, and an unpainted class is invisible on screen.
+   * The labels the legend shows are not here: they come with the Results V2 payload
+   * (``labels.actions``, written by sa/labels.py), so the page holds one copy of them.
+   * The class names are written out in full rather than built from the code with a
+   * template, because a static test reads them out of this file and matches them
+   * against the rules of network-map.css - a name assembled at run time is invisible to
+   * that test, and an unpainted class is invisible on screen.
    */
   const REC_CLASSES = [
-    ['valid', 'nm-c-valid', 'No changes'],
-    ['diameter_increase', 'nm-c-diameter_increase', 'Increase diameter'],
-    ['diameter_reduction', 'nm-c-diameter_reduction', 'Reduce diameter'],
-    ['slope_increase', 'nm-c-slope_increase', 'Increase slope'],
-    ['slope_reduction', 'nm-c-slope_reduction', 'Reduce slope'],
-    ['depth_increase', 'nm-c-depth_increase', 'Increase depth'],
-    ['pump', 'nm-c-pump', 'Pump station'],
-    ['tank', 'nm-c-tank', 'Retention tank'],
-    ['seepage_boxes', 'nm-c-seepage_boxes', 'Seepage boxes']
+    ['valid', 'nm-c-valid'],
+    ['diameter_increase', 'nm-c-diameter_increase'],
+    ['diameter_reduction', 'nm-c-diameter_reduction'],
+    ['slope_increase', 'nm-c-slope_increase'],
+    ['slope_reduction', 'nm-c-slope_reduction'],
+    ['depth_increase', 'nm-c-depth_increase'],
+    ['pump', 'nm-c-pump'],
+    ['tank', 'nm-c-tank'],
+    ['seepage_boxes', 'nm-c-seepage_boxes']
   ];
 
   /** Code -> class, built once from the table above. */
@@ -266,7 +265,7 @@
    */
   const CARD_FIELDS = {
     link: [
-      {label: 'Recommendation', key: 'recommendation_label'},
+      {label: 'Recommendation', key: 'action_label'},
       {label: 'Model confidence', key: 'confidence', unit: '%', digits: 1},
       {label: 'Checks passed', format: checksText},
       {label: 'Filling', format: fillingText},
@@ -285,7 +284,7 @@
       {label: 'Flooding duration', key: 'floodHours', unit: 'h', digits: 2}
     ],
     poly: [
-      {label: 'Category', key: 'category'},
+      {label: 'Category', key: 'category_label'},
       {label: 'Outlet node', key: 'outlet'},
       {label: 'Area', key: 'area', unit: 'ha', digits: 3},
       {label: 'Imperviousness', key: 'impervious', unit: '%', digits: 1},
@@ -915,15 +914,25 @@
     }
   }
 
-  /** The legend of one mode: ``[key, label]`` pairs, the grey class last. */
-  function legendEntries(mode) {
+  /**
+   * The legend of one mode: ``[key, label]`` pairs, the grey class last.
+   *
+   * *actionLabels* is ``labels.actions`` of the payload; a code it does not name is
+   * spelled out as words, as the server does for a code it does not know.
+   */
+  function legendEntries(mode, actionLabels) {
     if (mode === 'validity') {
       return VALIDITY_CLASSES.map((cls, passed) => [cls, `${passed} / 7 checks passed`]).concat([[NO_DATA_CLASS, 'No data']]);
     }
     if (mode === 'filling') {
       return FILL_CLASSES.map((cls, band) => [cls, FILL_LABELS[band]]).concat([[NO_DATA_CLASS, 'No data']]);
     }
-    return REC_CLASSES.map(entry => [entry[1], entry[2]]).concat([[NO_DATA_CLASS, 'No data']]);
+    const labels = actionLabels && typeof actionLabels === 'object' ? actionLabels : {};
+    return REC_CLASSES.map(entry => {
+      const own = Object.prototype.hasOwnProperty.call(labels, entry[0]) && typeof labels[entry[0]] === 'string';
+      const words = entry[0].replace(/_/g, ' ');
+      return [entry[1], own ? labels[entry[0]] : words.charAt(0).toUpperCase() + words.slice(1)];
+    }).concat([[NO_DATA_CLASS, 'No data']]);
   }
 
   /** The symbol of one node kind, in units of its own radius around (0, 0). */
@@ -1946,7 +1955,8 @@
     /** The legend of the current mode, rebuilt from scratch on every change of mode. */
     function buildLegend() {
       while (legend.firstChild) legend.removeChild(legend.firstChild);
-      legendButtons = legendEntries(mode).map(entry => {
+      const actionLabels = results && results.labels && typeof results.labels === 'object' ? results.labels.actions : null;
+      legendButtons = legendEntries(mode, actionLabels).map(entry => {
         const item = document.createElement('li');
         const button = document.createElement('button');
         button.type = 'button';
@@ -3231,5 +3241,5 @@
     };
   }
 
-  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded, resolveLabels};
+  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded, resolveLabels, legendEntries};
 })();

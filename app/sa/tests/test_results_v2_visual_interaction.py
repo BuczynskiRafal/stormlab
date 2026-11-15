@@ -790,7 +790,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             f"the network map harness failed with exit code {result.returncode}:\n"
             f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
         )
-        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (28 / 28 PASSED)", result.stdout)
+        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (29 / 29 PASSED)", result.stdout)
 
     # -- 57 ---------------------------------------------------------------------
     def test_map_js_has_no_unsafe_patterns(self):
@@ -957,7 +957,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
 
         fields = self._braced_block(code, re.search(r"const CARD_FIELDS = ", code))
         link = fields[: fields.index("node: [")]
-        for painted in ("key: 'recommendation_label'", "format: checksText", "format: fillingText"):
+        for painted in ("key: 'action_label'", "format: checksText", "format: fillingText"):
             self.assertIn(painted, link, f"the conduit card must show what a colour mode paints by ({painted})")
         for converted in ("key: 'floodVolume'", "key: 'runoff'"):
             entry = fields[fields.index(converted) :].split("}", 1)[0]

@@ -56,23 +56,26 @@
       'Coverage'
     ];
 
-    const ACTIONS = {
-      valid: 'No changes',
-      diameter_increase: 'Increase diameter',
-      diameter_reduction: 'Reduce diameter',
-      slope_increase: 'Increase slope',
-      slope_reduction: 'Reduce slope',
-      depth_increase: 'Increase depth',
-      pump: 'Pump station',
-      tank: 'Retention tank',
-      seepage_boxes: 'Seepage boxes'
-    };
+    // The display labels come with the payload (sa/labels.py); the page holds no copy.
+    // A code without a label is spelled out as words, as the server does.
+    const LABELS = rawData.labels && typeof rawData.labels === 'object' ? rawData.labels : {};
+    const ACTIONS = LABELS.actions && typeof LABELS.actions === 'object' ? LABELS.actions : {};
+    const CATEGORIES = LABELS.categories && typeof LABELS.categories === 'object' ? LABELS.categories : {};
 
-    function getActionLabel(code) {
-      if (!code || code === '-') return '-';
-      const key = String(code).trim().toLowerCase();
-      return ACTIONS[key] || String(code);
+    function spellOut(code) {
+      const words = String(code).trim().toLowerCase().replace(/_/g, ' ');
+      return words.charAt(0).toUpperCase() + words.slice(1);
     }
+
+    function lookupLabel(table, code) {
+      if (code === null || code === undefined) return '—';
+      const key = String(code).trim().toLowerCase();
+      if (!key || key === '-' || key === '—') return '—';
+      return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : spellOut(key);
+    }
+
+    const getActionLabel = code => lookupLabel(ACTIONS, code);
+    const getCategoryLabel = code => lookupLabel(CATEGORIES, code);
 
     const numberFormats = new Map();
     const numberFormat = digits => {
@@ -265,6 +268,11 @@
       if (key === 'action' || key === 'recommendation') {
         return getActionLabel(row[key]);
       }
+      if (key === 'category') {
+        // Sorted by what the reader sees, not by the internal code.
+        const cat = row.category ?? row.sbc_category;
+        return cat === null || cat === undefined || cat === '' || cat === '-' ? null : getCategoryLabel(cat);
+      }
       let v = row[key];
       if (v === undefined) {
         // Safe property alias resolution
@@ -301,6 +309,8 @@
         }
         if (c.kind === 'action') {
           val = getActionLabel(val);
+        } else if (c.kind === 'category') {
+          val = getCategoryLabel(r.category ?? r.sbc_category);
         } else if (c.kind === 'checks') {
           val = (r.validation ?? '') + '/7';
         } else if (c.kind === 'fill') {
@@ -312,12 +322,16 @@
       }
 
       // 2. Also search core identifiers regardless of column visibility
-      const extraKeys = ['id', 'name', 'inlet', 'inlet_node', 'outlet', 'outlet_node', 'catchment', 'subcatchment', 'category', 'sbc_category'];
+      const extraKeys = ['id', 'name', 'inlet', 'inlet_node', 'outlet', 'outlet_node', 'catchment', 'subcatchment'];
       for (const k of extraKeys) {
         const val = r[k];
         if (val !== null && val !== undefined && String(val).toLowerCase().includes(q)) {
           return true;
         }
+      }
+      const cat = r.category ?? r.sbc_category;
+      if (cat && getCategoryLabel(cat).toLowerCase().includes(q)) {
+        return true;
       }
 
       return false;
@@ -436,7 +450,11 @@
           ).sort();
 
           let opts = '<option value="all">All categories</option>';
-          opts += uniqueCats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+          opts += uniqueCats
+            .map(c => [c, getCategoryLabel(c)])
+            .sort((a, b) => collator.compare(a[1], b[1]))
+            .map(([c, label]) => `<option value="${esc(c)}">${esc(label)}</option>`)
+            .join('');
           filterSelect.innerHTML = opts;
         }
 
@@ -635,7 +653,7 @@
 
       if (c.kind === 'category') {
         const cat = v ?? r.category ?? r.sbc_category;
-        return `<span class="r-category">${esc(cat || '—')}</span>`;
+        return `<span class="r-category">${esc(getCategoryLabel(cat))}</span>`;
       }
 
       if (c.kind === 'number') {
@@ -918,12 +936,19 @@
       };
       const quote = v => '"' + sanitizeFormula(String(v ?? '')).replace(/"/g, '""') + '"';
 
+      // The exported data keeps its machine identifiers and its wording: downstream
+      // comparisons read these files, so the CSV is not a display layer.  The action
+      // column has always carried the label (or "-" / the raw code), the category column
+      // the raw code.
       function csvValue(c, r) {
         if (c.kind === 'id') {
           return r.id || r.name;
         }
         if (c.kind === 'action') {
-          return getActionLabel(sortValue(r, c.key));
+          const code = r[c.key] ?? r.recommendation;
+          if (!code || code === '-') return '-';
+          const key = String(code).trim().toLowerCase();
+          return Object.prototype.hasOwnProperty.call(ACTIONS, key) ? ACTIONS[key] : String(code);
         }
         if (c.kind === 'checks') {
           const valCount = r.validation ?? (r.flags ? r.flags.filter(Boolean).length : 7);

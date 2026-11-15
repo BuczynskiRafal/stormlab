@@ -40,18 +40,20 @@ const {
   placeLabels,
   cardRows,
   symbolsCrowded,
-  resolveLabels
+  resolveLabels,
+  legendEntries
 } = nm;
 
-// The exported surface is a contract: twenty-three names, including clampCardPos and
+// The exported surface is a contract: twenty-four names, including clampCardPos and
 // writeMapPrefs (the selection card can be dragged and the preferences have a second
 // field), outletPath (the outline of a subcatchment's outlet line), placeLabels
 // (the placement solver), cardRows (the values of the selection card),
-// symbolsCrowded (the density that hides the node symbols and their names) and
-// resolveLabels (the names setting a network opens with).
+// symbolsCrowded (the density that hides the node symbols and their names),
+// resolveLabels (the names setting a network opens with) and legendEntries (the
+// entries of each colour mode, labelled from the payload).
 // A name that quietly stops being exported takes its whole group with it and the run
 // would still end green without this line.
-assert.strictEqual(Object.keys(nm).length, 23, 'network-map.js must export exactly twenty-three names');
+assert.strictEqual(Object.keys(nm).length, 24, 'network-map.js must export exactly twenty-four names');
 
 let passed = 0;
 
@@ -1354,7 +1356,7 @@ group('placeLabels puts a subcatchment name on its centroid', () => {
 // ---------------------------------------------------------------------------
 group('cardRows lists the card values in order, in table units and digits', () => {
   const conduit = {
-    recommendation_label: 'Increase diameter', recommendation: 'diameter_increase', confidence: 87.46,
+    recommendation_label: 'Increase diameter', action_label: 'Increase diameter', recommendation: 'diameter_increase', confidence: 87.46,
     validation: 5, filling: 0.33, diameter: 0.6, fillPercent: 55, flow: 0.0042, velocity: 1.234,
     slope: 3.5, length: 1245.371, detail_url: '/x/'
   };
@@ -1381,11 +1383,11 @@ group('cardRows lists the card values in order, in table units and digits', () =
   ], 'the flooding volume is converted from millions of litres into cubic metres');
 
   const catchment = {
-    category: 'urban_weakly_impervious', outlet: 'J1', area: 1.2345, impervious: 45.25, slope: 3.5,
+    category: 'urban_weakly_impervious', category_label: 'Urban, weakly impervious', outlet: 'J1', area: 1.2345, impervious: 45.25, slope: 3.5,
     peak: 0.31, runoff: 0.1234, coefficient: 0.456
   };
   assert.deepStrictEqual(cardRows('poly', catchment), [
-    ['Category', 'urban_weakly_impervious'],
+    ['Category', 'Urban, weakly impervious'],
     ['Outlet node', 'J1'],
     ['Area', '1.235 ha'],
     ['Imperviousness', '45.3 %'],
@@ -1430,8 +1432,10 @@ group('cardRows leaves a missing value out and composes the filling from what is
   // null, a string where a number belongs, NaN and the placeholders of an absent text
   // leave the row out; zero is a value.
   assert.deepStrictEqual(labels(cardRows('node', { ground: null, invert: '243', depth: NaN, waterDepth: 0, floodVolume: Infinity })), ['Max. water depth']);
-  assert.deepStrictEqual(cardRows('poly', { category: '-', outlet: '' }), []);
-  assert.deepStrictEqual(cardRows('link', { recommendation_label: '\u2014', confidence: null }), []);
+  assert.deepStrictEqual(cardRows('poly', { category: '-', category_label: '\u2014', outlet: '' }), []);
+  assert.deepStrictEqual(cardRows('poly', { category: 'urban_weakly_impervious' }), [], 'the code alone is never shown');
+  assert.deepStrictEqual(cardRows('link', { action_label: '\u2014', confidence: null }), []);
+  assert.deepStrictEqual(cardRows('link', { recommendation_label: 'No changes needed' }), [], 'the card reads action_label only');
 
   // Nothing to show at all.
   assert.deepStrictEqual(cardRows('link', null), []);
@@ -1439,7 +1443,31 @@ group('cardRows leaves a missing value out and composes the filling from what is
   assert.deepStrictEqual(cardRows('toString', { flow: 1 }), [], 'an inherited member is not a kind');
 });
 
+// ---------------------------------------------------------------------------
+// 18. legendEntries - the labels come from the payload, the classes from the module
+// ---------------------------------------------------------------------------
+group('legendEntries labels the recommendation mode from the payload and spells out the rest', () => {
+  const actions = {
+    valid: 'No changes', diameter_increase: 'Increase diameter', diameter_reduction: 'Reduce diameter',
+    slope_increase: 'Increase slope', slope_reduction: 'Reduce slope', depth_increase: 'Increase depth',
+    pump: 'Pump station', tank: 'Retention tank', seepage_boxes: 'Seepage boxes'
+  };
+  const entries = legendEntries('recommendation', actions);
+  assert.strictEqual(entries.length, 10, 'nine classes and the grey one');
+  assert.deepStrictEqual(entries[0], ['nm-c-valid', 'No changes']);
+  assert.deepStrictEqual(entries[8], ['nm-c-seepage_boxes', 'Seepage boxes']);
+  assert.deepStrictEqual(entries[9], ['nm-nodata', 'No data']);
+  // Without the payload block a code still reads as words, never with an underscore.
+  const bare = legendEntries('recommendation', null);
+  assert.deepStrictEqual(bare[1], ['nm-c-diameter_increase', 'Diameter increase']);
+  assert.ok(bare.every(entry => entry[1].indexOf('_') === -1), 'no legend entry may show a code');
+  assert.deepStrictEqual(legendEntries('recommendation', { toString: 'x' })[0], ['nm-c-valid', 'Valid'], 'inherited names are no labels');
+  // The other two modes need no payload.
+  assert.deepStrictEqual(legendEntries('validity', actions)[0], ['nm-v-0', '0 / 7 checks passed']);
+  assert.strictEqual(legendEntries('filling', null).length, 6);
+});
+
 console.log('------------------------------------------------------------');
-console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 28 PASSED)`);
+console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 29 PASSED)`);
 console.log('------------------------------------------------------------');
-assert.strictEqual(passed, 28, 'every group must have run');
+assert.strictEqual(passed, 29, 'every group must have run');

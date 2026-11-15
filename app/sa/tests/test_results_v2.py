@@ -1098,6 +1098,49 @@ class ResultsV2NetworkMapEnvelopeTests(TestCase):
         self.assertLessEqual(with_geometry, 6)
 
 
+class ResultsV2DisplayLabelTests(TestCase):
+    """The payload carries the display labels of sa.labels and a label beside every code."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_user(email="labels_tester@example.com")
+        cls.session = make_session(cls.user, n_conduits=1, n_nodes=1, n_subcatchments=1)
+        make_conduit(cls.session, conduit_name="C_TANK", recommendation="tank", sbc_category="urban_weakly_impervious")
+
+    def setUp(self):
+        self.payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
+
+    def test_payload_carries_both_label_maps(self):
+        from sa.labels import ACTION_LABELS, CATEGORY_LABELS
+
+        self.assertEqual(self.payload["labels"], {"actions": ACTION_LABELS, "categories": CATEGORY_LABELS})
+
+    def test_every_row_carries_the_label_of_its_category(self):
+        conduit = next(c for c in self.payload["conduits"] if c["id"] == "C_TANK")
+        self.assertEqual(conduit["recommendation_label"], "Retention tank")
+        self.assertEqual(conduit["action_label"], "Retention tank")
+        self.assertEqual(conduit["category"], "urban_weakly_impervious")
+        self.assertEqual(conduit["category_label"], "Urban, weakly impervious")
+        for kind in ("conduits", "nodes", "catchments"):
+            for row in self.payload[kind]:
+                self.assertIn("category_label", row)
+                self.assertNotIn("_", row["category_label"])
+
+    def test_labels_are_added_after_every_existing_key(self):
+        # The server CSV writes the keys of the first row in order: the label columns
+        # must come last so that every existing column keeps its position.
+        conduit_keys = list(self.payload["conduits"][0])
+        self.assertEqual(conduit_keys[-2:], ["action_label", "category_label"])
+        self.assertEqual(list(self.payload["nodes"][0])[-1], "category_label")
+        self.assertEqual(list(self.payload["catchments"][0])[-1], "category_label")
+
+    def test_a_missing_category_reads_as_a_dash(self):
+        make_conduit(self.session, conduit_name="C_NONE", sbc_category="-")
+        payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
+        conduit = next(c for c in payload["conduits"] if c["id"] == "C_NONE")
+        self.assertEqual(conduit["category_label"], "—")
+
+
 class ResultsV2ProvenanceAndExportTests(TestCase):
     """Tests for model provenance metadata, top-2 confidence margin, simple band rule, and server-side CSV export."""
 
@@ -1116,7 +1159,10 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertIn("model_id", payload["session"]["model_metadata"])
         c = payload["conduits"][0]
         self.assertIn("recommendation_label", c)
+        # The exported wording of ``recommendation_label`` is frozen; the pages read
+        # ``action_label``, the label of sa.labels.
         self.assertEqual(c["recommendation_label"], "No changes needed")
+        self.assertEqual(c["action_label"], "No changes")
         self.assertIn("confidence_margin", c)
         self.assertIsNotNone(c["confidence_margin"])
         self.assertIn("simple_rule_passed", c)
@@ -1210,7 +1256,11 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
     }
 
     def test_server_csv_keeps_every_column_in_place_and_only_appends(self):
-        appended = {"conduits": ["limits_assessed"], "nodes": [], "catchments": []}
+        appended = {
+            "conduits": ["limits_assessed", "action_label", "category_label"],
+            "nodes": ["category_label"],
+            "catchments": ["category_label"],
+        }
         for kind, columns in self.SERVER_CSV_COLUMNS.items():
             with self.subTest(kind=kind):
                 response = self.client.get(reverse("sa:export_session_csv", args=[self.session.id, kind]))
