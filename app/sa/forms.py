@@ -97,7 +97,8 @@ class SWMMModelForm(forms.ModelForm):
         other_shapes = non_circular_conduits(survey)
         if other_shapes:
             raise ValidationError(
-                "StormLab assesses circular conduits only; these conduits have another shape: %(conduits)s.",
+                "StormLab assesses circular conduits only; these conduits have another shape: %(conduits)s. "
+                "To analyse the network here, give them a CIRCULAR cross-section in [XSECTIONS].",
                 code="conduit_shape",
                 params={"conduits": listing(other_shapes)},
             )

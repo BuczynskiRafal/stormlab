@@ -161,7 +161,8 @@ class FormConduitShapeTests(SimpleTestCase):
             errors[0].messages,
             [
                 "StormLab assesses circular conduits only; these conduits have another shape: "
-                "K5 (RECT_CLOSED), K6 (EGG), K7 (RECT_OPEN) and 2 more."
+                "K5 (RECT_CLOSED), K6 (EGG), K7 (RECT_OPEN) and 2 more. "
+                "To analyse the network here, give them a CIRCULAR cross-section in [XSECTIONS]."
             ],
         )
 

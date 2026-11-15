@@ -227,7 +227,9 @@ class NonCircularConduitTests(RealWorldUploadTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
-            response, "StormLab assesses circular conduits only; these conduits have another shape: K5 (RECT_CLOSED)."
+            response,
+            "StormLab assesses circular conduits only; these conduits have another shape: K5 (RECT_CLOSED). "
+            "To analyse the network here, give them a CIRCULAR cross-section in [XSECTIONS].",
         )
         self.assertFalse(CalculationSession.objects.exists())
 
