@@ -20,8 +20,33 @@ to recommend an action for each conduit.
 - **Results.** Interactive network map, tables with CSV export and a longitudinal
   profile for every conduit.
 
-The method, its evaluation and its limitations are described on the application's
-**About** page.
+## How it works
+
+```mermaid
+flowchart LR
+    inp["SWMM model (.inp)"] --> sim["EPA SWMM 5.2"]
+    sim --> checks["7 design checks per conduit"]
+    sim --> cats["Catchment categories"]
+    sim --> feats["Conduit graph, 66 features per conduit"]
+    feats --> gnn["Graph model, 5 runs averaged"]
+    gnn --> res["9 action probabilities per conduit"]
+    checks --> ui["Map, tables, conduit panel"]
+    cats --> ui
+    res --> ui
+```
+
+Every conduit becomes a node of a directed graph; an edge joins two conduits that meet
+in a manhole and points with the flow. For each conduit the model reads its own 66
+physical features and a weighted average over the conduits that drain into it, up to
+four links upstream. The simulation supplies the hydraulics; the model interprets them.
+
+![What the model reads for one conduit of the Rakowiec network](docs/images/method_receptive_field.png)
+
+On held-out network families the graph model names the main action for 89.3% of
+conduits (90.7% with the five runs averaged, as served), against 87.6% for the same
+network without neighbours. How the model was trained, which experiments led to it and
+where it falls short is described in [docs/method.md](docs/method.md) and, with an
+interactive view of the graph, on the application's **Method** page.
 
 ## Quick start
 
@@ -49,7 +74,9 @@ invalid code signatures and the system refuses to load it otherwise.
 3. Browse the conduit, node and subcatchment tables, or export them to CSV.
 4. Open a conduit's details to see its profile, the seven checks and the recommended
    action with the model's score for every class.
-5. Upload your own `.inp` file (flow units: CMS). More examples are in [`examples/`](examples/).
+5. Open **Method** to see, on the same network, which conduits the model reads for the
+   one you select.
+6. Upload your own `.inp` file (flow units: CMS). More examples are in [`examples/`](examples/).
 
 | Filling | Conduit panel |
 |---|---|
@@ -60,6 +87,15 @@ invalid code signatures and the system refuses to load it otherwise.
 The repository ships the trained models the application uses: the recommendation
 network (five training runs, averaged) and the catchment classifier. Training code is
 not part of this repository.
+
+## Documentation
+
+| Document | Content |
+|---|---|
+| [docs/method.md](docs/method.md) | The method: conduit graph, features, model, data, training, experiments, results and limits |
+| [docs/architecture.md](docs/architecture.md) | The code: components, path of one analysis, recommendation path, data model, tests |
+| [docs/deployment.md](docs/deployment.md) | Production setup with Docker Compose |
+| [examples/README.md](examples/README.md) | Example networks |
 
 ## Deployment
 
