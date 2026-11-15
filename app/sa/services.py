@@ -25,6 +25,9 @@ from .core.round import max_depth_value, max_filling, max_velocity_value, min_ve
 
 logger = logging.getLogger(__name__)
 
+NOT_ASSESSED_DIAMETER = "Ø outside 0.20–2.00 m"
+"""What the panel shows where a limit was not assessed, because the design criteria do not cover the diameter."""
+
 
 def _positive(value: Any) -> bool:
     """Whether a stored SWMM number is a real number greater than zero."""
@@ -133,7 +136,7 @@ class CalculationPersistenceService:
             return default
 
     @staticmethod
-    def _safe_int(value: Any, default: int = 0) -> int:
+    def _safe_int(value: Any, default: int | None = 0) -> int | None:
         """
         Safely convert value to int, handling None, NaN, booleans, and invalid values.
         """
@@ -234,14 +237,15 @@ class CalculationPersistenceService:
                     val_min_slope=si(row.get("ValMinSlope"), 0),
                     val_depth=si(row.get("ValDepth"), 0),
                     val_coverage=si(row.get("ValCoverage"), 0),
-                    min_diameter=sf(row.get("MinDiameter"), 0.0),
-                    is_min_diameter=si(row.get("isMinDiameter"), 0),
-                    increase_dia=si(row.get("IncreaseDia"), 0),
-                    reduce_dia=si(row.get("ReduceDia"), 0),
-                    min_required_slope=sf(row.get("MinRequiredSlope"), 0.0),
-                    increase_slope=si(row.get("IncreaseSlope"), 0),
-                    max_allowable_slope=sf(row.get("MaxAllowableSlope"), 0.0),
-                    reduce_slope=si(row.get("ReduceSlope"), 0),
+                    # NaN here means "not assessed" (diameter outside 0.2-2.0 m), stored as NULL.
+                    min_diameter=sf(row.get("MinDiameter"), None),
+                    is_min_diameter=si(row.get("isMinDiameter"), None),
+                    increase_dia=si(row.get("IncreaseDia"), None),
+                    reduce_dia=si(row.get("ReduceDia"), None),
+                    min_required_slope=sf(row.get("MinRequiredSlope"), None),
+                    increase_slope=si(row.get("IncreaseSlope"), None),
+                    max_allowable_slope=sf(row.get("MaxAllowableSlope"), None),
+                    reduce_slope=si(row.get("ReduceSlope"), None),
                     inlet_node=ss(row.get("InletNode"), ""),
                     outlet_node=ss(row.get("OutletNode"), ""),
                     inlet_max_depth=sf(row.get("InletMaxDepth"), 0.0),
@@ -662,11 +666,17 @@ class CalculationRetrievalService:
             rec_label = rec_to_label.get(rec_norm, rec or "—")
             simple_rule = simple_band_rule_passed(filling_val, geom1_val, clean(c.max_v))
 
-            is_min_dia = bool(c.is_min_diameter)
-            inc_dia = bool(c.increase_dia)
-            red_dia = bool(c.reduce_dia)
-            inc_slope = bool(c.increase_slope)
-            red_slope = bool(c.reduce_slope)
+            # ``None`` (not ``False``) where the diameter is outside 0.2-2.0 m and the
+            # suggestion was not assessed.
+            def suggestion(value: Any) -> bool | None:
+                return None if value is None else bool(value)
+
+            is_min_dia = suggestion(c.is_min_diameter)
+            inc_dia = suggestion(c.increase_dia)
+            red_dia = suggestion(c.reduce_dia)
+            inc_slope = suggestion(c.increase_slope)
+            red_slope = suggestion(c.reduce_slope)
+            limits_assessed = c.min_required_slope is not None and c.max_allowable_slope is not None
 
             serialized_conduits.append(
                 {
@@ -724,6 +734,7 @@ class CalculationRetrievalService:
                     "increaseSlope": inc_slope,
                     "reduce_slope": red_slope,
                     "reduceSlope": red_slope,
+                    "limits_assessed": limits_assessed,
                     # Validation Flags (all 7 fields + derived)
                     "val_max_fill": flag_max_fill,
                     "val_max_v": flag_max_v,
@@ -1283,7 +1294,7 @@ class ConduitPanelService:
         try:
             filling_limit = max_filling(diameter)
         except (TypeError, ValueError):
-            measured.append((passed, f"{filling:.2f} m", "Ø outside 0.20–2.00 m"))
+            measured.append((passed, f"{filling:.2f} m", NOT_ASSESSED_DIAMETER))
         else:
             actual, limit = ConduitPanelService._measure(filling, filling_limit, at_most=True, passed=passed, unit="m")
             measured.append(
@@ -1304,20 +1315,19 @@ class ConduitPanelService:
             (passed, *ConduitPanelService._measure(velocity, min_velocity_value, at_most=False, passed=passed, unit="m/s"))
         )
 
-        passed = bool(conduit.val_max_slope)
-        measured.append(
-            (
-                passed,
-                *ConduitPanelService._measure(slope, float(conduit.max_allowable_slope), at_most=True, passed=passed, unit="‰"),
-            )
-        )
-        passed = bool(conduit.val_min_slope)
-        measured.append(
-            (
-                passed,
-                *ConduitPanelService._measure(slope, float(conduit.min_required_slope), at_most=False, passed=passed, unit="‰"),
-            )
-        )
+        # A slope limit is NULL when the diameter lies outside the range the criteria
+        # cover; the card then names that constraint, as the filling card does.
+        for flag, limit, at_most in (
+            (conduit.val_max_slope, conduit.max_allowable_slope, True),
+            (conduit.val_min_slope, conduit.min_required_slope, False),
+        ):
+            passed = bool(flag)
+            if limit is None:
+                measured.append((passed, f"{slope:.2f} ‰", NOT_ASSESSED_DIAMETER))
+            else:
+                measured.append(
+                    (passed, *ConduitPanelService._measure(slope, float(limit), at_most=at_most, passed=passed, unit="‰"))
+                )
 
         # Depth compares each node's invert with the ground minus the maximum depth,
         # which is the node depth itself; the deeper of the two nodes decides.
@@ -1411,6 +1421,10 @@ class ConduitPanelService:
                 high_text = bound(high.limit).replace(" ", "\u00a0")
                 criterion = f"{empty} (min {bound(low.limit, unit)} > max {high_text})"
                 status = "no feasible range"
+            if NOT_ASSESSED_DIAMETER in (low.limit, high.limit):
+                # No limit exists for this diameter, so the card says so once.
+                criterion = NOT_ASSESSED_DIAMETER
+                status = "not assessed"
             shown = low if (high.passed and not low.passed) else high
             return CriterionCard(
                 key=key,
@@ -1425,7 +1439,7 @@ class ConduitPanelService:
         # Filling reads as a share of the diameter; the criterion stays the check-row text
         # (also "Ø outside 0.20–2.00 m", which no filling height can explain).
         fill = rows["val_max_fill"]
-        out_of_range = fill.limit.startswith("Ø")
+        out_of_range = fill.limit == NOT_ASSESSED_DIAMETER
         fill_failed = "diameter out of range" if out_of_range else "exceeds limit"
         if filling_percent is None:
             fill_value = "—"
@@ -1465,6 +1479,8 @@ class ConduitPanelService:
         229.72 ‰ against 134.56 ‰ for a 0.30 m pipe.  The panel reports that as it is and
         leaves the stored data and flags alone.
         """
+        if conduit.min_required_slope is None or conduit.max_allowable_slope is None:
+            return False
         return float(conduit.min_required_slope) > float(conduit.max_allowable_slope)
 
     @staticmethod
@@ -1479,6 +1495,9 @@ class ConduitPanelService:
         has to change.
         """
         rules: list[DesignRule] = []
+        if conduit.min_diameter is None or conduit.min_required_slope is None or conduit.max_allowable_slope is None:
+            # Not "no change required": the rules were not applied to this diameter at all.
+            rules.append(DesignRule("not_assessed", "Diameter and slope", f"not assessed: {NOT_ASSESSED_DIAMETER}"))
         if conduit.increase_dia:
             rules.append(
                 DesignRule("increase_dia", "Diameter", f"{float(conduit.geom1):.2f} → {float(conduit.min_diameter):.2f} m")

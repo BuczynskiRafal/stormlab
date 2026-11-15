@@ -518,12 +518,16 @@
         ? 'no feasible slope (min ' + fmt(minSlope, 2) + ' > max ' + fmt(maxSlope, 2) + ' ‰)'
         : '≥ ' + fmt(minSlope, 2) + ' ‰';
 
+      // The criteria cover diameters of 0.2-2.0 m only; outside it no limit exists.
+      const assessed = r.limits_assessed !== false;
+      const notAssessed = 'not assessed: Ø outside 0.2–2.0 m';
+
       return [
-        [fmt(filling, 3) + ' m', '≤ ' + fmt(0.827 * diameter, 3) + ' m'],
+        [fmt(filling, 3) + ' m', assessed ? '≤ ' + fmt(0.827 * diameter, 3) + ' m' : notAssessed],
         [fmt(velocity, 2) + ' m/s', '≤ 5.00 m/s'],
         [fmt(velocity, 2) + ' m/s', '≥ 0.70 m/s'],
-        [fmt(slope, 2) + ' ‰', '≤ ' + fmt(maxSlope, 2) + ' ‰'],
-        [fmt(slope, 2) + ' ‰', minSlopeThreshold],
+        [fmt(slope, 2) + ' ‰', assessed ? '≤ ' + fmt(maxSlope, 2) + ' ‰' : notAssessed],
+        [fmt(slope, 2) + ' ‰', assessed ? minSlopeThreshold : notAssessed],
         [fmt(depth, 2) + ' m', '≤ 8.00 m'],
         [fmt(minCover, 2) + ' m', '≥ ' + fmt(frostZone, 2) + ' m']
       ];
@@ -636,6 +640,9 @@
 
       if (c.kind === 'number') {
         const numVal = sortValue(r, c.key);
+        if (active === 'conduits' && r.limits_assessed === false && ['minDiameter', 'minSlope'].includes(c.key)) {
+          return '<span title="Not assessed: diameter outside 0.2–2.0 m">n/a</span>';
+        }
         if (active === 'conduits' && c.key === 'minDiameter' && Number(numVal) === 0) {
           return '<span>—</span>';
         }

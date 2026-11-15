@@ -76,3 +76,57 @@ class ForeignTagTests(RealWorldUploadTestCase):
         self.assertEqual(categories["S3"], "urban_weakly_impervious")
         recommendations = set(session.conduits.values_list("recommendation", flat=True))
         self.assertNotIn("-", recommendations)
+
+
+def with_diameters(text: str, diameters: dict[str, str]) -> str:
+    """``text`` with the CIRCULAR diameter of each named conduit replaced."""
+    for name, diameter in diameters.items():
+        pattern = re.compile(r"^(" + re.escape(name) + r"\s+CIRCULAR\s+)\S+", flags=re.MULTILINE)
+        text, count = pattern.subn(lambda match: match.group(1) + diameter, text)
+        assert count == 1, name
+    return text
+
+
+class DiameterOutsideTheCriteriaTests(RealWorldUploadTestCase):
+    """Conduits of 0.15 m and 2.5 m lie outside the 0.2-2.0 m the design criteria cover."""
+
+    NOT_ASSESSED = ("min_diameter", "min_required_slope", "max_allowable_slope")
+    SUGGESTIONS = ("is_min_diameter", "increase_dia", "reduce_dia", "increase_slope", "reduce_slope")
+
+    def setUp(self) -> None:
+        super().setUp()
+        response = self.upload(with_diameters(demo_text(), {"K1": "0.15", "K4": "2.5"}))
+        self.session = self.assert_completed(response)
+
+    def test_such_conduits_are_stored_as_not_assessed_and_fail_the_checks_that_need_the_limits(self):
+        for name in ("K1", "K4"):
+            conduit = self.session.conduits.get(conduit_name=name)
+            with self.subTest(conduit=name):
+                for field in (*self.NOT_ASSESSED, *self.SUGGESTIONS):
+                    self.assertIsNone(getattr(conduit, field), field)
+                self.assertEqual((conduit.val_max_fill, conduit.val_max_slope, conduit.val_min_slope), (0, 0, 0))
+
+        other = self.session.conduits.get(conduit_name="K2")
+        self.assertIsNotNone(other.min_required_slope)
+        self.assertIsNotNone(other.increase_slope)
+
+    def test_results_page_and_export_render_them(self):
+        page = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+        self.assertEqual(page.status_code, 200)
+        conduits = {row["id"]: row for row in page.context["results_v2_data"]["conduits"]}
+        self.assertIs(conduits["K1"]["limits_assessed"], False)
+        self.assertIsNone(conduits["K1"]["min_required_slope"])
+        self.assertIsNone(conduits["K1"]["increase_slope"])
+        self.assertIs(conduits["K2"]["limits_assessed"], True)
+
+        export = self.client.get(reverse("sa:export_session_csv", args=[self.session.id, "conduits"]))
+        self.assertEqual(export.status_code, 200)
+
+    def test_conduit_panel_says_the_limits_were_not_assessed(self):
+        for name in ("K1", "K4"):
+            with self.subTest(conduit=name):
+                page = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, name]))
+                self.assertEqual(page.status_code, 200)
+                self.assertContains(page, "not assessed")
+                self.assertContains(page, "Ø outside 0.20–2.00 m")
+                self.assertNotContains(page, "No change required by the design rules")

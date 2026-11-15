@@ -272,7 +272,7 @@
       {label: 'Filling', format: fillingText},
       {label: 'Max. flow', key: 'flow', unit: 'm\u00b3/s', digits: 3},
       {label: 'Max. velocity', key: 'velocity', unit: 'm/s', digits: 2},
-      {label: 'Diameter', key: 'diameter', unit: 'm', digits: 3},
+      {label: 'Diameter', format: diameterText},
       {label: 'Slope', key: 'slope', unit: '\u2030', digits: 2},
       {label: 'Length', key: 'length', unit: 'm', digits: 2}
     ],
@@ -561,6 +561,12 @@
     const computed = depth !== null && typeof row.diameter === 'number' && row.diameter > 0;
     const percent = computed ? formatNumber(row.fillPercent, 0, '%') : null;
     return percent !== null ? `${percent} (${depth})` : depth;
+  }
+
+  // The design criteria cover 0.2-2.0 m only; outside it the card says the limits were not assessed.
+  function diameterText(row) {
+    const diameter = formatNumber(row.diameter, 3, 'm');
+    return diameter !== null && row.limits_assessed === false ? `${diameter} (outside 0.2\u20132.0 m, not assessed)` : diameter;
   }
 
   /**

@@ -73,17 +73,17 @@ class ConduitData(models.Model):
     val_depth = models.IntegerField(help_text="Valid depth (0/1)")
     val_coverage = models.IntegerField(help_text="Valid coverage (0/1)")
 
-    # Diameter analysis
-    min_diameter = models.FloatField(help_text="Minimum required diameter [m]")
-    is_min_diameter = models.IntegerField(help_text="Is minimum diameter (0/1)")
-    increase_dia = models.IntegerField(help_text="Should increase diameter (0/1)")
-    reduce_dia = models.IntegerField(help_text="Can reduce diameter (0/1)")
+    # Diameter analysis; NULL when the diameter is outside 0.2-2.0 m and was not assessed
+    min_diameter = models.FloatField(help_text="Minimum required diameter [m]", null=True, blank=True)
+    is_min_diameter = models.IntegerField(help_text="Is minimum diameter (0/1)", null=True, blank=True)
+    increase_dia = models.IntegerField(help_text="Should increase diameter (0/1)", null=True, blank=True)
+    reduce_dia = models.IntegerField(help_text="Can reduce diameter (0/1)", null=True, blank=True)
 
-    # Slope analysis
-    min_required_slope = models.FloatField(help_text="Minimum reqiured slope")
-    increase_slope = models.IntegerField(help_text="Should increase slope (0/1)")
-    max_allowable_slope = models.FloatField(help_text="Minimum reqiured slope")
-    reduce_slope = models.IntegerField(help_text="Should reduce slope (0/1)")
+    # Slope analysis; NULL when the diameter is outside 0.2-2.0 m and was not assessed
+    min_required_slope = models.FloatField(help_text="Minimum required slope [‰]", null=True, blank=True)
+    increase_slope = models.IntegerField(help_text="Should increase slope (0/1)", null=True, blank=True)
+    max_allowable_slope = models.FloatField(help_text="Maximum allowable slope [‰]", null=True, blank=True)
+    reduce_slope = models.IntegerField(help_text="Should reduce slope (0/1)", null=True, blank=True)
 
     # Node information
     inlet_node = models.CharField(max_length=100)

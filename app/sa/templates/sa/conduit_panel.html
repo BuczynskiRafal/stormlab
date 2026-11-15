@@ -202,8 +202,8 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                 <div class="property"><span>Max Flow</span><b class="prop-num">{{ conduit.max_q|floatformat:3 }} m³/s</b></div>
                 <div class="property"><span>Filling</span><b class="prop-num">{{ conduit.filling|floatformat:2 }} m</b></div>
                 <div class="property"><span>Slope</span><b class="prop-num">{{ conduit.slope_per_mile|floatformat:4 }}‰</b></div>
-                <div class="property"><span>Min Required Slope</span><b class="prop-num">{{ conduit.min_required_slope|floatformat:4 }}‰</b></div>
-                <div class="property"><span>Max Allowable Slope</span><b class="prop-num">{{ conduit.max_allowable_slope|floatformat:4 }}‰</b></div>
+                <div class="property"><span>Min Required Slope</span><b class="prop-num">{% if conduit.min_required_slope is None %}not assessed{% else %}{{ conduit.min_required_slope|floatformat:4 }}‰{% endif %}</b></div>
+                <div class="property"><span>Max Allowable Slope</span><b class="prop-num">{% if conduit.max_allowable_slope is None %}not assessed{% else %}{{ conduit.max_allowable_slope|floatformat:4 }}‰{% endif %}</b></div>
             </div>
             <div class="propertygroup">
                 <h6 class="propertygroup-title">Model</h6>
