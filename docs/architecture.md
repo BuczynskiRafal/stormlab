@@ -186,17 +186,18 @@ The self-loops sit inside the power, so the weights are not the 1, 0.5, 0.25 tha
 - `load_gnn_model_weights` (`app/sa/core/graph_constructor.py`) does this for each member and returns a `GnnEnsemble`, which requires all members to share one spec digest and one feature contract. Its `__call__` returns the mean of the members' softmax outputs. Serving calls it directly with `[features, adjacency]`, never `predict`, which would batch the list and drop the adjacency.
 - `RecommendationService._assign_aligned_probabilities` (`app/sa/core/conduits.py`) aligns the probabilities to the rows of `dfc` by `Name`, takes the arg-max as `recommendation` and stores the nine scores, rounded to three decimals, as `confidence_pump`, `confidence_tank`, `confidence_seepage_boxes`, `confidence_diameter_increase`, `confidence_diameter_reduction`, `confidence_slope_increase`, `confidence_slope_reduction`, `confidence_depth_increase` and `confidence_valid`. The class order is `RecommendationCategory` (`stormlab/contracts/enums.py`), which is the softmax layout.
 
-**Switches.** `app/sa/core/predictor.py` reads these environment variables; they are not listed in `app/.env.example`.
+**Switches.** `app/sa/core/predictor.py` reads these environment variables; `app/.env.example` lists them with the other application variables. Unset or blank means the default.
 
 | Variable | Default | Effect |
 |---|---|---|
-| `GNN_ENABLED` | unset | `1`, `true`, `yes` or `on` (any case) enable the GNN and any other value disables it. Unset means enabled when at least one configured weight file exists. Read on every call. |
+| `GNN_ENABLED` | unset | `1`, `true`, `yes` or `on` (any case) enable the GNN and any other value disables it. Unset or blank means enabled when at least one configured weight file exists. Read on every call. |
 | `GNN_WEIGHTS` | `gnn_recommender.run1.weights.h5` to `run5` | Comma-separated file names inside `app/sa/core/recommendations/`. Blank means the default. |
 | `GNN_SPEC` | `gnn_recommender.spec.json` | Spec file in the same directory. |
 | `GNN_IMPUTATION` | `gnn_recommender.imputation.json` | Imputation plan in the same directory. |
 | `GNN_MODEL_ID` | `gnn_recommender_v1` | Identifier recorded in the model metadata; it does not affect loading. |
+| `GNN_MAX_HOPS` | `2` | Hops of the older adjacency path under `app/sa/core/gnn/`, the only code that reads it. |
 
-All but `GNN_ENABLED` are read once, when `predictor.py` is imported. `GNN_MAX_HOPS` (default 2) exists too; only the older adjacency path under `app/sa/core/gnn/` reads it.
+All but `GNN_ENABLED` are read once, when `predictor.py` is imported (`_gnn_config`).
 
 **Never a partial ensemble.** `load_gnn_model_weights` first checks that every member file, the spec and the imputation plan exist, and otherwise refuses with a `GNNModelLoadError` that lists what is missing; the error is logged and the loader returns `None`. A missing member therefore means no GNN, not a smaller ensemble. `DataManager` then falls back to the optional MLP service, whose model file (`recommendations_classifier_path` in `predictor.py`) the repository does not ship. With the GNN enabled and no model, the analysis fails with `RecommendationModelUnavailable` and stores nothing. With `GNN_ENABLED=false` it completes with `recommendation` set to `-` and all confidences 0.0. The Django system check `sa.E001` (`app/sa/checks.py`) also reports missing model files when the project starts, unless `GNN_ENABLED` switches the GNN off.
 

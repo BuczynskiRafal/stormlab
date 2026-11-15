@@ -5,7 +5,7 @@ import sys
 import logging
 import threading
 from functools import lru_cache
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, Mapping
 
 repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if repo_root not in sys.path:
@@ -30,27 +30,46 @@ def _gnn_weight_names(raw: Optional[str]) -> tuple[str, ...]:
     return names or _DEFAULT_GNN_WEIGHTS
 
 
-GNN_CONFIG = {
-    "model_id": os.environ.get("GNN_MODEL_ID", "gnn_recommender_v1"),
-    "weights": _gnn_weight_names(os.environ.get("GNN_WEIGHTS")),
-    "spec": os.environ.get("GNN_SPEC", "gnn_recommender.spec.json"),
-    "imputation": os.environ.get("GNN_IMPUTATION", "gnn_recommender.imputation.json"),
-    "max_hops": int(os.environ.get("GNN_MAX_HOPS", "2")),
-}
+def _setting(environ: Mapping[str, str], name: str, default: str) -> str:
+    """The value of *name*, or *default* when it is unset or blank (as in app/.env.example)."""
+    return (environ.get(name) or "").strip() or default
+
+
+def _gnn_config(environ: Mapping[str, str]) -> Dict[str, Any]:
+    """The model switches of app/.env.example, read from *environ*.
+
+    A blank value is the default, never an empty file name: an empty GNN_SPEC or
+    GNN_IMPUTATION would otherwise resolve to the recommendations directory itself.
+    """
+    return {
+        "model_id": _setting(environ, "GNN_MODEL_ID", "gnn_recommender_v1"),
+        "weights": _gnn_weight_names(environ.get("GNN_WEIGHTS")),
+        "spec": _setting(environ, "GNN_SPEC", "gnn_recommender.spec.json"),
+        "imputation": _setting(environ, "GNN_IMPUTATION", "gnn_recommender.imputation.json"),
+        "max_hops": int(_setting(environ, "GNN_MAX_HOPS", "2")),
+    }
+
+
+GNN_CONFIG = _gnn_config(os.environ)
 gnn_model_paths = tuple(os.path.join(current_directory, "recommendations", name) for name in GNN_CONFIG["weights"])
 gnn_spec_path = os.path.join(current_directory, "recommendations", GNN_CONFIG["spec"])
 
 
 def gnn_enabled() -> bool:
-    """GNN_ENABLED if set; otherwise on when any configured member file exists.
+    """GNN_ENABLED if set; otherwise (unset or blank) on when any configured member file exists.
 
     Any, not all: a partly missing ensemble must fail to load loudly rather than
     quietly switch serving off.
     """
-    raw = os.environ.get("GNN_ENABLED")
+    raw = gnn_enabled_setting()
     if raw is not None:
-        return raw.strip().lower() in {"1", "true", "yes", "on"}
+        return raw.lower() in {"1", "true", "yes", "on"}
     return any(os.path.isfile(path) for path in gnn_model_paths)
+
+
+def gnn_enabled_setting() -> Optional[str]:
+    """GNN_ENABLED as the operator wrote it, or ``None`` when it is unset or blank."""
+    return (os.environ.get("GNN_ENABLED") or "").strip() or None
 
 
 def _ensemble_weights_sha256(paths: tuple[str, ...]) -> Optional[str]:
