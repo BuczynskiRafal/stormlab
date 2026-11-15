@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% load static %}
+{% load sa_static %}
 
 {% block title %}About{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/docs.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'css/docs.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -328,5 +329,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/docs.js' %}" defer></script>
+<script src="{% versioned_static 'js/docs.js' %}" defer></script>
 {% endblock %}

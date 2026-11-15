@@ -248,6 +248,20 @@ class DocsPageStyleTests(TestCase):
         rule = self.css[self.css.index(".docs-section code {") :]
         self.assertIn("color: var(--ink);", rule[: rule.index("}")])
 
+    def test_print_drops_the_site_chrome_and_keeps_blocks_whole(self):
+        printed = self.css[self.css.index("@media print {") :]
+
+        for selector in (".site-header,", ".site-footer,", "#backToTop {"):
+            self.assertIn(selector, printed)
+        self.assertIn("break-after: avoid;", printed)
+        self.assertIn("break-inside: avoid;", printed)
+
+    def test_about_serves_versioned_docs_assets(self):
+        response = self.client.get(reverse("sa:about"))
+
+        self.assertContains(response, "/static/css/docs.css?v=")
+        self.assertContains(response, "/static/js/docs.js?v=")
+
     def test_no_half_screen_padding_before_the_footer(self):
         self.assertNotIn("50vh", self.css)
         self.assertIn("pinnedIndex = index;", self.js)
