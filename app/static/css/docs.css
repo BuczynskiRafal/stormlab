@@ -41,13 +41,12 @@ section.docs-section[id],
     align-items: start;
 }
 
-/* Zapas na dole: bez niego dokument kończy się tuż pod ostatnią sekcją i dwóch
-   ostatnich pozycji spisu treści nie da się przewinąć na linię nagłówka - ani
-   kotwicą, ani kliknięciem. */
+/* No spare space below the last section: the last entries of the table of contents
+   cannot scroll up to the header line, so docs.js moves its activation line down
+   over the last screen of the page and keeps a clicked entry active. */
 .docs-content {
     display: block;
     min-width: 0;
-    padding-bottom: 50vh;
 }
 
 /* ============================================================
@@ -292,13 +291,23 @@ section.docs-section[id],
    LICZBY WYNIKÓW JAKO CHIPY Z ETYKIETĄ
    ============================================================ */
 
+/* `.docs-section ul` (0,1,1) outweighs a bare `.docs-stats` (0,1,0): it indented
+   the chips by its list padding, capped the row at 72ch so two chips no longer fit
+   side by side, and gave every chip a list item's bottom margin. Hence the section
+   prefix here and on .docs-stat. */
+.docs-section .docs-stats,
 .docs-stats {
     display: flex;
     flex-wrap: wrap;
     gap: 0.6rem;
     list-style: none;
+    max-width: none;
     margin: 0.9rem 0 1.75rem;
     padding: 0;
+}
+
+.docs-section .docs-stat {
+    margin-bottom: 0;
 }
 
 .docs-stat {
@@ -397,6 +406,23 @@ section.docs-section[id],
     color: var(--ink);
 }
 
+/* Inline code (file names, section names): Bootstrap's pink (#d63384) reads at
+   4.31:1 on the page paper; ink on a neutral chip is well above 4.5:1. */
+.docs-section code {
+    padding: 0.1em 0.35em;
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-2);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+}
+
+/* A two-column lookup table (frost zones) does not need the full measure. */
+.docs-table--compact {
+    width: auto;
+    min-width: 16rem;
+}
+
 /* ============================================================
    MOBILE: SPIS TREŚCI JAKO POZIOMY PASEK CHIPÓW
    ============================================================ */
@@ -491,11 +517,6 @@ section.docs-section[id],
 @media print {
     .docs-sidebar {
         display: none;
-    }
-
-    /* Zapas na kotwice liczy się w vh - na wydruku dałby pół pustej strony. */
-    .docs-content {
-        padding-bottom: 0;
     }
 
     .docs-grid {

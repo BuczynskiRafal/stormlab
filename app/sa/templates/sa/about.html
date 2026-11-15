@@ -17,7 +17,7 @@
                     <li><a class="docs-nav-link" href="#overview">Overview</a></li>
                     <li><a class="docs-nav-link" href="#tour">Quick tour</a></li>
                     <li><a class="docs-nav-link" href="#method">How it works</a></li>
-                    <li><a class="docs-nav-link indent" href="#verification">Hydraulic verification</a></li>
+                    <li><a class="docs-nav-link indent" href="#verification">Design checks</a></li>
                     <li><a class="docs-nav-link indent" href="#recommendations">Recommendations</a></li>
                     <li><a class="docs-nav-link indent" href="#catchments">Catchment categories</a></li>
                     <li><a class="docs-nav-link" href="#evaluation">Evaluation</a></li>
@@ -31,8 +31,8 @@
             <header class="docs-header">
                 <h1>About StormLab</h1>
                 <p class="docs-lead">
-                    Decision support for storm sewer design: hydraulic simulation, verification
-                    against design criteria and a graph neural network that suggests an action
+                    Decision support for storm sewer design: hydraulic simulation, design checks
+                    against the design criteria and a graph neural network that suggests an action
                     for every conduit.
                 </p>
                 <ul class="docs-meta">
@@ -88,7 +88,7 @@
                 <ol>
                     <li><strong>Simulation.</strong> SWMM runs on a temporary copy of the uploaded
                         file, with the options declared in that file.</li>
-                    <li><strong>Hydraulic verification.</strong> Every conduit is checked against
+                    <li><strong>Design checks.</strong> Every conduit is checked against
                         seven design criteria.</li>
                     <li><strong>Catchment categories.</strong> Land-cover categories are read
                         from the <code>[TAGS]</code> section; subcatchments without a tag are
@@ -99,7 +99,7 @@
                         probability distribution over nine actions for every conduit.</li>
                 </ol>
 
-                <h3 id="verification">Hydraulic verification</h3>
+                <h3 id="verification">Design checks</h3>
                 <p>
                     Filling and velocity are the peak values of the simulation. The slope
                     limits are computed for the conduit's diameter with a Manning roughness
@@ -111,7 +111,7 @@
                             <tr><th>Check</th><th>Criterion</th><th>Source</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>Maximum filling</td><td>h/D ≤ 0.827, diameter 0.2 to 2.0 m</td><td>full capacity of a circular section</td></tr>
+                            <tr><td>Maximum filling</td><td>h/D ≤ 0.827, diameter 0.2–2.0 m</td><td>full capacity of a circular section</td></tr>
                             <tr><td>Minimum velocity</td><td>v ≥ 0.7 m/s</td><td>PN-EN 752</td></tr>
                             <tr><td>Maximum velocity</td><td>v ≤ 5.0 m/s</td><td>WTP design guidelines</td></tr>
                             <tr><td>Minimum slope</td><td>shear stress ≥ 1.5 Pa (self-cleansing)</td><td>tractive force criterion</td></tr>
@@ -125,12 +125,15 @@
                 <h4>Frost zones</h4>
                 <p>The minimum cover equals the frost depth of the zone chosen for the analysis.</p>
                 <div class="docs-table-wrapper">
-                    <table class="docs-table">
+                    <table class="docs-table docs-table--compact">
                         <thead>
-                            <tr><th>Zone</th><th>I</th><th>II</th><th>III</th><th>IV</th></tr>
+                            <tr><th>Zone</th><th>Frost depth</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>Frost depth (m)</td><td>0.8</td><td>1.0</td><td>1.2</td><td>1.4</td></tr>
+                            <tr><td>Zone I</td><td>0.8 m</td></tr>
+                            <tr><td>Zone II</td><td>1.0 m</td></tr>
+                            <tr><td>Zone III</td><td>1.2 m</td></tr>
+                            <tr><td>Zone IV</td><td>1.4 m</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -147,7 +150,8 @@
                     and what the model reads for a conduit.
                 </p>
                 <p>
-                    The output is a probability for each action rather than a single verdict.
+                    The output is a probability for each action rather than a single verdict;
+                    the results show it as the <em>model score</em>.
                     Several actions with similar probability are alternatives to weigh, not steps
                     to carry out together.
                 </p>
@@ -157,15 +161,15 @@
                             <tr><th>Action</th><th>Meaning</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>valid</td><td>No change needed</td></tr>
-                            <tr><td>diameter_increase</td><td>Insufficient capacity; larger diameter</td></tr>
-                            <tr><td>diameter_reduction</td><td>Oversized conduit; smaller diameter</td></tr>
-                            <tr><td>slope_increase</td><td>Velocity too low; steeper slope</td></tr>
-                            <tr><td>slope_reduction</td><td>Velocity too high; gentler slope</td></tr>
-                            <tr><td>depth_increase</td><td>Insufficient cover; deeper invert</td></tr>
-                            <tr><td>tank</td><td>Retention to reduce peak flow</td></tr>
-                            <tr><td>seepage_boxes</td><td>Infiltration to relieve the network</td></tr>
-                            <tr><td>pump</td><td>Gravity outflow not possible; pumping station</td></tr>
+                            <tr><td>No changes</td><td>No change needed</td></tr>
+                            <tr><td>Increase diameter</td><td>Insufficient capacity; larger diameter</td></tr>
+                            <tr><td>Reduce diameter</td><td>Oversized conduit; smaller diameter</td></tr>
+                            <tr><td>Increase slope</td><td>Velocity too low; steeper slope</td></tr>
+                            <tr><td>Reduce slope</td><td>Velocity too high; gentler slope</td></tr>
+                            <tr><td>Increase depth</td><td>Insufficient cover; deeper invert</td></tr>
+                            <tr><td>Retention tank</td><td>Retention to reduce peak flow</td></tr>
+                            <tr><td>Seepage boxes</td><td>Infiltration to relieve the network</td></tr>
+                            <tr><td>Pump station</td><td>Gravity outflow not possible; pumping station</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -210,7 +214,7 @@
                 <p>
                     Values are means of five training runs on 21,456 test conduits. The MLP sees
                     the same 66 features of a single conduit without its neighbours. The graph
-                    model is more accurate by 1.73 percentage points (95% CI 0.96 to 2.45).
+                    model is more accurate by 1.73 percentage points (95% CI 0.96–2.45).
                     Averaging the five runs, as the application does, raises its accuracy to 0.907.
                     The experiments behind these numbers are on the
                     <a href="{% url 'sa:method' %}#experiments">Method</a> page.

@@ -184,6 +184,76 @@ class MessagesAreRenderedTests(TestCase):
         self.assertNotContains(response, "site-messages")
 
 
+class AboutAndHomeWordingTests(TestCase):
+    """The shared vocabulary: design checks, action labels, frost zones, heading levels."""
+
+    def test_home_cards_are_level_two_and_name_the_design_checks(self):
+        response = self.client.get(reverse("sa:index"))
+
+        self.assertContains(response, '<h2 class="feature-title">Design checks</h2>')
+        self.assertNotContains(response, "Validation")
+        self.assertNotContains(response, "<h3")
+
+    def test_about_names_the_design_checks_and_keeps_the_anchor(self):
+        response = self.client.get(reverse("sa:about"))
+
+        self.assertContains(response, '<h3 id="verification">Design checks</h3>')
+        self.assertContains(response, 'href="#verification">Design checks</a>')
+        self.assertNotContains(response, "Hydraulic verification")
+
+    def test_about_action_table_shows_labels_not_raw_ids(self):
+        html = self.client.get(reverse("sa:about")).content.decode()
+        labels = re.findall(r"<tr><td>([^<]+)</td><td>[^<]+</td></tr>", html[html.index("<th>Action</th>") :])[:9]
+
+        self.assertEqual(
+            labels,
+            [
+                "No changes",
+                "Increase diameter",
+                "Reduce diameter",
+                "Increase slope",
+                "Reduce slope",
+                "Increase depth",
+                "Retention tank",
+                "Seepage boxes",
+                "Pump station",
+            ],
+        )
+        for raw in ("<td>valid</td>", "<td>diameter_increase</td>", "<td>seepage_boxes</td>"):
+            self.assertNotIn(raw, html)
+
+    def test_about_frost_zones_use_the_shared_labels(self):
+        response = self.client.get(reverse("sa:about"))
+
+        for zone, depth in (("I", "0.8"), ("II", "1.0"), ("III", "1.2"), ("IV", "1.4")):
+            self.assertContains(response, f"<tr><td>Zone {zone}</td><td>{depth} m</td></tr>")
+
+
+class DocsPageStyleTests(TestCase):
+    """docs.css and docs.js: chips in a row, readable code, no dead space before the footer."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from pathlib import Path
+
+        static = Path(__file__).resolve().parents[2] / "static"
+        cls.css = (static / "css" / "docs.css").read_text(encoding="utf-8")
+        cls.js = (static / "js" / "docs.js").read_text(encoding="utf-8")
+
+    def test_stat_chips_are_not_indented_or_capped_by_the_section_list_rule(self):
+        self.assertIn(".docs-section .docs-stats,\n.docs-stats {", self.css)
+        self.assertIn("max-width: none;", self.css)
+
+    def test_inline_code_uses_ink_instead_of_bootstraps_pink(self):
+        rule = self.css[self.css.index(".docs-section code {") :]
+        self.assertIn("color: var(--ink);", rule[: rule.index("}")])
+
+    def test_no_half_screen_padding_before_the_footer(self):
+        self.assertNotIn("50vh", self.css)
+        self.assertIn("pinnedIndex = index;", self.js)
+        self.assertIn("var reach = Math.min(1, Math.max(0, 1 - remaining / window.innerHeight));", self.js)
+
+
 class PhoneLayoutContractTests(TestCase):
     """One 16 px gutter on phones; the back-to-top button stays clear of the footer."""
 

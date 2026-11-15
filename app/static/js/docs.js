@@ -74,9 +74,22 @@
     }
 
     var activeIndex = -1;
+    // An entry the reader clicked stays active until they scroll by themselves: a
+    // target near the end of the page cannot reach the header line, so the position
+    // alone would name a later entry.
+    var pinnedIndex = -1;
 
     function currentIndex() {
-        var line = headerHeight() + ACTIVE_BAND;
+        if (pinnedIndex >= 0) {
+            return pinnedIndex;
+        }
+        var top = headerHeight() + ACTIVE_BAND;
+        // Over the last screen of the page the activation line slides from below the
+        // header to the bottom of the viewport, so the last sections, which can never
+        // scroll up to the header, still become active one after another.
+        var remaining = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+        var reach = Math.min(1, Math.max(0, 1 - remaining / window.innerHeight));
+        var line = top + (window.innerHeight - top - ACTIVE_BAND) * reach;
         var index = 0; // żaden cel nad linią (początek strony) => pierwsza pozycja
         for (var i = 0; i < entries.length; i++) {
             if (entries[i].target.getBoundingClientRect().top <= line) {
@@ -119,6 +132,24 @@
     function markUserMoved() {
         userMoved = true;
     }
+
+    function unpin() {
+        if (pinnedIndex >= 0) {
+            pinnedIndex = -1;
+            schedule();
+        }
+    }
+
+    ['wheel', 'touchstart', 'keydown'].forEach(function (name) {
+        window.addEventListener(name, unpin, { passive: true });
+    });
+
+    entries.forEach(function (entry, index) {
+        entry.link.addEventListener('click', function () {
+            pinnedIndex = index;
+            updateActive();
+        });
+    });
 
     ['wheel', 'touchstart', 'keydown'].forEach(function (name) {
         window.addEventListener(name, markUserMoved, { passive: true, once: true });
