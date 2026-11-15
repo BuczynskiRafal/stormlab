@@ -1246,6 +1246,24 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertEqual(panel.context["panel"].model_metadata, meta)
         for response in (results, panel):
             self.assertNotContains(response, "gnn_recommender_v1")
+            # Not recorded is not the same as no model: the page must not claim that
+            # recommendations were switched off.
+            self.assertNotContains(response, "None (recommendations are switched off)")
+        note = "This analysis ran before StormLab stored which model produced its recommendations."
+        self.assertContains(
+            results, f'<dt>Recommendation model</dt>\n                                <dd title="{note}">not recorded'
+        )
+        self.assertContains(panel, f'<span>Model</span><b title="{note}">not recorded</b>')
+
+    def test_describe_model_tells_not_recorded_from_switched_off(self):
+        from sa.services import describe_model
+
+        unrecorded = describe_model({"model_kind": None, "model_id": None, "recorded": False})
+        self.assertEqual((unrecorded["kind"], unrecorded["summary"]), ("not_recorded", "not recorded"))
+        self.assertIsNotNone(unrecorded["note"])
+        switched_off = describe_model({"model_kind": "none", "model_id": None, "recorded": True})
+        self.assertEqual(switched_off["summary"], "None (recommendations are switched off)")
+        self.assertIsNone(switched_off["note"])
 
     def test_server_csv_export_for_all_kinds(self):
         for kind in ("conduits", "nodes", "catchments"):

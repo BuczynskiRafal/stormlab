@@ -175,7 +175,7 @@
                             <span class="r-info-icon"><i class="fas fa-brain" aria-hidden="true"></i></span>
                             <div>
                                 <dt>Recommendation model</dt>
-                                <dd>{{ model.summary }}
+                                <dd{% if model.note %} title="{{ model.note }}"{% endif %}>{{ model.summary }}
                                     {% if model.model_id %}
                                     <dl class="r-info-detail" aria-label="Technical details of the model">
                                         <dt>Model id</dt><dd><code>{{ model.model_id }}</code></dd>

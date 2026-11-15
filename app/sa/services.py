@@ -80,11 +80,19 @@ def describe_model(metadata: dict[str, Any] | None) -> dict[str, Any]:
     ``summary`` is the line a reader sees ("Graph model, five runs averaged"); the
     identifiers stay available for whoever needs them, with the weights digest also
     shortened to its first 12 hex characters for display.  ``None`` or a metadata of
-    kind ``none`` describes the state without recommendations.
+    kind ``none`` describes the state without recommendations.  Metadata whose
+    ``recorded`` is ``False`` (see session_model_metadata) belongs to a session completed
+    before the model was stored with it: the model is then "not recorded", which is not
+    the same as no model.
     """
     meta = metadata or {}
     kind = meta.get("model_kind")
-    if kind == "gnn":
+    note = None
+    if meta.get("recorded") is False:
+        kind = "not_recorded"
+        summary = "not recorded"
+        note = "This analysis ran before StormLab stored which model produced its recommendations."
+    elif kind == "gnn":
         runs = len(gnn_model_paths)
         count = _COUNT_WORDS[runs] if runs < len(_COUNT_WORDS) else str(runs)
         summary = f"Graph model, {count} runs averaged" if runs > 1 else "Graph model"
@@ -96,6 +104,7 @@ def describe_model(metadata: dict[str, Any] | None) -> dict[str, Any]:
     return {
         "kind": kind or "none",
         "summary": summary,
+        "note": note,
         "model_id": meta.get("model_id") or None,
         "feature_contract": meta.get("feature_contract") or None,
         "target_contract": meta.get("target_contract") or None,

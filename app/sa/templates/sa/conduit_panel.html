@@ -228,7 +228,7 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                     <div class="property"><span>Subcatchment (model)</span><b>{{ conduit.subcatchment }}</b></div>
                     <div class="property"><span>Subcatchment category</span><b>{{ conduit.sbc_category|category_label }}</b></div>
                     <div class="property"><span>Recommendation</span><b>{{ conduit.recommendation|action_label }}</b></div>
-                    <div class="property"><span>Model</span><b{% if panel.model.model_id %} title="{{ panel.model.model_id }}{% if panel.model.feature_contract %} · {{ panel.model.feature_contract }}{% endif %}"{% endif %}>{{ panel.model.summary }}</b></div>
+                    <div class="property"><span>Model</span><b{% if panel.model.model_id %} title="{{ panel.model.model_id }}{% if panel.model.feature_contract %} · {{ panel.model.feature_contract }}{% endif %}"{% elif panel.model.note %} title="{{ panel.model.note }}"{% endif %}>{{ panel.model.summary }}</b></div>
                     {% if panel.confidence_margin is not None %}
                     <div class="property" title="How many percentage points the model score of the recommended action is above the next-best action. A small lead means two actions are close alternatives."><span>Lead over the next action<small class="property-help">model score, in percentage points</small></span><b>{{ panel.confidence_margin|floatformat:1 }} pp</b></div>
                     {% endif %}
