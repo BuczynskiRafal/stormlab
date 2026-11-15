@@ -4,9 +4,17 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+INP_EXTENSION_MESSAGE = "Choose a SWMM input file (.inp)."
+
+
+def has_inp_extension(name: str) -> bool:
+    """Whether *name* ends in ``.inp`` in any letter case (``MODEL.INP`` is a SWMM file too)."""
+    return name.lower().endswith(".inp")
+
+
 def validate_file_extension(file):
-    if not file.name.endswith(".inp"):
-        raise ValidationError(_("Invalid file extension. Required extension is .inp"))
+    if not has_inp_extension(file.name):
+        raise ValidationError(_(INP_EXTENSION_MESSAGE), code="extension")
 
 
 class SWMMModel(models.Model):

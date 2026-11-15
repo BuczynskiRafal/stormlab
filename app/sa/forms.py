@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 
 from .core.inp_options import read_flow_units
 from .core.inp_safety import find_unsafe_input
-from .models import SWMMModel
+from .models import INP_EXTENSION_MESSAGE, SWMMModel, has_inp_extension
 
 MAX_SCANNED_BYTES = 1024 * 1024
 """How much of the file the FLOW_UNITS gate reads; [OPTIONS] is always at the top."""
@@ -36,6 +36,9 @@ class SWMMModelForm(forms.ModelForm):
         uploaded = self.cleaned_data.get("file")
         if not uploaded:
             return uploaded
+        # The name first: any other file would only be told that its [OPTIONS] lack FLOW_UNITS.
+        if not has_inp_extension(uploaded.name):
+            raise ValidationError(INP_EXTENSION_MESSAGE, code="extension")
         limit = settings.MAX_INP_BYTES
         if uploaded.size > limit:
             raise ValidationError(

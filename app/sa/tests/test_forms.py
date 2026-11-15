@@ -107,6 +107,34 @@ class FormFlowUnitsGateTests(SimpleTestCase):
         self._assert_full_content_via_chunks(uploaded, "flow_units_cms.inp")
 
 
+class FormFileNameTests(SimpleTestCase):
+    """The file name is checked before anything is read from the file."""
+
+    def _errors(self, name: str) -> list:
+        uploaded = SimpleUploadedFile(name, _read_fixture("flow_units_cms.inp"), content_type="application/octet-stream")
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        return [] if form.is_valid() else form.errors.as_data().get("file", [])
+
+    def test_a_file_that_is_not_inp_is_asked_for_an_inp_file(self):
+        for name in ("notes.txt", "model.inp.txt", "model", "model.rpt"):
+            with self.subTest(name=name):
+                errors = self._errors(name)
+                self.assertEqual([e.code for e in errors], ["extension"])
+                self.assertEqual(errors[0].messages, ["Choose a SWMM input file (.inp)."])
+
+    def test_the_suffix_is_checked_in_any_letter_case(self):
+        for name in ("MODEL.INP", "Model.Inp", "model.inp"):
+            with self.subTest(name=name):
+                self.assertEqual(self._errors(name), [])
+
+    def test_a_wrong_name_wins_over_the_size_limit(self):
+        uploaded = SimpleUploadedFile("notes.txt", b"x", content_type="text/plain")
+        uploaded.size = settings.MAX_INP_BYTES + 1
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+
+        self.assertEqual([e.code for e in form.errors.as_data()["file"]], ["extension"])
+
+
 class FormSizeLimitTests(SimpleTestCase):
     def _form(self, size: int):
         uploaded = SimpleUploadedFile("huge.inp", b"[OPTIONS]\nFLOW_UNITS CMS\n", content_type="application/octet-stream")
