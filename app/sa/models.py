@@ -17,9 +17,19 @@ def validate_file_extension(file):
         raise ValidationError(_(INP_EXTENSION_MESSAGE), code="extension")
 
 
+ZONE_NUMERALS = {1: "I", 2: "II", 3: "III", 4: "IV"}
+
+
+def zone_label(zone: int, depth: float) -> str:
+    """ "Zone II (1.0 m)": the Roman numeral of the zone and its frost depth, as the site writes them."""
+    return f"Zone {ZONE_NUMERALS.get(zone, zone)} ({depth:.1f} m)"
+
+
 class SWMMModel(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     file = models.FileField(upload_to="user_models/", validators=[validate_file_extension])
+    # The second element is the frost depth the analysis uses (get_frost_zone_value), not a
+    # label; labels come from zone_label().
     ZONE_CHOICES = (
         (1, 0.8),
         (2, 1.0),
@@ -38,8 +48,8 @@ class SWMMModel(models.Model):
         return zone_mapping.get(self.zone, 0.8)  # Default to 0.8 if not found
 
     def get_zone_display_name(self):
-        """Return a user-friendly display name for the zone."""
-        return f"Zone {self.zone} ({self.get_frost_zone_value()}m)"
+        """The zone as the site names it: "Zone I (0.8 m)" ... "Zone IV (1.4 m)"."""
+        return zone_label(self.zone, self.get_frost_zone_value())
 
 
 class CalculationSession(models.Model):

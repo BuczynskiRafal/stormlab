@@ -9,7 +9,7 @@ from .core.inp_encoding import utf8_chunks
 from .core.inp_options import OptionValueError, read_flow_units, simulation_period
 from .core.inp_safety import find_unsafe_input
 from .core.inp_structure import listing, non_circular_conduits, survey_inp
-from .models import INP_EXTENSION_MESSAGE, SWMMModel, has_inp_extension
+from .models import INP_EXTENSION_MESSAGE, SWMMModel, has_inp_extension, zone_label
 
 MAX_SCANNED_BYTES = 1024 * 1024
 """How much of the file the FLOW_UNITS gate reads; [OPTIONS] is always at the top."""
@@ -28,18 +28,15 @@ def _head(chunks: Iterable[bytes], limit: int) -> str:
 class SWMMModelForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Update zone field to show frost zone values in labels
-        zone_choices = []
-        for zone_num, frost_value in SWMMModel.ZONE_CHOICES:
-            zone_choices.append((zone_num, f"Zone {zone_num} (Frost depth: {frost_value}m)"))
-        self.fields["zone"].choices = zone_choices
+        # "Zone I (0.8 m)": the values stay 1-4; ZONE_CHOICES holds the depths the analysis uses.
+        self.fields["zone"].choices = [(zone, zone_label(zone, depth)) for zone, depth in SWMMModel.ZONE_CHOICES]
         self.fields["zone"].widget.attrs.update({"class": "form-select"})
         self.fields["file"].widget.attrs.update({"class": "form-control", "accept": ".inp"})
 
     class Meta:
         model = SWMMModel
         fields = ["file", "zone"]
-        labels = {"file": "SWMM Model File (.inp)", "zone": "Frost Zone"}
+        labels = {"file": "SWMM model file", "zone": "Frost zone"}
         help_texts = {
             "file": "Upload your SWMM model file with .inp extension",
             "zone": "Select the appropriate frost zone for your region",
