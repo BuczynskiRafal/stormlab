@@ -1215,6 +1215,7 @@ class ConduitPanel:
     confidence_margin: float | None = None
     simple_rule_passed: bool = False
     model_metadata: dict[str, Any] | None = None
+    model: dict[str, Any] | None = None
 
     @property
     def checks_failed(self) -> int:
@@ -1333,6 +1334,7 @@ class ConduitPanelService:
 
         confidence_margin = confidence_margin_pct(conduit)
         simple_rule = simple_band_rule_passed(conduit.filling, conduit.geom1, conduit.max_v)
+        model_metadata = session_model_metadata(session)
 
         return ConduitPanel(
             conduit=conduit,
@@ -1355,7 +1357,8 @@ class ConduitPanelService:
             prediction_others=prediction_others,
             confidence_margin=confidence_margin,
             simple_rule_passed=simple_rule,
-            model_metadata=session_model_metadata(session),
+            model_metadata=model_metadata,
+            model=describe_model(model_metadata),
         )
 
     @staticmethod
@@ -1422,8 +1425,8 @@ class ConduitPanelService:
             measured.append(
                 (
                     passed,
-                    f"{actual} ({100.0 * filling / diameter:.0f} %)",
-                    f"{limit} ({100.0 * filling_limit / diameter:.1f} %)",
+                    f"{actual} ({100.0 * filling / diameter:.0f}%)",
+                    f"{limit} ({100.0 * filling_limit / diameter:.1f}%)",
                 )
             )
 

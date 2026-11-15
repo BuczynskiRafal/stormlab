@@ -1194,7 +1194,11 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertContains(results, "<dt>Target contract</dt><dd><code>primary_action_v3</code></dd>")
         digest = self.GNN_METADATA["weights_sha256"]
         self.assertContains(results, f'<dt>Weights digest</dt><dd><code title="{digest}">{digest[:12]}</code></dd>')
-        self.assertContains(panel, "gnn_recommender_v1 (v4_physical)")
+        # The panel says it in one quiet line; the identifiers stay in its title.
+        self.assertContains(
+            panel, '<span>Model</span><b title="gnn_recommender_v1 · v4_physical">Graph model, five runs averaged</b>'
+        )
+        self.assertNotContains(panel, "Model Artifact")
         for response in (results, panel):
             self.assertNotContains(response, "a_later_model")
         self.assertEqual(results.context["results_v2_data"]["session"]["model_metadata"], {**self.GNN_METADATA, "recorded": True})
