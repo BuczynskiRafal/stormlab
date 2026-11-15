@@ -39,6 +39,14 @@ class RecommendationModelUnavailable(RuntimeError):
     """The GNN is enabled, but neither it nor a fallback model could produce recommendations."""
 
 
+class SimulationReportError(RuntimeError):
+    """The model could not be read back together with the report of its simulation.
+
+    Every later step needs the simulated values (``MaxDPerc``, ``MaxV``, ...), so the
+    analysis stops here instead of carrying on with the frames read before the run.
+    """
+
+
 class DataManager(sw.Model):
     """
     Main class that combines various services/classes responsible for different areas
@@ -289,7 +297,6 @@ class DataManager(sw.Model):
         self.simulation_service.run_simulation()
 
         # Reinitialize parent sw.Model to include newly generated .rpt file
-        reinitialized = False
         try:
             super().__init__(self.inp.path, crs=self.crs, include_rpt=True)
 
@@ -312,15 +319,11 @@ class DataManager(sw.Model):
             self.subcatchment_service = SubcatchmentFeatureEngineeringService(self.dfs, self)
             self.node_service = NodeFeatureEngineeringService(self.dfn, self.dfs)
             self.conduit_service = ConduitFeatureEngineeringService(dfc=self.dfc, dfn=self.dfn, frost_zone=self.frost_zone)
+        except Exception as error:
+            raise SimulationReportError(f"Could not read the model back with the report of {self.inp.path}") from error
 
-            reinitialized = True
-
-        except Exception as e:
-            logger.warning(f"Could not reinitialize with report file: {e}")
-
-        self.reinitialized_with_rpt = reinitialized
-        if reinitialized:
-            self._select_recommendation_service()
+        self.reinitialized_with_rpt = True
+        self._select_recommendation_service()
 
     def feature_engineering(self) -> None:
         """

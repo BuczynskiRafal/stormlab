@@ -309,18 +309,18 @@ class TestCalculateMethod:
             data_manager.calculate()
             mock_sim.assert_called_once()
 
-    def test_calculate_handles_reinit_exception(self, data_manager: DataManager):
-        """Test calculate handles exception during reinitialization gracefully."""
+    def test_calculate_raises_a_typed_error_when_the_report_cannot_be_read_back(self, data_manager: DataManager):
+        """Carrying on with the frames read before the run failed later with "'MaxDPerc'"."""
+        from sa.core.data import SimulationReportError
+
+        failure = Exception("Reinit failed")
         with (
             patch.object(data_manager.simulation_service, "run_simulation"),
-            patch("sa.core.data.sw.Model.__init__", side_effect=Exception("Reinit failed")),
-            patch("sa.core.data.logger") as mock_logger,
+            patch("sa.core.data.sw.Model.__init__", side_effect=failure),
+            pytest.raises(SimulationReportError) as raised,
         ):
             data_manager.calculate()
-            # Verify warning was logged
-            mock_logger.warning.assert_called()
-            warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
-            assert any("Could not reinitialize" in str(call) for call in warning_calls)
+        assert raised.value.__cause__ is failure
 
     def test_calculate_uses_mlp_when_gnn_not_available(self, data_manager: DataManager):
         """Test calculate uses MLP model when GNN is not available."""
