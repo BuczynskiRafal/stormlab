@@ -137,8 +137,10 @@ body {
     padding-bottom: 1.75rem;
 }
 
-/* Results V2 Page Layout: full viewport fit with balanced vertical spacing */
-@media (min-height: 520px) {
+/* Results V2 Page Layout: full viewport fit with balanced vertical spacing.  Below
+   576 px wide the page scrolls instead and results-v2.css gives the table and the map
+   heights of their own. */
+@media (min-height: 520px) and (min-width: 576px) {
     body:has(#storm-results-v2),
     body.results-v2-page {
         height: 100vh;
@@ -161,6 +163,15 @@ body {
         flex: 1;
         min-height: 0;
         padding: 0 !important;
+    }
+}
+
+/* On a phone the results page scrolls; it keeps a tighter top and bottom gap. */
+@media (max-width: 575.98px) {
+    body:has(#storm-results-v2) .content-wrapper,
+    body.results-v2-page .content-wrapper {
+        padding-top: 12px;
+        padding-bottom: 16px;
     }
 }
 .profile-image {
@@ -1657,6 +1668,13 @@ footer {
     padding-right: 0.5rem;
 }
 
+/* The same component above the analysis form, for an analysis that failed; it is not
+   dismissible, so the text keeps the padding on both sides. */
+.site-message.analysis-error {
+    margin-bottom: 1rem;
+    padding-right: 1rem;
+}
+
 .site-message .btn-close {
     position: static;
     flex: none;
@@ -2425,6 +2443,11 @@ tr.selected:hover td:first-child {
         font-size: 0.85rem;
     }
 
+    /* On one line the date reads as everywhere else: "15 Nov 2026, 04:43 UTC". */
+    .history-date-day::after {
+        content: ",";
+    }
+
     .history-table .count-chip {
         min-width: 0;
         padding: 0;
@@ -3011,11 +3034,17 @@ tr.selected:hover td:first-child {
 
 .conduit-page h1,
 .conduit-page h2,
+.conduit-page h3,
 .conduit-page h6 {
     font-family: var(--font-body);
     color: var(--cp-text);
     text-align: left;
     margin: 0;
+}
+
+/* Node names and group titles: level-3 headings in the panel's body type. */
+.conduit-page h3 {
+    letter-spacing: normal;
 }
 
 .conduit-page a {
@@ -3265,6 +3294,24 @@ tr.selected:hover td:first-child {
     fill: var(--cp-muted);
 }
 
+/* "No data to draw the profile" instead of a drawing (data-state set by
+   conduit-panel.js): it fits the card instead of scrolling sideways, so a phone does
+   not cut it off.  Below the drawing's minimum width the message is set larger in
+   viewBox units, as the drawing then shrinks with the card. */
+.conduit-page .conduit-profile[data-state="message"] {
+    min-width: 0;
+}
+
+@media (max-width: 619.98px) {
+    .conduit-page .conduit-profile[data-state="message"] {
+        height: 160px;
+    }
+
+    .conduit-page .conduit-profile[data-state="message"] text {
+        font-size: 21px;
+    }
+}
+
 .conduit-profile .cp-small {
     font-size: 10px;
 }
@@ -3457,6 +3504,22 @@ tr.selected:hover td:first-child {
 .conduit-page .chain-link:hover,
 .conduit-page .chain-link:focus-visible {
     text-decoration: underline;
+}
+
+/* The conduit on display in a node card's list: plain text where its neighbours are links. */
+.conduit-page .chain-current {
+    display: inline-block;
+    margin: 0 8px 2px 0;
+    color: var(--cp-text);
+}
+
+/* Long element names wrap instead of widening the page. */
+.conduit-page .panel-page-title,
+.conduit-page .node-card-name,
+.conduit-page .chain-link,
+.conduit-page .chain-current {
+    overflow-wrap: anywhere;
+    min-width: 0;
 }
 
 .conduit-page .node-card-missing,
@@ -3746,6 +3809,15 @@ tr.selected:hover td:first-child {
 
 .conduit-page .property span {
     color: var(--cp-muted);
+}
+
+/* A help line under a property label ("model score, in percentage points"). */
+.conduit-page .property-help {
+    display: block;
+    margin-top: 2px;
+    color: var(--cp-muted);
+    font-size: var(--cp-fs-eyebrow);
+    font-weight: 400;
 }
 
 .conduit-page .property b {

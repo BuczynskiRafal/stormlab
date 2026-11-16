@@ -41,7 +41,8 @@ const {
   cardRows,
   symbolsCrowded,
   resolveLabels,
-  legendEntries
+  legendEntries,
+  labelFitPadding
 } = nm;
 
 // The exported surface is a contract: twenty-four names, including clampCardPos and
@@ -49,11 +50,12 @@ const {
 // field), outletPath (the outline of a subcatchment's outlet line), placeLabels
 // (the placement solver), cardRows (the values of the selection card),
 // symbolsCrowded (the density that hides the node symbols and their names),
-// resolveLabels (the names setting a network opens with) and legendEntries (the
-// entries of each colour mode, labelled from the payload).
+// resolveLabels (the names setting a network opens with), legendEntries (the
+// entries of each colour mode, labelled from the payload) and labelFitPadding (the
+// room a fitted view keeps for the names at its edges).
 // A name that quietly stops being exported takes its whole group with it and the run
 // would still end green without this line.
-assert.strictEqual(Object.keys(nm).length, 24, 'network-map.js must export exactly twenty-four names');
+assert.strictEqual(Object.keys(nm).length, 25, 'network-map.js must export exactly twenty-five names');
 
 let passed = 0;
 
@@ -84,8 +86,10 @@ group('fitViewBox keeps the drawing inside the box, margin included', () => {
   // 3 % of the longer side is 6 drawing units; at 4 px per unit 8 screen pixels are
   // 2 units, so the fraction wins here and the floor wins on a small container.
   near(box.w, 212, 1e-9, 'the fractional margin must win on a large container');
+  // The pixels are measured at the scale the drawing is shown with its margin: the
+  // height decides here, (40 - 2 * 8) / 100 = 0.24 px per unit.
   const tight = fitViewBox({ w: 200, h: 100 }, 8, { w: 80, h: 40 });
-  near(tight.w, 200 + 2 * (8 / 0.4), 1e-9, 'the pixel floor must win on a small container');
+  near(tight.w, 200 + 2 * (8 / 0.24), 1e-9, 'the pixel floor must win on a small container');
 
   // Every degenerate input has to come back finite: a NaN here reaches the DOM as
   // viewBox="NaN NaN NaN NaN" and the map silently disappears.
@@ -99,6 +103,45 @@ group('fitViewBox keeps the drawing inside the box, margin included', () => {
     });
     assert.ok(fallback.w > 0 && fallback.h > 0, 'a degenerate bbox must still give a drawable box');
   });
+});
+
+group('a fitted view keeps the names of the outermost elements inside the frame', () => {
+  // The schematic demo network on a phone: its node names stand beside the nodes, so
+  // the outer column puts them outside the drawing.  With PAD_MIN_PX alone the frame
+  // cut "J2" on the left and the names of the right-hand column.
+  const bbox = { w: 5, h: 6 };
+  const boxes = [{ w: 14, h: 14 }, { w: 21, h: 14 }, { w: 27, h: 14 }];
+  const pad = labelFitPadding(boxes);
+  const ring = 3.5 * Math.SQRT2 + 2;
+  near(pad.x, 8 + 27 + ring, 1e-9, 'the widest name, the symbol and the margin on the sides');
+  near(pad.y, 8 + 14 + ring, 1e-9, 'the tallest name, the symbol and the margin above and below');
+
+  /** Screen pixels between the drawing and each edge of a meet-fitted canvas. */
+  const margins = (box, size) => {
+    const scale = Math.min(size.w / box.w, size.h / box.h);
+    const offX = (size.w - box.w * scale) / 2;
+    const offY = (size.h - box.h * scale) / 2;
+    const left = offX + (0 - box.x) * scale;
+    const top = offY + (0 - box.y) * scale;
+    return { left: left, right: size.w - left - bbox.w * scale, top: top, bottom: size.h - top - bbox.h * scale };
+  };
+  // Portrait phones and tablets, a phone held sideways, a desktop.
+  [{ w: 328, h: 450 }, { w: 336, h: 523 }, { w: 470, h: 468 }, { w: 662, h: 623 }, { w: 812, h: 200 }, { w: 1334, h: 522 }].forEach(size => {
+    const m = margins(fitViewBox(bbox, pad, size), size);
+    assert.ok(m.left >= pad.x - 1e-9 && m.right >= pad.x - 1e-9, `${size.w}x${size.h}: room for a name on either side`);
+    assert.ok(m.top >= pad.y - 1e-9 && m.bottom >= pad.y - 1e-9, `${size.w}x${size.h}: room for a name above and below`);
+  });
+  // What the regression looked like: the floor alone leaves less than one name.
+  const before = margins(fitViewBox(bbox, 8, { w: 336, h: 523 }), { w: 336, h: 523 });
+  assert.ok(before.left < 27, 'PAD_MIN_PX alone does not hold the widest name');
+
+  // One very long name cannot shrink the drawing to nothing; without names the floor stays.
+  near(labelFitPadding([{ w: 400, h: 14 }]).x, 8 + 64, 1e-9, 'the allowance is capped');
+  assert.deepStrictEqual(labelFitPadding([]), { x: 8, y: 8 }, 'no names, no allowance');
+  assert.deepStrictEqual(labelFitPadding(null), { x: 8, y: 8 }, 'nothing measured, no allowance');
+  // A container smaller than the margin still gets a finite, drawable box.
+  const cramped = fitViewBox(bbox, pad, { w: 60, h: 40 });
+  ['x', 'y', 'w', 'h'].forEach(key => assert.ok(Number.isFinite(cramped[key]), `cramped ${key} must be finite`));
 });
 
 // ---------------------------------------------------------------------------
@@ -1472,6 +1515,6 @@ group('legendEntries labels the recommendation mode from the payload and spells 
 });
 
 console.log('------------------------------------------------------------');
-console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 29 PASSED)`);
+console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 30 PASSED)`);
 console.log('------------------------------------------------------------');
-assert.strictEqual(passed, 29, 'every group must have run');
+assert.strictEqual(passed, 30, 'every group must have run');

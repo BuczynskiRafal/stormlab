@@ -306,6 +306,21 @@ class RegisterPageTests(TestCase):
 
         self.assertContains(response, f'href="{reverse("accounts:login")}"')
 
+    def test_the_repeated_password_is_worded_as_on_the_account_page(self) -> None:
+        from accounts.forms import AccountPasswordChangeForm, CustomUserCreationForm
+
+        response = self.client.get(reverse("accounts:register"))
+
+        self.assertContains(response, "Password, again")
+        self.assertNotContains(response, "Password confirmation")
+        sign_up = CustomUserCreationForm()
+        change = AccountPasswordChangeForm(user=User(email="labels@example.com"))
+        self.assertEqual(sign_up.fields["password2"].label, "Password, again")
+        self.assertEqual(change.fields["new_password2"].label, "New password, again")
+        # The same hint under the same field on both pages.
+        self.assertEqual(sign_up.fields["password2"].help_text, change.fields["new_password2"].help_text)
+        self.assertEqual(sign_up.fields["password1"].help_text, change.fields["new_password1"].help_text)
+
     def test_mismatched_passwords_come_back_with_the_field_error(self) -> None:
         response = self.client.post(
             reverse("accounts:register"),

@@ -104,6 +104,7 @@ def test_get_model_metadata_respects_gnn_enabled_env(monkeypatch):
     assert meta_gnn["model_kind"] == "gnn"
     assert meta_gnn["model_id"] == "gnn_recommender_v1"
     assert meta_gnn["feature_contract"] == "v4_physical"
+    assert meta_gnn["ensemble_members"] == 5
 
     monkeypatch.setenv("GNN_ENABLED", "false")
     with mock.patch("sa.core.predictor._sha256_file_safe", return_value="ab" * 32):
@@ -112,6 +113,7 @@ def test_get_model_metadata_respects_gnn_enabled_env(monkeypatch):
     assert meta_mlp["model_id"] == "mlp_historical_20250615"
     assert meta_mlp["weights_sha256"] == "ab" * 32
     assert meta_mlp["feature_contract"] == "v1_historical_33"
+    assert meta_mlp["ensemble_members"] == 1
 
 
 def test_get_model_metadata_names_no_model_when_none_is_installed(monkeypatch):
@@ -130,6 +132,7 @@ def test_get_model_metadata_names_no_model_when_none_is_installed(monkeypatch):
         "feature_contract": None,
         "target_contract": None,
         "gnn_enabled": False,
+        "ensemble_members": None,
     }
 
 

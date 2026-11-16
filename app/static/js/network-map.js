@@ -95,6 +95,17 @@
    * stroke) + LABEL_MARGIN_PX ~ 9.95, and an anchor inside that disk collides too.
    */
 
+  const LABEL_FIT_MAX_PX = 64;
+  /**
+   * The most a fitted view sets aside, per side, for the names of the outermost elements.
+   *
+   * A name stands beside its node, so a node on the edge of the drawing puts its name
+   * outside it: with a margin of PAD_MIN_PX alone the names of the outer column of a
+   * network were cut off by the frame.  The allowance is the widest name (and the
+   * tallest, for the top and the bottom) plus the symbol and LABEL_MARGIN_PX, capped
+   * here so that one very long name cannot shrink the whole drawing.
+   */
+
   const LABEL_CELL_PX = 32;
   /** Side of one bucket of the obstacle grid, in screen pixels. */
 
@@ -402,25 +413,57 @@
   /**
    * The viewBox that shows the whole drawing inside a container of *sizePx*.
    *
-   * The margin is the larger of PAD_FRACTION of the drawing and *padPx* screen pixels
-   * converted into drawing units at the scale the drawing would be shown without any
-   * margin — which is why the container size is needed at all.  Every degenerate input
-   * (missing bbox, zero or non-finite side, container of zero size) falls back to a
-   * finite box: a NaN here reaches the DOM as viewBox="NaN NaN NaN NaN" and the map
-   * silently disappears.
+   * The margin on each axis is the larger of PAD_FRACTION of the drawing and *padPx*
+   * screen pixels — a number for both axes, or ``{x, y}`` (labelFitPadding) — converted
+   * into drawing units at the scale the drawing is shown with that margin, so that the
+   * pixels really are there on screen; that is why the container size is needed at
+   * all.  When the container is too small to hold the margin the scale without it is
+   * used.  Every degenerate input (missing bbox, zero or non-finite side, container of
+   * zero size) falls back to a finite box: a NaN here reaches the DOM as
+   * viewBox="NaN NaN NaN NaN" and the map silently disappears.
    */
   function fitViewBox(bbox, padPx, sizePx) {
     const w = bbox && isPositive(bbox.w) ? bbox.w : 1;
     const h = bbox && isPositive(bbox.h) ? bbox.h : 1;
-    let pad = PAD_FRACTION * Math.max(w, h);
+    const fraction = PAD_FRACTION * Math.max(w, h);
+    let padX = fraction;
+    let padY = fraction;
+    const twoAxes = padPx !== null && typeof padPx === 'object';
+    const pxX = Number(twoAxes ? padPx.x : padPx);
+    const pxY = Number(twoAxes ? padPx.y : padPx);
+    const sideX = isPositive(pxX) ? pxX : 0;
+    const sideY = isPositive(pxY) ? pxY : 0;
     const width = sizePx && Number(sizePx.w);
     const height = sizePx && Number(sizePx.h);
-    if (isPositive(width) && isPositive(height) && isPositive(padPx)) {
-      const scale = Math.min(width / w, height / h);
-      if (isPositive(scale)) pad = Math.max(pad, padPx / scale);
+    if (isPositive(width) && isPositive(height) && (sideX > 0 || sideY > 0)) {
+      let scale = Math.min((width - 2 * sideX) / w, (height - 2 * sideY) / h);
+      if (!isPositive(scale)) scale = Math.min(width / w, height / h);
+      if (isPositive(scale)) {
+        padX = Math.max(padX, sideX / scale);
+        padY = Math.max(padY, sideY / scale);
+      }
     }
-    if (!Number.isFinite(pad) || pad < 0) pad = 0;
-    return { x: -pad, y: -pad, w: w + 2 * pad, h: h + 2 * pad };
+    if (!Number.isFinite(padX) || padX < 0) padX = 0;
+    if (!Number.isFinite(padY) || padY < 0) padY = 0;
+    return { x: -padX, y: -padY, w: w + 2 * padX, h: h + 2 * padY };
+  }
+
+  /**
+   * The screen margin ``{x, y}`` a fitted view keeps so that the names of the outermost
+   * elements stay inside the frame: PAD_MIN_PX plus, on each axis, the widest (tallest)
+   * of the measured label *boxes* with the symbol and LABEL_MARGIN_PX, capped at
+   * LABEL_FIT_MAX_PX.  No boxes (names off or not measurable) leaves PAD_MIN_PX.
+   */
+  function labelFitPadding(boxes) {
+    let widest = 0;
+    let tallest = 0;
+    (Array.isArray(boxes) ? boxes : []).forEach(box => {
+      if (box && isPositive(box.w) && box.w > widest) widest = box.w;
+      if (box && isPositive(box.h) && box.h > tallest) tallest = box.h;
+    });
+    const ring = MAX_SYMBOL_PX * Math.SQRT2 + LABEL_MARGIN_PX;
+    const side = size => (size > 0 ? Math.min(LABEL_FIT_MAX_PX, size + ring) : 0);
+    return { x: PAD_MIN_PX + side(widest), y: PAD_MIN_PX + side(tallest) };
   }
 
   /**
@@ -1460,6 +1503,20 @@
       return box;
     }
 
+    /**
+     * The margin of a fitted view: room for the names of nodes and conduits while the
+     * names are on (labelFitPadding over their measured boxes), PAD_MIN_PX otherwise.
+     */
+    function fitPadding() {
+      if (labelsOn && !labelsBuilt) ensureLabels();
+      if (!labelsOn || !labelsBuilt) return PAD_MIN_PX;
+      const boxes = [];
+      ['nodes', 'links'].forEach(key => {
+        (Array.isArray(data[key]) ? data[key] : []).forEach(element => boxes.push(labelBox('node', String(element.n))));
+      });
+      return labelFitPadding(boxes);
+    }
+
     /** Every built <text>, with the kind and the index it was built for. */
     function eachLabel(fn) {
       if (!drawing) return;
@@ -1652,7 +1709,7 @@
       if (!isPositive(rect.width) || !isPositive(rect.height)) return;
 
       if (!viewBox) {
-        viewBox = fitViewBox(data.bbox, PAD_MIN_PX, { w: rect.width, h: rect.height });
+        viewBox = fitViewBox(data.bbox, fitPadding(), { w: rect.width, h: rect.height });
         fitted = viewBox;
       }
       drawing.svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
@@ -2104,7 +2161,7 @@
     function fitToView() {
       const rect = host.getBoundingClientRect();
       if (!isPositive(rect.width) || !isPositive(rect.height)) return;
-      viewBox = fitViewBox(data.bbox, PAD_MIN_PX, { w: rect.width, h: rect.height });
+      viewBox = fitViewBox(data.bbox, fitPadding(), { w: rect.width, h: rect.height });
       fitted = viewBox;
       rescale();
     }
@@ -2236,6 +2293,9 @@
       // From the first press on, the names are a choice and every save carries it.
       labelsChoice = labelsOn;
       savePrefs();
+      // A view still showing the whole network is fitted again, with or without the
+      // room the names take at its edges; a view the reader zoomed or panned stays.
+      if (viewBox && viewBox === fitted) viewBox = null;
       rescale();
       scheduleLabels();
     }
@@ -2584,7 +2644,7 @@
       const toTable = document.createElement('button');
       toTable.type = 'button';
       toTable.className = 'nm-card-table';
-      toTable.textContent = 'Show in table';
+      toTable.textContent = 'Show in Table';
       toTable.addEventListener('click', () => {
         // The only event this module ever sends out, and the only way a gesture on the
         // map changes the tab.  Selecting an element emits nothing: if it did, one
@@ -2822,6 +2882,9 @@
         const rect = host.getBoundingClientRect();
         if (!isPositive(rect.width) || !isPositive(rect.height)) return;
         ensureDrawn();
+        // A view still showing the whole network is fitted to the new size (a phone
+        // turned sideways); a view the reader zoomed or panned keeps its box.
+        if (viewBox && viewBox === fitted) viewBox = null;
         rescale();
         // After rescale, and here rather than inside it: a canvas that changed size can
         // leave the card hanging outside itself, and clampCardPos pulls it back in.
@@ -3262,5 +3325,5 @@
     };
   }
 
-  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded, resolveLabels, legendEntries};
+  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded, resolveLabels, legendEntries, labelFitPadding};
 })();

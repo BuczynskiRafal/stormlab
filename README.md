@@ -12,10 +12,10 @@ to recommend an action for each conduit.
 ## What it does
 
 - **Simulation.** Runs EPA SWMM 5.2 on an uploaded `.inp` model.
-- **Hydraulic verification.** Seven checks per conduit: filling, velocity, slope, depth and cover.
+- **Design checks.** Seven checks per conduit: filling, velocity, slope, depth and cover.
 - **Recommendations.** A graph neural network reads each conduit together with the
-  conduits that drain into it and scores nine actions, from *no change* to
-  *larger diameter* or *retention tank*.
+  conduits that drain into it and scores nine actions, from *No changes* to
+  *Increase diameter* or *Retention tank*.
 - **Catchment categories.** Read from the model's tags, or assigned by a classifier.
 - **Results.** Interactive network map, tables with CSV export and a longitudinal
   profile for every conduit.
@@ -60,7 +60,7 @@ make migrate
 make run
 ```
 
-Open <http://127.0.0.1:8000>, sign up and follow the tour below.
+Open <http://127.0.0.1:8000>, choose **Sign up** and follow the tour below.
 
 On macOS, `make install` also re-signs the SWMM libraries: the published wheel carries
 invalid code signatures and the system refuses to load it otherwise.
@@ -69,14 +69,17 @@ invalid code signatures and the system refuses to load it otherwise.
 
 1. Go to **Analysis**, pick a frost zone and choose **Try with Demo Data**. It loads the
    storm sewer network of the Rakowiec estate in Wrocław (62 conduits).
-2. On the **Map** tab, switch between recommendations, passed checks and filling. Click a
-   conduit, node or subcatchment for its key values.
-3. Browse the conduit, node and subcatchment tables, or export them to CSV.
-4. Open a conduit's details to see its profile, the seven checks and the recommended
-   action with the model's score for every class.
+2. On the **Map** tab, colour the network by **Recommendation**, **Checks passed** or
+   **Filling**. Click a conduit, node or subcatchment for its key values.
+3. Browse the **Conduits**, **Nodes** and **Subcatchments** tabs, or export a table
+   with **CSV**.
+4. Click a conduit's name in the table, or **Open details** on the map, to see its
+   profile, the seven design checks and the recommended action with the model score
+   of every class.
 5. Open **Method** to see, on the same network, which conduits the model reads for the
    one you select.
-6. Upload your own `.inp` file (flow units: CMS). More examples are in [`examples/`](examples/).
+6. Back on **Analysis**, upload your own `.inp` file with **Upload & Analyse** (flow
+   units: CMS). More examples are in [`examples/`](examples/).
 
 | Filling | Conduit panel |
 |---|---|

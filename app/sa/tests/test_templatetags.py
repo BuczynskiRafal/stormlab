@@ -98,6 +98,24 @@ class LabelFilterTests(SimpleTestCase):
         self.assertEqual(self.render("{{ v|utc_datetime }}", v=early), "5 Mar 2026, 09:07 UTC")
         self.assertEqual(self.render("{{ v|utc_datetime }}", v="yesterday"), "")
 
+    def test_a_layout_can_set_the_date_and_the_time_apart_in_the_same_format(self):
+        import datetime
+
+        early = datetime.datetime(2026, 3, 5, 9, 7, tzinfo=datetime.timezone.utc)
+        self.assertEqual(self.render('{{ v|utc_datetime:"date" }}', v=early), "5 Mar 2026")
+        self.assertEqual(self.render('{{ v|utc_datetime:"time" }}', v=early), "09:07 UTC")
+        self.assertEqual(self.render('{{ v|utc_datetime:"date" }}', v=None), "")
+
+    def test_zones_are_named_with_their_numeral_and_depth(self):
+        from types import SimpleNamespace
+
+        depths = {1: 0.8, 2: 1.0, 3: 1.2, 4: 1.4}
+        for zone, label in ((1, "Zone I (0.8 m)"), (2, "Zone II (1.0 m)"), (3, "Zone III (1.2 m)"), (4, "Zone IV (1.4 m)")):
+            model = SimpleNamespace(zone=zone, get_frost_zone_value=lambda zone=zone: depths[zone])
+            with self.subTest(zone=zone):
+                self.assertEqual(self.render("{{ v|zone_label }}", v=model), label)
+        self.assertEqual(self.render("{{ v|zone_label }}", v=None), "")
+
     def test_file_label_is_the_bare_name(self):
         self.assertEqual(self.render("{{ v|file_label }}", v="uploads/wroclaw_rakowiec.inp"), "wroclaw_rakowiec.inp")
         self.assertEqual(self.render("{{ v|file_label }}", v="C:\\models\\net.inp"), "net.inp")

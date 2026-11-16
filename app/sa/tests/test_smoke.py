@@ -17,7 +17,7 @@ from django.urls import reverse
 
 from storm_analysis.urls import urlpatterns as site_urlpatterns
 
-from .factories import VALIDATION_FLAGS, make_conduit, make_session, make_user
+from .factories import VALIDATION_FLAGS, make_conduit, make_session, make_swmm_model, make_user
 
 
 def _raise(exception):
@@ -202,25 +202,26 @@ class AboutAndHomeWordingTests(TestCase):
         self.assertNotContains(response, "Hydraulic verification")
 
     def test_about_action_table_shows_labels_not_raw_ids(self):
+        from sa.labels import ACTION_LABELS
+
         html = self.client.get(reverse("sa:about")).content.decode()
         labels = re.findall(r"<tr><td>([^<]+)</td><td>[^<]+</td></tr>", html[html.index("<th>Action</th>") :])[:9]
 
-        self.assertEqual(
-            labels,
-            [
-                "No changes",
-                "Increase diameter",
-                "Reduce diameter",
-                "Increase slope",
-                "Reduce slope",
-                "Increase depth",
-                "Retention tank",
-                "Seepage boxes",
-                "Pump station",
-            ],
-        )
+        # The labels of sa.labels, in the order the results filter lists them.
+        self.assertEqual(labels, list(ACTION_LABELS.values()))
+        self.assertEqual(labels[0], "No changes")
         for raw in ("<td>valid</td>", "<td>diameter_increase</td>", "<td>seepage_boxes</td>"):
             self.assertNotIn(raw, html)
+
+    def test_about_names_each_category_and_the_id_a_tag_uses(self):
+        from sa.labels import CATEGORY_LABELS
+
+        html = self.client.get(reverse("sa:about")).content.decode()
+        listed = re.findall(r'<li>([^<]+) <span aria-hidden="true">—</span> <code>([a-z_]+)</code></li>', html)
+
+        self.assertEqual(listed, [(label, code) for code, label in CATEGORY_LABELS.items()])
+        self.assertIn("Urban, highly impervious", html)
+        self.assertIn("as the tag value of the subcatchment in the\n                    <code>[TAGS]</code> section", html)
 
     def test_about_frost_zones_use_the_shared_labels(self):
         response = self.client.get(reverse("sa:about"))
@@ -509,3 +510,154 @@ class ErrorPageTests(TestCase):
         source = open(loader.get_template("500.html").origin.name, encoding="utf-8").read()
         for dependency in ("{% extends", "{% url", "user.", "registration_open", "messages"):
             self.assertNotIn(dependency, source.split("{% endcomment %}")[1], dependency)
+
+
+@override_settings(DEBUG=False, ROOT_URLCONF=__name__)
+class PageTitleTests(TestCase):
+    """Every <title> is "<page> · StormLab", the product named once, at the end.
+
+    base.html appends the suffix; a page that writes it as well doubles it. The home
+    page alone leads with the product ("StormLab · Decision support ...").
+    """
+
+    HOME_TITLE = "StormLab · Decision support for storm sewer design"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_user(email="titles@example.com")
+        cls.session = make_session(cls.user, n_conduits=1, n_nodes=2, n_subcatchments=1)
+
+    def setUp(self):
+        self.client.raise_request_exception = False
+
+    def title_of(self, response) -> str:
+        found = re.findall(r"<title>(.*?)</title>", response.content.decode(), re.DOTALL)
+        self.assertEqual(len(found), 1, "one <title> per page")
+        return " ".join(found[0].split())
+
+    def assert_titles(self, pages):
+        for url, page in pages:
+            with self.subTest(url=url):
+                title = self.title_of(self.client.get(url))
+                self.assertEqual(title, f"{page} · StormLab")
+                self.assertEqual(title.count("StormLab"), 1)
+
+    def test_public_pages(self):
+        self.assertEqual(self.title_of(self.client.get(reverse("sa:index"))), self.HOME_TITLE)
+        self.assert_titles(
+            [
+                (reverse("sa:about"), "About"),
+                (reverse("sa:method"), "Method"),
+                (reverse("accounts:login"), "Log in"),
+                (reverse("accounts:register"), "Sign up"),
+                ("/no-such-page/", "Page not found"),
+                ("/test-errors/400/", "Bad request"),
+                ("/test-errors/403/", "Access denied"),
+                ("/test-errors/500/", "Server error"),
+            ]
+        )
+
+    def test_no_template_asks_for_a_bootstrap_tooltip_and_main_js_sets_none_up(self):
+        from pathlib import Path
+
+        app_dir = Path(__file__).resolve().parents[2]
+        self.assertNotIn("bootstrap.Tooltip", (app_dir / "static" / "js" / "main.js").read_text(encoding="utf-8"))
+        for template in app_dir.rglob("templates/**/*.html"):
+            with self.subTest(template=template.name):
+                self.assertNotIn('data-bs-toggle="tooltip"', template.read_text(encoding="utf-8"))
+
+    def test_no_page_ships_an_inline_style_block(self):
+        """Styles live in the static stylesheets, where the scoping tests and the cache see them."""
+        public = [reverse("sa:index"), reverse("sa:about"), reverse("sa:method"), reverse("accounts:login")]
+        public += [reverse("accounts:register"), "/no-such-page/", "/test-errors/403/", "/test-errors/500/"]
+        for url in public:
+            with self.subTest(url=url):
+                self.assertNotIn("<style", self.client.get(url).content.decode())
+        self.client.force_login(self.user)
+        for url in (
+            reverse("sa:analysis"),
+            reverse("sa:history"),
+            reverse("sa:analysis_results", args=[self.session.id]),
+            reverse("sa:conduit_detail", args=[self.session.id, "C1"]),
+            reverse("accounts:user_profile"),
+            reverse("accounts:logout"),
+        ):
+            with self.subTest(url=url):
+                self.assertNotIn("<style", self.client.get(url).content.decode())
+
+    def test_pages_behind_the_login(self):
+        self.client.force_login(self.user)
+        file_name = self.session.swmm_model.file.name.rsplit("/", 1)[-1]
+        self.assertEqual(self.title_of(self.client.get(reverse("sa:index"))), self.HOME_TITLE)
+        self.assert_titles(
+            [
+                (reverse("sa:analysis"), "Analysis"),
+                (reverse("sa:history"), "History"),
+                (reverse("sa:analysis_results", args=[self.session.id]), f"{file_name} · Results"),
+                (reverse("sa:conduit_detail", args=[self.session.id, "C1"]), f"Conduit C1 · {file_name}"),
+                (reverse("accounts:user_profile"), "Your account"),
+                (reverse("accounts:logout"), "Log out"),
+            ]
+        )
+
+
+class OneDateAndZoneFormatTests(TestCase):
+    """History, the results page (header and Info tab) and the account page write a date
+    and a frost zone in one way, through the utc_datetime and zone_label filters."""
+
+    @classmethod
+    def setUpTestData(cls):
+        import datetime
+
+        from accounts.models import User
+        from sa.models import CalculationSession
+
+        stamp = datetime.datetime(2026, 3, 5, 4, 43, tzinfo=datetime.timezone.utc)
+        cls.user = make_user(email="formats@example.com")
+        User.objects.filter(pk=cls.user.pk).update(date_joined=stamp)
+        cls.session = make_session(cls.user, swmm_model=make_swmm_model(cls.user, zone=3), n_conduits=1)
+        CalculationSession.objects.filter(pk=cls.session.pk).update(created_at=stamp)
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_every_page_writes_the_same_date_without_a_leading_zero(self):
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id])).content.decode()
+        history = self.client.get(reverse("sa:history")).content.decode()
+        account = self.client.get(reverse("accounts:user_profile")).content.decode()
+
+        self.assertEqual(results.count(">5 Mar 2026, 04:43 UTC</time>"), 2, "the header and the Info tab")
+        self.assertIn('<span class="history-date-day">5 Mar 2026</span>', history)
+        self.assertIn('<span class="history-date-time">04:43 UTC</span>', history)
+        self.assertIn('data-session-date="5 Mar 2026, 04:43 UTC"', history)
+        # A History card sets the two parts on one line, where the comma comes back.
+        from pathlib import Path
+
+        css = (Path(__file__).resolve().parents[2] / "static" / "css" / "app.css").read_text(encoding="utf-8")
+        self.assertIn('.history-date-day::after {\n        content: ",";', css)
+        self.assertIn("Member since 5 Mar 2026</p>", account)
+        for html in (results, history, account):
+            self.assertNotIn("05 Mar", html)
+
+    def test_every_page_names_the_zone_the_same_way(self):
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id])).content.decode()
+        history = self.client.get(reverse("sa:history")).content.decode()
+
+        self.assertEqual(results.count("Zone III (1.2 m)"), 2, "the header and the Info tab")
+        self.assertIn('data-label="Frost zone">Zone III (1.2 m)</td>', history)
+        self.assertNotIn("Frost zone 3", results)
+
+    def test_no_template_formats_a_date_or_a_zone_by_hand(self):
+        from pathlib import Path
+
+        roots = [
+            Path(__file__).resolve().parents[2] / sub
+            for sub in ("sa/templates", "accounts/templates", "storm_analysis/templates")
+        ]
+        for template in (path for root in roots for path in root.rglob("*.html")):
+            source = template.read_text(encoding="utf-8")
+            with self.subTest(template=template.name):
+                # Only the machine-readable datetime attribute may use the date filter.
+                self.assertEqual(re.findall(r"\|date:(?!'c')", source), [])
+                self.assertNotIn("get_frost_zone_value", source)
+                self.assertNotIn("frost_zones", source)

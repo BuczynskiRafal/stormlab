@@ -871,7 +871,7 @@ function workspaceMarkup(options) {
           </div>
           <div class="r-viewline">
             <span id="r-filter-summary"></span>
-            <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear filters</button>
+            <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear Filters</button>
           </div>
           <div class="r-selection" id="r-column-selection" hidden>
             <div class="r-selectionhead">
@@ -879,7 +879,7 @@ function workspaceMarkup(options) {
               <div class="r-presets">
                 <button type="button" class="r-preset" data-preset="overview">Overview</button>
                 <button type="button" class="r-preset" data-preset="technical" id="r-technical-preset">Hydraulics</button>
-                <button type="button" class="r-preset" data-preset="all">All columns</button>
+                <button type="button" class="r-preset" data-preset="all">All Columns</button>
                 <button type="button" class="r-close" id="r-close-columns">&times;</button>
               </div>
             </div>
@@ -972,7 +972,7 @@ function workspaceMarkup(options) {
           </div>
           <div class="r-viewline">
             <span id="r-filter-summary"></span>
-            <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear filters</button>
+            <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear Filters</button>
           </div>
           <div class="r-selection" id="r-column-selection" hidden>
             <div class="r-selectionhead">
@@ -980,7 +980,7 @@ function workspaceMarkup(options) {
               <div class="r-presets">
                 <button type="button" class="r-preset" data-preset="overview">Overview</button>
                 <button type="button" class="r-preset" data-preset="technical" id="r-technical-preset">Hydraulics</button>
-                <button type="button" class="r-preset" data-preset="all">All columns</button>
+                <button type="button" class="r-preset" data-preset="all">All Columns</button>
                 <button type="button" class="r-close" id="r-close-columns">&times;</button>
               </div>
             </div>
@@ -1252,6 +1252,7 @@ function runEmpiricalTests() {
   filterSelect.value = 'diameter_increase';
   filterSelect.dispatchEvent({ type: 'change', target: filterSelect });
   assert.strictEqual($('#r-row-count').textContent.trim(), '1 of 5 conduits', 'Filtering by diameter_increase matches C2');
+  assert.strictEqual($('#r-filter-summary').textContent, 'Filtered results · 1 match', 'one match, singular');
 
   // Checkbox: Failed checks only
   filterSelect.value = 'all';
@@ -1260,6 +1261,7 @@ function runEmpiricalTests() {
   failedCheckbox.dispatchEvent({ type: 'change', target: failedCheckbox });
   // C1 has 7/7, C2 has 3/7, C3 has 6/7, C4 has 6/7, C5 has 7/7 -> failed checks: C2, C3, C4 (3 conduits)
   assert.strictEqual($('#r-row-count').textContent.trim(), '3 of 5 conduits', 'Failed checks only filter matches 3 conduits');
+  assert.strictEqual($('#r-filter-summary').textContent, 'Filtered results · 3 matches');
 
   // Clear all filters
   $('#r-clear-filters').click();

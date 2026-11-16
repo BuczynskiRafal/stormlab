@@ -1175,6 +1175,7 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         "feature_contract": "v4_physical",
         "target_contract": "primary_action_v3",
         "gnn_enabled": True,
+        "ensemble_members": 5,
     }
 
     def _with_metadata(self, metadata):
@@ -1203,6 +1204,34 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
             self.assertNotContains(response, "a_later_model")
         self.assertEqual(results.context["results_v2_data"]["session"]["model_metadata"], {**self.GNN_METADATA, "recorded": True})
 
+    def test_the_number_of_runs_comes_from_the_session_not_from_the_configuration(self):
+        # Recorded with its count: the count the session stored, whatever is installed now.
+        self._with_metadata({**self.GNN_METADATA, "ensemble_members": 3})
+        with mock.patch("sa.core.predictor.gnn_model_paths", ("a", "b", "c", "d", "e", "f", "g")):
+            results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+            panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
+        self.assertContains(results, "<dd>Graph model, three runs averaged")
+        self.assertContains(panel, ">Graph model, three runs averaged</b>")
+
+        # Recorded before the count was stored: the model is named, without a count.
+        without_count = {key: value for key, value in self.GNN_METADATA.items() if key != "ensemble_members"}
+        self._with_metadata(without_count)
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+        panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
+        self.assertContains(results, "<dd>Graph model\n")
+        self.assertContains(panel, '<b title="gnn_recommender_v1 · v4_physical">Graph model</b>')
+        for response in (results, panel):
+            self.assertNotContains(response, "runs averaged")
+        meta = results.context["results_v2_data"]["session"]["model_metadata"]
+        self.assertIsNone(meta["ensemble_members"])
+        self.assertIs(meta["recorded"], True)
+
+        # Not recorded at all: "not recorded", as before.
+        self._with_metadata(None)
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+        self.assertContains(results, ">not recorded")
+        self.assertNotContains(results, "Graph model")
+
     def test_info_tab_shortens_the_weights_digest_and_keeps_it_whole_in_the_title(self):
         digest = "0123456789abcdef" * 4
         self._with_metadata({"model_kind": "gnn", "model_id": "gnn_recommender_v1", "weights_sha256": digest})
@@ -1212,7 +1241,13 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
     def test_describe_model_reads_every_kind(self):
         from sa.services import describe_model
 
-        self.assertEqual(describe_model({"model_kind": "gnn"})["summary"], "Graph model, five runs averaged")
+        self.assertEqual(
+            describe_model({"model_kind": "gnn", "ensemble_members": 5})["summary"], "Graph model, five runs averaged"
+        )
+        self.assertEqual(
+            describe_model({"model_kind": "gnn", "ensemble_members": 3})["summary"], "Graph model, three runs averaged"
+        )
+        self.assertEqual(describe_model({"model_kind": "gnn", "ensemble_members": 1})["summary"], "Graph model")
         self.assertEqual(describe_model({"model_kind": "mlp"})["summary"], "Plain neural network (MLP), one conduit at a time")
         for meta in (None, {}, {"model_kind": "none"}):
             described = describe_model(meta)
@@ -1246,6 +1281,24 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertEqual(panel.context["panel"].model_metadata, meta)
         for response in (results, panel):
             self.assertNotContains(response, "gnn_recommender_v1")
+            # Not recorded is not the same as no model: the page must not claim that
+            # recommendations were switched off.
+            self.assertNotContains(response, "None (recommendations are switched off)")
+        note = "This analysis ran before StormLab stored which model produced its recommendations."
+        self.assertContains(
+            results, f'<dt>Recommendation model</dt>\n                                <dd title="{note}">not recorded'
+        )
+        self.assertContains(panel, f'<span>Model</span><b title="{note}">not recorded</b>')
+
+    def test_describe_model_tells_not_recorded_from_switched_off(self):
+        from sa.services import describe_model
+
+        unrecorded = describe_model({"model_kind": None, "model_id": None, "recorded": False})
+        self.assertEqual((unrecorded["kind"], unrecorded["summary"]), ("not_recorded", "not recorded"))
+        self.assertIsNotNone(unrecorded["note"])
+        switched_off = describe_model({"model_kind": "none", "model_id": None, "recorded": True})
+        self.assertEqual(switched_off["summary"], "None (recommendations are switched off)")
+        self.assertIsNone(switched_off["note"])
 
     def test_server_csv_export_for_all_kinds(self):
         for kind in ("conduits", "nodes", "catchments"):

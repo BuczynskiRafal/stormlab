@@ -190,6 +190,16 @@ class ResultsV2ExistingPagesZeroRegressionTests(TestCase):
 class ResultsV2CSSIsolationTests(TestCase):
     """Verify 100% of CSS rules in results-v2.css are strictly scoped under #storm-results-v2."""
 
+    def test_the_viewport_fit_of_app_css_leaves_phones_to_scroll(self):
+        """app.css fits the results page to the viewport from 576 px wide only, so
+        results-v2.css needs no rule outside #storm-results-v2 to undo it on a phone."""
+        static = Path(__file__).resolve().parent.parent.parent / "static" / "css"
+        app_css = (static / "app.css").read_text(encoding="utf-8")
+        fit = app_css.index("@media (min-height: 520px) and (min-width: 576px) {")
+        self.assertIn("body:has(#storm-results-v2),", app_css[fit : fit + 200])
+        self.assertNotIn("@media (min-height: 520px) {", app_css)
+        self.assertNotIn("body.results-v2-page", (static / "results-v2.css").read_text(encoding="utf-8"))
+
     def test_all_css_rules_scoped_under_root_id(self):
         """Every CSS rule selector must start with #storm-results-v2 to prevent Bootstrap collisions."""
         css_path = Path(__file__).resolve().parent.parent.parent / "static" / "css" / "results-v2.css"
@@ -228,11 +238,6 @@ class ResultsV2CSSIsolationTests(TestCase):
                 # Split multiple selectors separated by comma
                 for part in selector.split(","):
                     p = part.strip()
-                    # One documented exception (section 1c): the phone layout undoes the
-                    # viewport fit app.css puts on <body>, through the class
-                    # results-v2.js adds to the body of this page alone.
-                    if p.startswith("body.results-v2-page:has(#storm-results-v2)"):
-                        continue
                     if p and not p.startswith("#storm-results-v2"):
                         unscoped_selectors.append((line_idx, p))
 
@@ -242,6 +247,32 @@ class ResultsV2CSSIsolationTests(TestCase):
             f"Found {len(unscoped_selectors)} unscoped CSS selectors in results-v2.css:\n"
             + "\n".join(f"Line {idx}: {sel}" for idx, sel in unscoped_selectors[:10]),
         )
+
+
+class ResultsV2PhoneLeftoversTests(TestCase):
+    """Small-screen details of the results page and the conduit panel."""
+
+    @staticmethod
+    def _static(folder: str, name: str) -> str:
+        return (Path(__file__).resolve().parent.parent.parent / "static" / folder / name).read_text(encoding="utf-8")
+
+    def test_the_tab_row_fades_at_an_edge_with_more_tabs_behind_it(self):
+        css = self._static("css", "results-v2.css")
+        script = self._static("js", "results-v2.js")
+        self.assertIn("#storm-results-v2 .r-tabs[data-more-right=true]::after", css)
+        self.assertIn("#storm-results-v2 .r-tabs[data-more-left=true]::before", css)
+        self.assertIn("tabList.addEventListener('scroll', updateTabEdges, { passive: true });", script)
+
+    def test_the_tools_take_a_row_of_their_own_on_the_narrowest_phones(self):
+        css = self._static("css", "results-v2.css")
+        narrow = css[css.index("@media (max-width: 380px) {") :]
+        self.assertRegex(narrow, r"\.r-tools \{\s*flex: 1 1 100%;\s*margin-left: 0;")
+        self.assertRegex(narrow, r"\.r-tools \.r-button \{\s*flex: 1 1 0;")
+
+    def test_the_no_data_message_of_the_profile_fits_a_phone(self):
+        css = self._static("css", "app.css")
+        self.assertRegex(css, r'\.conduit-page \.conduit-profile\[data-state="message"\] \{\s*min-width: 0;')
+        self.assertIn("svg.setAttribute('data-state', 'message');", self._static("js", "conduit-panel.js"))
 
 
 class ResultsV2JavaScriptEmpiricalHarnessTests(TestCase):
@@ -728,6 +759,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         "cardRows",
         "symbolsCrowded",
         "resolveLabels",
+        "labelFitPadding",
     )
     """Every name the harness calls.  Later stages *add* to this tuple; the test asks
     for a subset and never for an exact count, so stage 7 exporting one more name is
@@ -796,7 +828,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             f"the network map harness failed with exit code {result.returncode}:\n"
             f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
         )
-        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (29 / 29 PASSED)", result.stdout)
+        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (30 / 30 PASSED)", result.stdout)
 
     # -- 57 ---------------------------------------------------------------------
     def test_map_js_has_no_unsafe_patterns(self):
@@ -925,7 +957,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertRegex(code, r"setAttribute\('role',\s*'group'\)")
         self.assertRegex(code, r"setAttribute\('aria-label',\s*'Selected element'\)")
         self.assertRegex(code, r"setAttribute\('aria-label',\s*'Close selection'\)")
-        self.assertIn("'Show in table'", code)
+        self.assertIn("'Show in Table'", code)
 
         self.assertEqual(code.count("createElement('a')"), 1, "the card builds exactly one anchor")
         branch = re.search(r"const href = [^;]*detail_url[^;]*;", code)

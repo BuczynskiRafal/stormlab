@@ -25,7 +25,7 @@
                 <h1 class="r-title"><span class="r-title-kicker">Results</span> <span class="r-title-file">{{ session.swmm_model.file|file_label }}</span></h1>
                 <p class="r-meta">
                     <span><i class="fas fa-calendar-alt" aria-hidden="true"></i><time datetime="{{ session.created_at|date:'c' }}">{{ session.created_at|utc_datetime }}</time></span>
-                    <span><i class="fas fa-snowflake" aria-hidden="true"></i><span class="visually-hidden">Frost zone: </span>{{ session.swmm_model.get_zone_display_name }}</span>
+                    <span><i class="fas fa-snowflake" aria-hidden="true"></i><span class="visually-hidden">Frost zone: </span>{{ session.swmm_model|zone_label }}</span>
                 </p>
             </div>
             <div class="r-tabs-actions">
@@ -103,7 +103,7 @@
                     <!-- Viewline: Filter Summary and Reset Button -->
                     <div class="r-viewline">
                         <span id="r-filter-summary"></span>
-                        <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear filters</button>
+                        <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear Filters</button>
                     </div>
 
                     <!-- Column Selection Drawer -->
@@ -116,7 +116,7 @@
                             <div class="r-presets">
                                 <button type="button" class="r-preset" data-preset="overview">Overview</button>
                                 <button type="button" class="r-preset" data-preset="technical" id="r-technical-preset">Hydraulics</button>
-                                <button type="button" class="r-preset" data-preset="all">All columns</button>
+                                <button type="button" class="r-preset" data-preset="all">All Columns</button>
                                 <button type="button" class="r-close" id="r-close-columns" aria-label="Close column selection">&times;</button>
                             </div>
                         </div>
@@ -139,7 +139,7 @@
                         <span id="r-row-count"></span>
                         <span class="r-scrollhint" id="r-scrollhint" hidden>
                             <span aria-hidden="true">&harr;</span>
-                            <button type="button" id="r-scroll-columns">More columns to the right</button>
+                            <button type="button" id="r-scroll-columns">More Columns to the Right</button>
                         </span>
                         <span id="r-foot-columns"></span>
                     </footer>
@@ -168,14 +168,14 @@
                             <span class="r-info-icon"><i class="fas fa-snowflake" aria-hidden="true"></i></span>
                             <div>
                                 <dt>Frost zone</dt>
-                                <dd>{{ session.swmm_model.get_zone_display_name }}</dd>
+                                <dd>{{ session.swmm_model|zone_label }}</dd>
                             </div>
                         </div>
                         <div class="r-info-item">
                             <span class="r-info-icon"><i class="fas fa-brain" aria-hidden="true"></i></span>
                             <div>
                                 <dt>Recommendation model</dt>
-                                <dd>{{ model.summary }}
+                                <dd{% if model.note %} title="{{ model.note }}"{% endif %}>{{ model.summary }}
                                     {% if model.model_id %}
                                     <dl class="r-info-detail" aria-label="Technical details of the model">
                                         <dt>Model id</dt><dd><code>{{ model.model_id }}</code></dd>

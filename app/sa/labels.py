@@ -39,6 +39,19 @@ CATEGORY_LABELS: dict[str, str] = {
     "urban_weakly_impervious": "Urban, weakly impervious",
 }
 
+# What each action means, for the About page; one entry per key of ACTION_LABELS.
+ACTION_MEANINGS: dict[str, str] = {
+    "valid": "No change needed",
+    "diameter_increase": "Insufficient capacity; larger diameter",
+    "diameter_reduction": "Oversized conduit; smaller diameter",
+    "slope_increase": "Velocity too low; steeper slope",
+    "slope_reduction": "Velocity too high; gentler slope",
+    "depth_increase": "Insufficient cover; deeper invert",
+    "pump": "Gravity outflow not possible; pump station",
+    "tank": "Retention to reduce peak flow",
+    "seepage_boxes": "Infiltration to relieve the network",
+}
+
 # What an absent value reads as.  The pipeline stores "-" for "no catchment".
 MISSING = "—"
 

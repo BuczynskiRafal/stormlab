@@ -6,7 +6,7 @@ from django.test import SimpleTestCase
 
 from sa.core.constants import SUBCATCHMENT_CATEGORIES
 from sa.core.enums import RecommendationCategory
-from sa.labels import ACTION_LABELS, CATEGORY_LABELS, MISSING, action_label, category_label
+from sa.labels import ACTION_LABELS, ACTION_MEANINGS, CATEGORY_LABELS, MISSING, action_label, category_label
 from stormlab.contracts.enums import RecommendationCategory as ContractRecommendationCategory
 from stormlab.contracts.enums import SubcatchmentCategory
 
@@ -20,6 +20,9 @@ class LabelCoverageTests(SimpleTestCase):
     def test_every_land_cover_class_has_a_label(self):
         self.assertEqual(set(SUBCATCHMENT_CATEGORIES), set(CATEGORY_LABELS))
         self.assertEqual({member.value for member in SubcatchmentCategory}, set(CATEGORY_LABELS))
+
+    def test_every_action_has_a_meaning_for_the_about_page(self):
+        self.assertEqual(list(ACTION_MEANINGS), list(ACTION_LABELS))
 
     def test_labels_are_sentence_case_words_without_underscores(self):
         for label in [*ACTION_LABELS.values(), *CATEGORY_LABELS.values()]:

@@ -52,9 +52,9 @@ class SWMMModelForm(forms.ModelForm):
         limit = settings.MAX_INP_BYTES
         if uploaded.size > limit:
             raise ValidationError(
-                "SWMM file is too large (%(size)d bytes; the limit is %(limit)d).",
+                "The SWMM file is too large (%(size)s MB; the limit is %(limit)s MB).",
                 code="too_large",
-                params={"size": uploaded.size, "limit": limit},
+                params={"size": _megabytes(uploaded.size, round_up=True), "limit": _megabytes(limit)},
             )
         try:
             # [OPTIONS] opens every SWMM file; one megabyte bounds the memory a hostile
@@ -64,12 +64,12 @@ class SWMMModelForm(forms.ModelForm):
             uploaded.seek(0)
         if units is None:
             raise ValidationError(
-                "SWMM file has no FLOW_UNITS in [OPTIONS]; the app requires CMS.",
+                "The SWMM file has no FLOW_UNITS in [OPTIONS]; StormLab requires CMS.",
                 code="flow_units_missing",
             )
         if units != "CMS":
             raise ValidationError(
-                "This app analyses SI models only: FLOW_UNITS must be CMS (file has %(units)s).",
+                "StormLab analyses SI models only: FLOW_UNITS must be CMS (the file has %(units)s).",
                 code="flow_units",
                 params={"units": units},
             )
@@ -81,7 +81,7 @@ class SWMMModelForm(forms.ModelForm):
             uploaded.seek(0)
         if unsafe is not None:
             raise ValidationError(
-                "SWMM file was rejected: line %(line)d has %(reason)s. "
+                "The SWMM file was rejected: line %(line)d has %(reason)s. "
                 "Uploaded models must be self-contained, without references to other files.",
                 code="unsafe_input",
                 params={"line": unsafe.line, "reason": unsafe.reason},
@@ -107,7 +107,7 @@ class SWMMModelForm(forms.ModelForm):
         elements, limit = survey.elements, settings.MAX_MODEL_ELEMENTS
         if elements > limit:
             raise ValidationError(
-                "SWMM file has %(count)d elements (conduits, nodes and subcatchments); the limit is %(limit)d.",
+                "The SWMM file has %(count)d elements (conduits, nodes and subcatchments); the limit is %(limit)d.",
                 code="too_many_elements",
                 params={"count": elements, "limit": limit},
             )
@@ -123,14 +123,14 @@ class SWMMModelForm(forms.ModelForm):
         hours, limit = period.duration_hours, settings.MAX_SIMULATION_HOURS
         if hours > limit:
             raise ValidationError(
-                "SWMM file simulates %(hours)s hours (START to END in [OPTIONS]); the limit is %(limit)d hours.",
+                "The SWMM file simulates %(hours)s (START to END in [OPTIONS]); the limit is %(limit)s.",
                 code="simulation_too_long",
-                params={"hours": f"{hours:g}" if hours < 1e6 else f"{hours:.0f}", "limit": limit},
+                params={"hours": _hours(hours), "limit": _hours(limit)},
             )
         work, limit = routing_work(elements, period), settings.MAX_ROUTING_MILLIONS * 1e6
         if work > limit:
             raise ValidationError(
-                "SWMM file asks for an estimated %(work)s million element routing steps (elements × simulated time "
+                "The SWMM file asks for an estimated %(work)s million element routing steps (elements × simulated time "
                 "÷ ROUTING_STEP); the limit is %(limit)d million. Lengthen ROUTING_STEP or shorten the simulation.",
                 code="too_much_routing",
                 params={"work": _millions(work), "limit": settings.MAX_ROUTING_MILLIONS},
@@ -138,11 +138,26 @@ class SWMMModelForm(forms.ModelForm):
         size, limit = output_bytes(elements, period), settings.MAX_OUTPUT_MB * 1e6
         if size > limit:
             raise ValidationError(
-                "SWMM file would write an estimated %(size)s MB of results (elements × report steps × about "
+                "The SWMM file would write an estimated %(size)s MB of results (elements × report steps × about "
                 "%(row)d bytes); the limit is %(limit)d MB. Lengthen REPORT_STEP or shorten the simulation.",
                 code="output_too_large",
                 params={"size": _millions(size), "row": OUTPUT_BYTES_PER_ELEMENT_STEP, "limit": settings.MAX_OUTPUT_MB},
             )
+
+
+def _hours(value: float) -> str:
+    """``204 hours``, ``1 hour``, ``168.1 hours``: whole hours as they are, anything else to one
+    decimal, rounded up so that a refused period never reads as equal to its limit."""
+    tenths = math.ceil(round(value * 10, 6))
+    number = f"{tenths // 10:,}" if tenths % 10 == 0 else f"{tenths / 10:,.1f}"
+    return f"{number} {'hour' if tenths == 10 else 'hours'}"
+
+
+def _megabytes(size: float, round_up: bool = False) -> str:
+    """``size`` bytes in MB (1024 × 1024 bytes, as the upload form states its limit), to one
+    decimal; ``round_up`` keeps a refused file from reading as within its limit."""
+    tenths = size / (1024 * 1024) * 10
+    return f"{(math.ceil(tenths) if round_up else round(tenths)) / 10:,.1f}"
 
 
 def _millions(value: float) -> str:

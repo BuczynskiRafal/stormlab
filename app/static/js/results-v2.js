@@ -719,7 +719,7 @@
 
       const scrollBtn = $('#r-scroll-columns');
       if (scrollBtn) {
-        scrollBtn.textContent = canScrollRight ? 'More columns to the right' : 'Back to first columns';
+        scrollBtn.textContent = canScrollRight ? 'More Columns to the Right' : 'Back to First Columns';
       }
     }
 
@@ -791,7 +791,7 @@
                 <strong>No matching ${schemas[active].name.toLowerCase()}</strong>
                 <p>Try refining your search or clear active filters.</p>
                 <button type="button" class="r-button" data-clear>
-                  <i class="fas fa-filter-circle-xmark me-1" aria-hidden="true"></i>Clear filters
+                  <i class="fas fa-filter-circle-xmark me-1" aria-hidden="true"></i>Clear Filters
                 </button>
               </td>
             </tr>
@@ -855,7 +855,7 @@
       const summaryEl = $('#r-filter-summary');
       if (summaryEl) {
         summaryEl.textContent = activeFilters()
-          ? `Filtered results · ${filtered.length} matches`
+          ? `Filtered results · ${filtered.length} ${filtered.length === 1 ? 'match' : 'matches'}`
           : '';
       }
 
@@ -1264,6 +1264,21 @@
       new ResizeObserver(updateOverflow).observe(overflowArea);
     }
     window.addEventListener('resize', updateOverflow);
+
+    // On a narrow screen the tab row scrolls sideways; a fade at the edge that hides
+    // more tabs says so (data-more-left / data-more-right on .r-tabs, see results-v2.css).
+    const tabRow = $('.r-tabs');
+    const tabList = $('.r-tabs-list');
+    if (tabRow && tabList) {
+      const updateTabEdges = () => {
+        const end = tabList.scrollWidth - tabList.clientWidth;
+        tabRow.dataset.moreLeft = String(tabList.scrollLeft > 1);
+        tabRow.dataset.moreRight = String(end > 1 && tabList.scrollLeft < end - 1);
+      };
+      tabList.addEventListener('scroll', updateTabEdges, { passive: true });
+      window.addEventListener('resize', updateTabEdges);
+      updateTabEdges();
+    }
   }
 
   if (document.readyState === 'loading') {

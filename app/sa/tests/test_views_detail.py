@@ -527,7 +527,7 @@ class ConduitPanelTests(TestCase):
 
         self.assertContains(response, "Total runoff (10⁶ L)")
         self.assertContains(response, "Peak runoff (m³/s)")
-        self.assertContains(response, "the app accepts FLOW_UNITS CMS only")
+        self.assertContains(response, "StormLab accepts FLOW_UNITS CMS only")
         self.assertContains(response, "<span>Max flow</span>")
         # A unit is separated from its number, the per-mille sign included.
         self.assertContains(response, " ‰</b>", count=3)

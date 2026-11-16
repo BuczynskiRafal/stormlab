@@ -107,6 +107,14 @@ class EmailAuthenticationForm(AuthenticationForm):
 
 
 class CustomUserCreationForm(UserCreationForm):
+    """Django's sign-up form on the e-mail field, with the labels the account page uses."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # "Password, again" here, "New password, again" on the account page: one wording
+        # for the repeated field instead of Django's "Password confirmation".
+        self.fields["password2"].label = "Password, again"
+
     class Meta(UserCreationForm.Meta):
         model = get_user_model()
         fields = [
