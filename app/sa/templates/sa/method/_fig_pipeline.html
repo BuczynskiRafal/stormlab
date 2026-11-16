@@ -1,0 +1,61 @@
+<figure class="method-fig method-fig--pipeline">
+  <div class="method-fig-scroll">
+    <svg viewBox="0 0 720 528" role="img" aria-labelledby="mf-pipeline-title mf-pipeline-desc" xmlns="http://www.w3.org/2000/svg">
+      <title id="mf-pipeline-title">From a model file to a recommendation</title>
+      <desc id="mf-pipeline-desc">Flow diagram. A SWMM model file (.inp) is uploaded and scanned so that the engine cannot read or write other files. It is simulated with EPA SWMM 5.2 using the options declared in the file, which produces a results report. From the results three branches run in parallel. Hydraulic verification applies 7 design checks to every conduit: filling, two velocity checks, two slope checks, depth and cover. Catchment categories come from the model&#x27;s tags or from a classifier that maps 12 inputs to 12 land-cover categories. The third branch, highlighted as the main path, builds the conduit graph, in which every conduit is a node with 66 physical features, and passes it to the graph model: 2 graph steps, 5 training runs averaged, giving the probability of each of 9 actions. All three branches end in the results: map, tables, conduit panel and CSV export, stored per analysis session.</desc>
+      <defs>
+        <marker id="mf-pipe-arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mf-head-fill" d="M0,1.5 L10,5 L0,8.5 Z"/></marker>
+        <marker id="mf-pipe-arrow-p" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mf-head-fill mf-head-fill--primary" d="M0,1.5 L10,5 L0,8.5 Z"/></marker>
+      </defs>
+      <rect class="mf-box" x="4" y="4" width="224" height="104" rx="8"/>
+      <text class="mf-title" x="20" y="30">Model file</text>
+      <text class="mf-meta" x="20" y="50">.inp · self-contained</text>
+      <text class="mf-body" x="20" y="72">Scanned on upload so the engine</text>
+      <text class="mf-body" x="20" y="89">cannot read or write other files.</text>
+      <rect class="mf-box" x="248" y="4" width="224" height="104" rx="8"/>
+      <text class="mf-title" x="264" y="30">Simulation</text>
+      <text class="mf-meta" x="264" y="50">EPA SWMM 5.2</text>
+      <text class="mf-body" x="264" y="72">Runs with the options declared</text>
+      <text class="mf-body" x="264" y="89">in the file.</text>
+      <path class="mf-line mf-line--primary" d="M228,56.0 H245.3" marker-end="url(#mf-pipe-arrow-p)"/>
+      <path class="mf-line mf-line--primary" d="M508,30 h28" marker-end="url(#mf-pipe-arrow-p)"/>
+      <text class="mf-body" x="548" y="34">graph-model path</text>
+      <path class="mf-line" d="M508,56 h28" marker-end="url(#mf-pipe-arrow)"/>
+      <text class="mf-body" x="548" y="60">checks and categories</text>
+      <path class="mf-line mf-line--primary" d="M360.0,108 V140 H604.0 V165.3" marker-end="url(#mf-pipe-arrow-p)"/>
+      <path class="mf-line" d="M360.0,140 H116.0 V165.3" marker-end="url(#mf-pipe-arrow)"/>
+      <path class="mf-line" d="M360.0,140 V165.3" marker-end="url(#mf-pipe-arrow)"/>
+      <circle class="mf-dot" cx="360" cy="140" r="3"/>
+      <text class="mf-meta" x="370" y="128">results report</text>
+      <rect class="mf-box" x="4" y="168" width="224" height="104" rx="8"/>
+      <text class="mf-title" x="20" y="194">Hydraulic verification</text>
+      <text class="mf-meta" x="20" y="214">7 design checks per conduit</text>
+      <text class="mf-body" x="20" y="236">filling, velocity ×2, slope ×2,</text>
+      <text class="mf-body" x="20" y="253">depth, cover</text>
+      <rect class="mf-box" x="248" y="168" width="224" height="104" rx="8"/>
+      <text class="mf-title" x="264" y="194">Catchment categories</text>
+      <text class="mf-meta" x="264" y="214">12 inputs → 12 categories</text>
+      <text class="mf-body" x="264" y="236">Land cover from the model&#x27;s tags,</text>
+      <text class="mf-body" x="264" y="253">or else from a classifier.</text>
+      <rect class="mf-box mf-box--primary" x="492" y="168" width="224" height="104" rx="8"/>
+      <text class="mf-title mf-title--primary" x="508" y="194">Conduit graph + features</text>
+      <text class="mf-meta mf-meta--primary" x="508" y="214">66 features per conduit</text>
+      <text class="mf-body" x="508" y="236">Every conduit becomes a node,</text>
+      <text class="mf-body" x="508" y="253">described by physical features.</text>
+      <path class="mf-line mf-line--primary" d="M604.0,272 V301.3" marker-end="url(#mf-pipe-arrow-p)"/>
+      <rect class="mf-box mf-box--primary" x="492" y="304" width="224" height="104" rx="8"/>
+      <text class="mf-title mf-title--primary" x="508" y="330">Graph model</text>
+      <text class="mf-meta mf-meta--primary" x="508" y="350">2 graph steps · 5 runs</text>
+      <text class="mf-body" x="508" y="372">Mean over the runs: probability</text>
+      <text class="mf-body" x="508" y="389">of each of 9 actions.</text>
+      <path class="mf-line" d="M116.0,272 V437.3" marker-end="url(#mf-pipe-arrow)"/>
+      <path class="mf-line" d="M360.0,272 V437.3" marker-end="url(#mf-pipe-arrow)"/>
+      <path class="mf-line mf-line--primary" d="M604.0,408 V437.3" marker-end="url(#mf-pipe-arrow-p)"/>
+      <rect class="mf-box" x="4" y="440" width="712" height="84" rx="8"/>
+      <text class="mf-title" x="20" y="466">Results</text>
+      <text class="mf-meta" x="20" y="486">map · tables · conduit panel · CSV export</text>
+      <text class="mf-body" x="20" y="508">Stored per analysis; the map, tables and panels read from it.</text>
+    </svg>
+  </div>
+  <figcaption><strong>Figure 1.</strong> One analysis, from upload to results. The simulation supplies the physics; the models only read its outcome.</figcaption>
+</figure>
