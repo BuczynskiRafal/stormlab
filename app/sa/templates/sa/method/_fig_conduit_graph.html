@@ -1,0 +1,82 @@
+<figure class="method-fig method-fig--conduit-graph">
+  {# Two panels, two SVGs: side by side on a wide screen, stacked below 640 px, so the right panel never hides behind a scroller. The right SVG keeps the coordinates of the original single drawing through its viewBox origin (392). #}
+  <div class="method-fig-panels">
+    <svg class="method-fig-panel method-fig-panel--network" viewBox="0 0 266 334" role="img" aria-labelledby="mf-conduit-graph-title mf-conduit-graph-desc" xmlns="http://www.w3.org/2000/svg">
+      <title id="mf-conduit-graph-title">The same network, two ways</title>
+      <desc id="mf-conduit-graph-desc">Two panels. Left, a sewer network in plan: six conduits labelled a to f join seven nodes, six manholes and an outfall. Conduits a, b and c form one branch and d and e a second; both meet in a manhole from which conduit f runs to the outfall. Arrows on the conduits show the flow direction. Right, the same network as the graph the model sees: each conduit is a node, and a directed edge joins two conduits when the outlet manhole of one is the inlet manhole of the next, giving edges a to b, b to c, d to e, c to f and e to f. Conduit f is the one being assessed; c and e are one link upstream of it, b and d two links upstream, and a lies beyond the reach of one graph step.</desc>
+      <defs>
+        <marker id="mf-graph-pipe-head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mf-pipe-head" d="M0,1.5 L10,5 L0,8.5 Z"/></marker>
+      </defs>
+      <text class="mf-head" x="0" y="18">Sewer network</text>
+      <path class="mf-rule" d="M0,32 H262"/>
+      <polyline class="mf-pipe" points="22,84 58,80 94,76" marker-mid="url(#mf-graph-pipe-head)"/>
+      <text class="mf-label" x="58" y="68" text-anchor="middle">a</text>
+      <polyline class="mf-pipe" points="94,76 125,94 156,112" marker-mid="url(#mf-graph-pipe-head)"/>
+      <text class="mf-label" x="135" y="84" text-anchor="middle">b</text>
+      <polyline class="mf-pipe" points="156,112 176,143 196,174" marker-mid="url(#mf-graph-pipe-head)"/>
+      <text class="mf-label" x="188" y="145" text-anchor="middle">c</text>
+      <polyline class="mf-pipe" points="28,240 69,235 110,230" marker-mid="url(#mf-graph-pipe-head)"/>
+      <text class="mf-label" x="69" y="257" text-anchor="middle">d</text>
+      <polyline class="mf-pipe" points="110,230 153,202 196,174" marker-mid="url(#mf-graph-pipe-head)"/>
+      <text class="mf-label" x="161" y="224" text-anchor="middle">e</text>
+      <polyline class="mf-pipe" points="196,174 221,174 246,174" marker-mid="url(#mf-graph-pipe-head)"/>
+      <text class="mf-label" x="221" y="162" text-anchor="middle">f</text>
+      <circle class="mf-manhole" cx="22" cy="84" r="5.5"/>
+      <circle class="mf-manhole" cx="94" cy="76" r="5.5"/>
+      <circle class="mf-manhole" cx="156" cy="112" r="5.5"/>
+      <circle class="mf-manhole" cx="196" cy="174" r="5.5"/>
+      <circle class="mf-manhole" cx="28" cy="240" r="5.5"/>
+      <circle class="mf-manhole" cx="110" cy="230" r="5.5"/>
+      <path class="mf-outfall" d="M245,166 L258,174 L245,182 Z"/>
+      <circle class="mf-manhole" cx="6" cy="296" r="5.5"/>
+      <text class="mf-body" x="20" y="300">manhole</text>
+      <path class="mf-outfall" d="M97,288 L110,296 L97,304 Z"/>
+      <text class="mf-body" x="118" y="300">outfall</text>
+      <polyline class="mf-pipe" points="0,322 12,322 24,322" marker-mid="url(#mf-graph-pipe-head)"/>
+      <text class="mf-body" x="34" y="326">conduit, flow direction</text>
+    </svg>
+    <svg class="method-fig-panel method-fig-panel--becomes" viewBox="0 0 110 40" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="mf-graph-arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mf-head-fill" d="M0,1.5 L10,5 L0,8.5 Z"/></marker>
+      </defs>
+      <text class="mf-note" x="55" y="14" text-anchor="middle">becomes</text>
+      <path class="mf-line" d="M14,26 H97.3" marker-end="url(#mf-graph-arrow)"/>
+    </svg>
+    <p class="method-fig-becomes" aria-hidden="true">becomes</p>
+    <svg class="method-fig-panel method-fig-panel--graph" viewBox="392 0 328 334" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="mf-graph-edge-hop1" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mf-edge-head--hop1" d="M0,1.5 L10,5 L0,8.5 Z"/></marker>
+        <marker id="mf-graph-edge-hop2" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mf-edge-head--hop2" d="M0,1.5 L10,5 L0,8.5 Z"/></marker>
+        <marker id="mf-graph-edge-far" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mf-edge-head--far" d="M0,1.5 L10,5 L0,8.5 Z"/></marker>
+      </defs>
+      <text class="mf-head" x="392" y="18">Graph the model sees</text>
+      <path class="mf-rule" d="M392,32 H720"/>
+      <path class="mf-edge mf-edge--far" d="M478.6,83.5 L509.7,90" marker-end="url(#mf-graph-edge-far)"/>
+      <path class="mf-edge mf-edge--hop2" d="M541.3,105.8 L565.8,129.4" marker-end="url(#mf-graph-edge-hop2)"/>
+      <path class="mf-edge mf-edge--hop2" d="M488.8,228.8 L538.7,209.2" marker-end="url(#mf-graph-edge-hop2)"/>
+      <path class="mf-edge mf-edge--hop1" d="M594.5,151.8 L614.2,163.8" marker-end="url(#mf-graph-edge-hop1)"/>
+      <path class="mf-edge mf-edge--hop1" d="M572.9,196 L612.6,181" marker-end="url(#mf-graph-edge-hop1)"/>
+      <circle class="mf-node mf-node--far" cx="462" cy="80" r="15"/>
+      <text class="mf-node-label mf-node-label--far" x="462" y="80" dy="4.5" text-anchor="middle">a</text>
+      <circle class="mf-node mf-node--hop2" cx="529" cy="94" r="15"/>
+      <text class="mf-node-label" x="529" y="94" dy="4.5" text-anchor="middle">b</text>
+      <circle class="mf-node mf-node--hop1" cx="580" cy="143" r="15"/>
+      <text class="mf-node-label mf-node-label--inverse" x="580" y="143" dy="4.5" text-anchor="middle">c</text>
+      <circle class="mf-node mf-node--hop2" cx="473" cy="235" r="15"/>
+      <text class="mf-node-label" x="473" y="235" dy="4.5" text-anchor="middle">d</text>
+      <circle class="mf-node mf-node--hop1" cx="557" cy="202" r="15"/>
+      <text class="mf-node-label mf-node-label--inverse" x="557" y="202" dy="4.5" text-anchor="middle">e</text>
+      <circle class="mf-node mf-node--self" cx="631" cy="174" r="15"/>
+      <text class="mf-node-label mf-node-label--inverse" x="631" y="174" dy="4.5" text-anchor="middle">f</text>
+      <circle class="mf-node mf-node--self" cx="398" cy="296" r="6"/>
+      <text class="mf-body" x="412" y="300">conduit being assessed</text>
+      <circle class="mf-node mf-node--hop1" cx="570" cy="296" r="6"/>
+      <text class="mf-body" x="584" y="300">one link upstream</text>
+      <circle class="mf-node mf-node--hop2" cx="398" cy="322" r="6"/>
+      <text class="mf-body" x="412" y="326">two links upstream</text>
+      <circle class="mf-node mf-node--far" cx="570" cy="322" r="6"/>
+      <text class="mf-body" x="584" y="326">beyond one step</text>
+    </svg>
+  </div>
+  <figcaption><strong>Figure 2.</strong> Conduits become nodes; an edge joins two conduits that meet in a manhole and points with the flow. For conduit f, one graph step averages over f itself, c and e, and with a smaller weight b and d.</figcaption>
+</figure>

@@ -40,18 +40,22 @@ const {
   placeLabels,
   cardRows,
   symbolsCrowded,
-  resolveLabels
+  resolveLabels,
+  legendEntries,
+  labelFitPadding
 } = nm;
 
-// The exported surface is a contract: twenty-three names, including clampCardPos and
+// The exported surface is a contract: twenty-four names, including clampCardPos and
 // writeMapPrefs (the selection card can be dragged and the preferences have a second
 // field), outletPath (the outline of a subcatchment's outlet line), placeLabels
 // (the placement solver), cardRows (the values of the selection card),
-// symbolsCrowded (the density that hides the node symbols and their names) and
-// resolveLabels (the names setting a network opens with).
+// symbolsCrowded (the density that hides the node symbols and their names),
+// resolveLabels (the names setting a network opens with), legendEntries (the
+// entries of each colour mode, labelled from the payload) and labelFitPadding (the
+// room a fitted view keeps for the names at its edges).
 // A name that quietly stops being exported takes its whole group with it and the run
 // would still end green without this line.
-assert.strictEqual(Object.keys(nm).length, 23, 'network-map.js must export exactly twenty-three names');
+assert.strictEqual(Object.keys(nm).length, 25, 'network-map.js must export exactly twenty-five names');
 
 let passed = 0;
 
@@ -82,8 +86,10 @@ group('fitViewBox keeps the drawing inside the box, margin included', () => {
   // 3 % of the longer side is 6 drawing units; at 4 px per unit 8 screen pixels are
   // 2 units, so the fraction wins here and the floor wins on a small container.
   near(box.w, 212, 1e-9, 'the fractional margin must win on a large container');
+  // The pixels are measured at the scale the drawing is shown with its margin: the
+  // height decides here, (40 - 2 * 8) / 100 = 0.24 px per unit.
   const tight = fitViewBox({ w: 200, h: 100 }, 8, { w: 80, h: 40 });
-  near(tight.w, 200 + 2 * (8 / 0.4), 1e-9, 'the pixel floor must win on a small container');
+  near(tight.w, 200 + 2 * (8 / 0.24), 1e-9, 'the pixel floor must win on a small container');
 
   // Every degenerate input has to come back finite: a NaN here reaches the DOM as
   // viewBox="NaN NaN NaN NaN" and the map silently disappears.
@@ -97,6 +103,45 @@ group('fitViewBox keeps the drawing inside the box, margin included', () => {
     });
     assert.ok(fallback.w > 0 && fallback.h > 0, 'a degenerate bbox must still give a drawable box');
   });
+});
+
+group('a fitted view keeps the names of the outermost elements inside the frame', () => {
+  // The schematic demo network on a phone: its node names stand beside the nodes, so
+  // the outer column puts them outside the drawing.  With PAD_MIN_PX alone the frame
+  // cut "J2" on the left and the names of the right-hand column.
+  const bbox = { w: 5, h: 6 };
+  const boxes = [{ w: 14, h: 14 }, { w: 21, h: 14 }, { w: 27, h: 14 }];
+  const pad = labelFitPadding(boxes);
+  const ring = 3.5 * Math.SQRT2 + 2;
+  near(pad.x, 8 + 27 + ring, 1e-9, 'the widest name, the symbol and the margin on the sides');
+  near(pad.y, 8 + 14 + ring, 1e-9, 'the tallest name, the symbol and the margin above and below');
+
+  /** Screen pixels between the drawing and each edge of a meet-fitted canvas. */
+  const margins = (box, size) => {
+    const scale = Math.min(size.w / box.w, size.h / box.h);
+    const offX = (size.w - box.w * scale) / 2;
+    const offY = (size.h - box.h * scale) / 2;
+    const left = offX + (0 - box.x) * scale;
+    const top = offY + (0 - box.y) * scale;
+    return { left: left, right: size.w - left - bbox.w * scale, top: top, bottom: size.h - top - bbox.h * scale };
+  };
+  // Portrait phones and tablets, a phone held sideways, a desktop.
+  [{ w: 328, h: 450 }, { w: 336, h: 523 }, { w: 470, h: 468 }, { w: 662, h: 623 }, { w: 812, h: 200 }, { w: 1334, h: 522 }].forEach(size => {
+    const m = margins(fitViewBox(bbox, pad, size), size);
+    assert.ok(m.left >= pad.x - 1e-9 && m.right >= pad.x - 1e-9, `${size.w}x${size.h}: room for a name on either side`);
+    assert.ok(m.top >= pad.y - 1e-9 && m.bottom >= pad.y - 1e-9, `${size.w}x${size.h}: room for a name above and below`);
+  });
+  // What the regression looked like: the floor alone leaves less than one name.
+  const before = margins(fitViewBox(bbox, 8, { w: 336, h: 523 }), { w: 336, h: 523 });
+  assert.ok(before.left < 27, 'PAD_MIN_PX alone does not hold the widest name');
+
+  // One very long name cannot shrink the drawing to nothing; without names the floor stays.
+  near(labelFitPadding([{ w: 400, h: 14 }]).x, 8 + 64, 1e-9, 'the allowance is capped');
+  assert.deepStrictEqual(labelFitPadding([]), { x: 8, y: 8 }, 'no names, no allowance');
+  assert.deepStrictEqual(labelFitPadding(null), { x: 8, y: 8 }, 'nothing measured, no allowance');
+  // A container smaller than the margin still gets a finite, drawable box.
+  const cramped = fitViewBox(bbox, pad, { w: 60, h: 40 });
+  ['x', 'y', 'w', 'h'].forEach(key => assert.ok(Number.isFinite(cramped[key]), `cramped ${key} must be finite`));
 });
 
 // ---------------------------------------------------------------------------
@@ -1354,17 +1399,17 @@ group('placeLabels puts a subcatchment name on its centroid', () => {
 // ---------------------------------------------------------------------------
 group('cardRows lists the card values in order, in table units and digits', () => {
   const conduit = {
-    recommendation_label: 'Increase diameter', recommendation: 'diameter_increase', confidence: 87.46,
+    recommendation_label: 'Increase diameter', action_label: 'Increase diameter', recommendation: 'diameter_increase', confidence: 87.46,
     validation: 5, filling: 0.33, diameter: 0.6, fillPercent: 55, flow: 0.0042, velocity: 1.234,
     slope: 3.5, length: 1245.371, detail_url: '/x/'
   };
   assert.deepStrictEqual(cardRows('link', conduit), [
     ['Recommendation', 'Increase diameter'],
-    ['Model confidence', '87.5 %'],
+    ['Model score', '87.5%'],
     ['Checks passed', '5 / 7'],
-    ['Filling', '55 % (0.330 m)'],
-    ['Max. flow', '0.004 m\u00b3/s'],
-    ['Max. velocity', '1.23 m/s'],
+    ['Filling', '55% (0.330 m)'],
+    ['Max flow', '0.004 m\u00b3/s'],
+    ['Max velocity', '1.23 m/s'],
     ['Diameter', '0.600 m'],
     ['Slope', '3.50 \u2030'],
     ['Length', '1,245.37 m']
@@ -1374,26 +1419,33 @@ group('cardRows lists the card values in order, in table units and digits', () =
   assert.deepStrictEqual(cardRows('node', node), [
     ['Ground elevation', '245.30 m'],
     ['Node invert', '243.00 m'],
-    ['Node depth', '2.30 m'],
-    ['Max. water depth', '0.50 m'],
-    ['Flooding volume', '4.0 m\u00b3'],
-    ['Flooding duration', '0.01 h']
+    ['Manhole depth', '2.30 m'],
+    ['Max water depth', '0.50 m'],
+    ['Flood volume', '4.0 m\u00b3'],
+    ['Flood duration', '0.01 h']
   ], 'the flooding volume is converted from millions of litres into cubic metres');
 
   const catchment = {
-    category: 'urban_weakly_impervious', outlet: 'J1', area: 1.2345, impervious: 45.25, slope: 3.5,
+    category: 'urban_weakly_impervious', category_label: 'Urban, weakly impervious', outlet: 'J1', area: 1.2345, impervious: 45.25, slope: 3.5,
     peak: 0.31, runoff: 0.1234, coefficient: 0.456
   };
   assert.deepStrictEqual(cardRows('poly', catchment), [
-    ['Category', 'urban_weakly_impervious'],
+    ['Category', 'Urban, weakly impervious'],
     ['Outlet node', 'J1'],
     ['Area', '1.235 ha'],
-    ['Imperviousness', '45.3 %'],
-    ['Slope', '3.50 %'],
+    ['Imperviousness', '45.3%'],
+    ['Slope', '3.50%'],
     ['Peak runoff', '0.310 m\u00b3/s'],
     ['Total runoff', '123.4 m\u00b3'],
     ['Runoff coefficient', '0.456']
   ], 'the total runoff is converted like the flooding volume');
+});
+
+group('cardRows says a diameter outside 0.2-2.0 m was not assessed', () => {
+  const found = row => cardRows('link', row).find(pair => pair[0] === 'Diameter');
+  assert.deepStrictEqual(found({ diameter: 2.5, limits_assessed: false }), ['Diameter', '2.500 m (outside 0.2–2.0 m, not assessed)']);
+  assert.deepStrictEqual(found({ diameter: 0.6, limits_assessed: true }), ['Diameter', '0.600 m']);
+  assert.strictEqual(found({ limits_assessed: false }), undefined, 'no diameter, no row');
 });
 
 group('cardRows leaves a missing value out and composes the filling from what is there', () => {
@@ -1404,13 +1456,13 @@ group('cardRows leaves a missing value out and composes the filling from what is
   };
 
   // A tiny value keeps its digits instead of reading as zero.
-  assert.deepStrictEqual(cardRows('link', { flow: 0.004 }), [['Max. flow', '0.004 m\u00b3/s']]);
+  assert.deepStrictEqual(cardRows('link', { flow: 0.004 }), [['Max flow', '0.004 m\u00b3/s']]);
 
   // The percent is sent as 0 when it could not be computed, so it needs its inputs.
-  assert.strictEqual(filling({ filling: 0.33, diameter: 0.6, fillPercent: 55 }), '55 % (0.330 m)');
+  assert.strictEqual(filling({ filling: 0.33, diameter: 0.6, fillPercent: 55 }), '55% (0.330 m)');
   assert.strictEqual(filling({ filling: 0.33, fillPercent: 0 }), '0.330 m', 'no diameter: the depth alone');
-  assert.strictEqual(filling({ diameter: 0.6, fillPercent: 0 }), null, 'no depth: no filling at all, not a false 0 %');
-  assert.strictEqual(filling({ filling: 0, diameter: 0.6, fillPercent: 0 }), '0 % (0.000 m)', 'a dry conduit is a real zero');
+  assert.strictEqual(filling({ diameter: 0.6, fillPercent: 0 }), null, 'no depth: no filling at all, not a false 0%');
+  assert.strictEqual(filling({ filling: 0, diameter: 0.6, fillPercent: 0 }), '0% (0.000 m)', 'a dry conduit is a real zero');
   assert.strictEqual(filling({ filling: 0.33, diameter: 0.6 }), '0.330 m', 'no percent sent: the depth alone');
 
   // Checks passed is a whole count between 0 and 7.
@@ -1422,9 +1474,11 @@ group('cardRows leaves a missing value out and composes the filling from what is
 
   // null, a string where a number belongs, NaN and the placeholders of an absent text
   // leave the row out; zero is a value.
-  assert.deepStrictEqual(labels(cardRows('node', { ground: null, invert: '243', depth: NaN, waterDepth: 0, floodVolume: Infinity })), ['Max. water depth']);
-  assert.deepStrictEqual(cardRows('poly', { category: '-', outlet: '' }), []);
-  assert.deepStrictEqual(cardRows('link', { recommendation_label: '\u2014', confidence: null }), []);
+  assert.deepStrictEqual(labels(cardRows('node', { ground: null, invert: '243', depth: NaN, waterDepth: 0, floodVolume: Infinity })), ['Max water depth']);
+  assert.deepStrictEqual(cardRows('poly', { category: '-', category_label: '\u2014', outlet: '' }), []);
+  assert.deepStrictEqual(cardRows('poly', { category: 'urban_weakly_impervious' }), [], 'the code alone is never shown');
+  assert.deepStrictEqual(cardRows('link', { action_label: '\u2014', confidence: null }), []);
+  assert.deepStrictEqual(cardRows('link', { recommendation_label: 'No changes needed' }), [], 'the card reads action_label only');
 
   // Nothing to show at all.
   assert.deepStrictEqual(cardRows('link', null), []);
@@ -1432,7 +1486,35 @@ group('cardRows leaves a missing value out and composes the filling from what is
   assert.deepStrictEqual(cardRows('toString', { flow: 1 }), [], 'an inherited member is not a kind');
 });
 
+// ---------------------------------------------------------------------------
+// 18. legendEntries - the labels come from the payload, the classes from the module
+// ---------------------------------------------------------------------------
+group('legendEntries labels the recommendation mode from the payload and spells out the rest', () => {
+  const actions = {
+    valid: 'No changes', diameter_increase: 'Increase diameter', diameter_reduction: 'Reduce diameter',
+    slope_increase: 'Increase slope', slope_reduction: 'Reduce slope', depth_increase: 'Increase depth',
+    pump: 'Pump station', tank: 'Retention tank', seepage_boxes: 'Seepage boxes'
+  };
+  const entries = legendEntries('recommendation', actions);
+  assert.strictEqual(entries.length, 10, 'nine classes and the grey one');
+  assert.deepStrictEqual(entries[0], ['nm-c-valid', 'No changes']);
+  assert.deepStrictEqual(entries[8], ['nm-c-seepage_boxes', 'Seepage boxes']);
+  assert.deepStrictEqual(entries[9], ['nm-nodata', 'No data']);
+  // Without the payload block a code still reads as words, never with an underscore.
+  const bare = legendEntries('recommendation', null);
+  assert.deepStrictEqual(bare[1], ['nm-c-diameter_increase', 'Diameter increase']);
+  assert.ok(bare.every(entry => entry[1].indexOf('_') === -1), 'no legend entry may show a code');
+  assert.deepStrictEqual(legendEntries('recommendation', { toString: 'x' })[0], ['nm-c-valid', 'Valid'], 'inherited names are no labels');
+  // The other two modes need no payload.
+  assert.deepStrictEqual(legendEntries('validity', actions)[0], ['nm-v-0', '0 / 7 checks passed']);
+  const filling = legendEntries('filling', null);
+  assert.strictEqual(filling.length, 6);
+  // En dashes for the ranges, no space before the percent sign, a real ">=".
+  assert.deepStrictEqual(filling.map(entry => entry[1]),
+    ['0\u201325%', '25\u201350%', '50\u201375%', '75\u2013100%', 'Full (\u2265 100%)', 'No data']);
+});
+
 console.log('------------------------------------------------------------');
-console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 27 PASSED)`);
+console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 30 PASSED)`);
 console.log('------------------------------------------------------------');
-assert.strictEqual(passed, 27, 'every group must have run');
+assert.strictEqual(passed, 30, 'every group must have run');

@@ -36,6 +36,19 @@ logger = logging.getLogger(__name__)
 _CANONICAL_MAX_SLOPE = max_slope
 
 
+def diameter_assessed(diameter: object) -> bool:
+    """Whether the design criteria cover this diameter: 0.20 to 2.00 m, the range they are tabulated for.
+
+    Outside it the slope limits and the diameter and slope suggestions are not assessed
+    (``NaN``), and the checks that need them do not pass.
+    """
+    try:
+        value = float(diameter)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+    return common_diameters[0] <= value <= common_diameters[-1]
+
+
 class ConduitFeatureEngineeringService:
     def __init__(self, dfc: pd.DataFrame, dfn: pd.DataFrame, frost_zone: float):
         self.dfc = dfc
@@ -84,7 +97,8 @@ class ConduitFeatureEngineeringService:
 
     def slopes_is_valid(self) -> None:
         if self.dfc is not None:
-            # Use the same functions as in normalize_slope for consistency
+            # Use the same functions as in normalize_slope for consistency. A limit that was
+            # not assessed (NaN) compares false, so its check does not pass.
             self.dfc["ValMaxSlope"] = self.dfc.apply(lambda r: 1 if r["SlopePerMile"] <= r["MaxAllowableSlope"] else 0, axis=1)
             self.dfc["ValMinSlope"] = self.dfc.apply(lambda r: 1 if r["SlopePerMile"] >= r["MinRequiredSlope"] else 0, axis=1)
 
@@ -231,6 +245,10 @@ class ConduitFeatureEngineeringService:
             return current_diam
 
         def find_min_diam(row: pd.Series) -> float:
+            # A diameter the criteria do not cover gets no suggestion rather than its own size.
+            if not diameter_assessed(row["Geom1"]):
+                return float("nan")
+
             # Step 1: Handle rows where filling already exceeds limits
             if row.get("ValMaxFill", 0) != 1:
                 return handle_excessive_filling(row)
@@ -307,14 +325,17 @@ class ConduitFeatureEngineeringService:
         minimum diameter (MinDiameter).
         """
         if self.dfc is not None:
+            # A conduit without a minimum diameter (not assessed) gets no suggestion either.
+            assessed = self.dfc["MinDiameter"].notna()
+
             # Check if current diameter equals calculated minimum diameter
-            self.dfc["isMinDiameter"] = np.where(self.dfc["Geom1"] == self.dfc["MinDiameter"], 1, 0)
+            self.dfc["isMinDiameter"] = np.where(assessed, np.where(self.dfc["Geom1"] == self.dfc["MinDiameter"], 1, 0), np.nan)
 
             # Check if current diameter is too small and should be increased
-            self.dfc["IncreaseDia"] = np.where(self.dfc["Geom1"] < self.dfc["MinDiameter"], 1, 0)
+            self.dfc["IncreaseDia"] = np.where(assessed, np.where(self.dfc["Geom1"] < self.dfc["MinDiameter"], 1, 0), np.nan)
 
             # Check if current diameter is larger than necessary and could be reduced
-            self.dfc["ReduceDia"] = np.where(self.dfc["Geom1"] > self.dfc["MinDiameter"], 1, 0)
+            self.dfc["ReduceDia"] = np.where(assessed, np.where(self.dfc["Geom1"] > self.dfc["MinDiameter"], 1, 0), np.nan)
 
     def normalize_roughness(self) -> None:
         """
@@ -480,17 +501,19 @@ class ConduitFeatureEngineeringService:
 
     @staticmethod
     def _safe_min_slope(filling: float, diameter: float) -> float:
-        """Compute minimum required slope [‰] while clamping surcharged or NaN filling heights."""
-        if not pd.isna(diameter) and 0.2 <= float(diameter) <= 2.0:
-            safe_d = float(diameter)
-            safe_f = 0.0 if pd.isna(filling) else float(np.clip(float(filling), 0.0, safe_d))
-            return float(min_slope(safe_f, safe_d))
-        return float(min_slope(filling, diameter))
+        """Minimum required slope [‰], clamping surcharged or NaN filling heights; ``NaN`` when not assessed."""
+        if not diameter_assessed(diameter):
+            return float("nan")
+        safe_d = float(diameter)
+        safe_f = 0.0 if pd.isna(filling) else float(np.clip(float(filling), 0.0, safe_d))
+        return float(min_slope(safe_f, safe_d))
 
     @staticmethod
     def _fast_max_slope(diameter: float) -> float:
-        """Return maximum allowable slope [‰], using precomputed lookup for catalog diameters."""
-        if max_slope is _CANONICAL_MAX_SLOPE and not pd.isna(diameter):
+        """Maximum allowable slope [‰], from the lookup for catalog diameters; ``NaN`` when not assessed."""
+        if not diameter_assessed(diameter):
+            return float("nan")
+        if max_slope is _CANONICAL_MAX_SLOPE:
             cached = max_slopes.get(str(round(float(diameter), 2)))
             if cached is not None:
                 return float(cached)
@@ -528,6 +551,8 @@ class ConduitFeatureEngineeringService:
 
             if pd.isna(actual_slope):
                 return 0.0
+            if pd.isna(min_slope_val) or pd.isna(max_slope_val):
+                return float("nan")  # the diameter is outside the range the limits cover
 
             # Handle edge cases
             if min_slope_val >= max_slope_val:  # If min and max are too close
@@ -562,8 +587,10 @@ class ConduitFeatureEngineeringService:
         if "MinRequiredSlope" not in self.dfc.columns:
             self.dfc["MinRequiredSlope"] = self.dfc.apply(lambda r: self._safe_min_slope(r["Filling"], r["Geom1"]), axis=1)
 
-        # Check if current slope is less than minimum required slope
-        self.dfc["IncreaseSlope"] = np.where(self.dfc["SlopePerMile"] < self.dfc["MinRequiredSlope"], 1, 0)
+        # Check if current slope is less than minimum required slope; no suggestion when not assessed
+        self.dfc["IncreaseSlope"] = np.where(
+            self.dfc["MinRequiredSlope"].notna(), np.where(self.dfc["SlopePerMile"] < self.dfc["MinRequiredSlope"], 1, 0), np.nan
+        )
 
     def slope_reduction(self) -> None:
         """
@@ -583,8 +610,12 @@ class ConduitFeatureEngineeringService:
         if "MaxAllowableSlope" not in self.dfc.columns:
             self.dfc["MaxAllowableSlope"] = self.dfc.apply(lambda r: self._fast_max_slope(r["Geom1"]), axis=1)
 
-        # Check if current slope is greater than maximum allowable slope
-        self.dfc["ReduceSlope"] = np.where(self.dfc["SlopePerMile"] > self.dfc["MaxAllowableSlope"], 1, 0)
+        # Check if current slope is greater than maximum allowable slope; no suggestion when not assessed
+        self.dfc["ReduceSlope"] = np.where(
+            self.dfc["MaxAllowableSlope"].notna(),
+            np.where(self.dfc["SlopePerMile"] > self.dfc["MaxAllowableSlope"], 1, 0),
+            np.nan,
+        )
 
     def conduits_subcatchment_info(self) -> None:
         """
@@ -777,7 +808,11 @@ class RecommendationService:
 
                     if self.inp_path and self.rpt_path and os.path.isfile(self.inp_path) and os.path.isfile(self.rpt_path):
                         config = load_config(check_inputs=False)
-                        phys_df = extract_physical_features(self.inp_path, self.rpt_path, config=config, file_id="app_serving")
+                        # A user's [TAGS] may hold any label; one that names no land cover
+                        # class is read as no tag, as the catchment classifier reads it.
+                        phys_df = extract_physical_features(
+                            self.inp_path, self.rpt_path, config=config, file_id="app_serving", foreign_tags_untagged=True
+                        )
                         phys_indexed = phys_df.set_index("conduit").loc[:, list(FEATURE_CONTRACT_V4_PHYSICAL.columns)].copy()
                     else:
                         phys_indexed = pd.DataFrame(index=order)

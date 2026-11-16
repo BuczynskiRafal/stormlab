@@ -1,4 +1,9 @@
-"""GNN feature contract (33 features) for serving."""
+"""The 33 feature columns of the legacy model path.
+
+Read only when a GNN weight file is loaded without a specification (``GraphSAGEModel``
+in ``graph_constructor.py``). The shipped model has a specification and reads the 66
+columns of ``v4_physical`` (``stormlab/contracts/features.py``) instead.
+"""
 
 
 def get_default_feature_columns():

@@ -1,0 +1,16 @@
+{% comment %}
+Fields of one account-page form. Django 5 links each input to its help text
+(``<auto_id>_helptext``) and to its errors (``<auto_id>_error``) through
+aria-describedby and sets aria-invalid on a field with errors; the ids below match.
+{% endcomment %}
+{% if form.non_field_errors %}
+<div class="account-form-error">{{ form.non_field_errors|join:" " }}</div>
+{% endif %}
+{% for field in form %}
+<div class="account-field{% if field.errors %} has-error{% endif %}">
+    <label class="account-label" for="{{ field.id_for_label }}">{{ field.label }}{% if not field.field.required %} <span class="account-optional">(optional)</span>{% endif %}</label>
+    {{ field }}
+    {% if field.help_text %}<div class="account-help" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</div>{% endif %}
+    {% if field.errors %}<div class="account-error" id="{{ field.auto_id }}_error">{{ field.errors|join:" " }}</div>{% endif %}
+</div>
+{% endfor %}

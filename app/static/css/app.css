@@ -1,29 +1,29 @@
 /*
- * app.css - jeden arkusz stylów aplikacji.
- * Powstał ze scalenia style.css (warstwa bazowa) i academic-theme.css (motyw);
- * kolejność sekcji odtwarza dawną kolejność ładowania, więc kaskada jest
- * identyczna jak przed scaleniem. Ładowany po Bootstrapie 5.1.3.
+ * app.css - the one stylesheet of the application.
+ * It was made by merging style.css (the base layer) and academic-theme.css (the
+ * theme); the order of the sections repeats the former loading order, so the
+ * cascade is the same as before the merge. Loaded after Bootstrap 5.1.3.
  *
- * Typografia: Source Serif 4 (nagłówki) + Source Sans 3 (treść) + JetBrains Mono
- * (liczby); rodziny wczytuje jeden <link> w base.html, nie reguła importu CSS.
+ * Typography: Source Serif 4 (headings) + Source Sans 3 (text) + JetBrains Mono
+ * (numbers); one <link> in base.html loads the families, not a CSS import rule.
  */
 
 /* ============================================================
-   TOKENY
+   TOKENS
    ============================================================ */
 
 :root {
-    /* Pozostałości warstwy bazowej (dawny style.css): tylko te nazwy, które nadal
-       czyta któraś reguła w tym pliku - konsument jest wypisany przy każdej grupie.
-       Dawna skala odstępów jest teraz literałami w regułach, a dawne barwy widgetu
-       wgrywania pliku i skala promieni pochodzą z warstwy tokenów poniżej; to
-       jedyny słownik barw, powierzchni i promieni w aplikacji. */
+    /* What is left of the base layer (the former style.css): only the names some
+       rule in this file still reads - the consumer is named at every group. The
+       former spacing scale is now literals in the rules, and the former colours of
+       the file upload widget and the radius scale come from the token layer below;
+       that is the only vocabulary of colours, surfaces and radii in the application. */
 
-    /* Cienie: .alert */
+    /* Shadows: .alert */
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
 
-    /* Typografia i przejścia: html/body, nagłówki, .hero-subtitle, .feature-*, .upload-card */
+    /* Typography and transitions: html/body, headings, .hero-subtitle, .feature-*, .upload-card */
     --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --line-height-tight: 1.25;
     --line-height-normal: 1.5;
@@ -31,50 +31,50 @@
     --transition-normal: 200ms ease;
 
     /* ============================================================
-       Warstwa tokenów: papier inżynierski + woda.
-       Jedyne źródło skali --radius-*, powierzchni, barw i wysokości nagłówka.
+       The token layer: engineering paper + water.
+       The only source of the --radius-* scale, the surfaces, the colours and the header height.
        ============================================================ */
 
-    /* Powierzchnie - neutralny papier (bez ciepłego, kremowego tła strony i wierszy tabel). */
-    --surface-0: #FFFFFF;   /* karty, panele, pasek nagłówka, komórki tabel */
-    --surface-1: #FAFAF8;   /* tło strony (neutralny papier) */
-    --surface-2: #F5F4F0;   /* stopka, hover, chipy neutralne */
-    --tint-row:  #F8FAFC;   /* zebra - ledwie widoczna, chłodna, nie kremowa */
-    --rule-soft:   #E8E6DF; /* separatory wewnątrz kart i tabel, linia stopki */
-    --rule-strong: #CBD5E1; /* neutralne akcenty: strefa upuszczania pliku, kciuk paska
-                               przewijania, obramowanie akordeonu w fokusie */
+    /* Surfaces - neutral paper (no warm, cream background for the page and the table rows). */
+    --surface-0: #FFFFFF;   /* cards, panels, the header bar, table cells */
+    --surface-1: #FAFAF8;   /* page background (neutral paper) */
+    --surface-2: #F5F4F0;   /* footer, hover, neutral chips */
+    --tint-row:  #F8FAFC;   /* row striping - barely visible, cool, not cream */
+    --rule-soft:   #E8E6DF; /* separators inside cards and tables, the footer line */
+    --rule-strong: #CBD5E1; /* neutral accents: the file drop zone, the scroll bar
+                               thumb, the border of a focused accordion */
 
-    /* Struktura, nigdy tekst: krawędzie i pasma nagłówków. Ciepły papier bez
-       zimnych krawędzi zlewał się w jedną plamę - te wartości dają wyraźne
-       granice. Tekst zostaje na --ink/--text/--muted. */
-    --slate-100: #F1F5F9;   /* kolumna etykiet, tło hover przycisku konturowego */
-    --slate-200: #E2E8F0;   /* pasmo nagłówka tabeli */
-    --slate-300: #CBD5E1;   /* krawędzie kart, paneli, akordeonu, pól formularzy */
-    --slate-500: #64748B;   /* obramowanie tabel i przycisków konturowych */
-    --slate-600: #475569;   /* etykieta przycisku konturowego */
-    --slate-band-top: #E8ECF1;    /* pasmo nagłówków kart/akordeonów: góra gradientu */
-    --slate-band-bottom: #DFE5ED; /* ...dół gradientu i stan rozwinięty */
+    /* Structure, never text: edges and header bands. Warm paper without cool
+       edges ran together into one patch - these values give clear boundaries.
+       Text stays on --ink/--text/--muted. */
+    --slate-100: #F1F5F9;   /* the label column, the hover background of an outline button */
+    --slate-200: #E2E8F0;   /* the table header band */
+    --slate-300: #CBD5E1;   /* edges of cards, panels, the accordion, form fields */
+    --slate-500: #64748B;   /* the border of tables and outline buttons */
+    --slate-600: #475569;   /* the label of an outline button */
+    --slate-band-top: #E8ECF1;    /* the header band of cards/accordions: top of the gradient */
+    --slate-band-bottom: #DFE5ED; /* ...bottom of the gradient and the expanded state */
 
-    /* Tekst */
+    /* Text */
     --ink: #1E2229;
     --text: #2B2F36;
     --muted: #6E6A62;
-    --subtle: #9A948A;      /* wyłącznie dekoracja - za jasny na tekst */
+    --subtle: #9A948A;      /* decoration only - too light for text */
 
-    /* Akcent: woda (barwa kropli z logo) */
+    /* Accent: water (the colour of the drop in the logo) */
     --water-700: #1F6A94;
     --water-600: #2A7DAB;
     --water-300: #9CCBE3;
     --water-100: #E3F1F8;
     --water-050: #F1F8FC;
 
-    /* Statusy: odcień tekstu/ikony + podkładka */
+    /* Statuses: the shade of the text/icon + the wash behind it */
     --ok:   #397453;  --ok-wash:   #EAF5EE;
     --warn: #8F5E20;  --warn-wash: #FBF1E3;
     --bad:  #B2453F;  --bad-wash:  #FBECEA;
     --info: #3E6C96;  --info-wash: #EAF1F8;
 
-    /* Kształt, cień, warstwy */
+    /* Shape, shadow, layers */
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 14px;
@@ -84,21 +84,21 @@
     --header-h: 72px;
     --z-header: 100;
     --z-sticky-bar: 90;
-    --z-fab: 80;   /* modale Bootstrapa (1050+) zostają ponad */
+    --z-fab: 80;   /* Bootstrap's modals (1050+) stay above */
 
-    /* Typografia */
+    /* Typography */
     --font-display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
     --font-body: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 }
 
 /* ============================================================
-   WARSTWA BAZOWA (dawny style.css)
+   BASE LAYER (the former style.css)
    ============================================================ */
 
 html {
-    /* Globalne, nie tylko na /about/: kotwice i przycisk "do góry" przewijają
-       płynnie na każdej stronie. Wyłączane w bloku prefers-reduced-motion. */
+    /* Global, not only on /about/: anchors and the back-to-top button scroll
+       smoothly on every page. Switched off in the prefers-reduced-motion block. */
     scroll-behavior: smooth;
 }
 
@@ -137,8 +137,10 @@ body {
     padding-bottom: 1.75rem;
 }
 
-/* Results V2 Page Layout: full viewport fit with balanced vertical spacing */
-@media (min-height: 520px) {
+/* Results V2 Page Layout: full viewport fit with balanced vertical spacing.  Below
+   576 px wide the page scrolls instead and results-v2.css gives the table and the map
+   heights of their own. */
+@media (min-height: 520px) and (min-width: 576px) {
     body:has(#storm-results-v2),
     body.results-v2-page {
         height: 100vh;
@@ -161,6 +163,15 @@ body {
         flex: 1;
         min-height: 0;
         padding: 0 !important;
+    }
+}
+
+/* On a phone the results page scrolls; it keeps a tighter top and bottom gap. */
+@media (max-width: 575.98px) {
+    body:has(#storm-results-v2) .content-wrapper,
+    body.results-v2-page .content-wrapper {
+        padding-top: 12px;
+        padding-bottom: 16px;
     }
 }
 .profile-image {
@@ -321,30 +332,6 @@ a {
     color: var(--water-700);
 }
 
-.accordion-item {
-    position: relative;
-}
-
-.accordion-item .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-header .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-collapse {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-body {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
 #sessionsTable {
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
@@ -369,83 +356,6 @@ a {
     border-radius: 0;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
-}
-
-.accordion-item .accordion-button:not(.collapsed) {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-button::before,
-.accordion-item .accordion-button::after {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-#accordionMenu .accordion-item:first-child,
-#accordionMenu .accordion-item:first-child .accordion-header,
-#accordionMenu .accordion-item:first-child .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-    border-radius: 12px 12px 0 0 !important;  /* bije .accordion-item poniżej (też !important) */
-}
-
-.accordion-header {
-    transition: all 0.2s ease-in-out;
-}
-
-.accordion-header.sticky {
-    position: fixed;
-    z-index: var(--z-sticky-bar);
-    background-color: var(--slate-band-top);
-    box-shadow: var(--shadow-1);
-    padding: 0;
-    margin: 0;
-    border-radius: 0;
-    transition: none;
-}
-
-.accordion-header.sticky .accordion-button {
-    border-radius: 0;
-    margin: 0;
-}
-
-.accordion-body {
-    position: relative;
-}
-
-.accordion-header.sticky .accordion-button {
-    border: 1px solid var(--slate-300);
 }
 
 .card {
@@ -528,8 +438,8 @@ a {
     justify-content: center;
 }
 
-/* Nagłówki kart na /analysis/ i widoku szczegółów (karta "Latest Analysis
-   Session" zniknęła razem z kafelkami historii). */
+/* Card headers on /analysis/ and in the detail view (the "Latest Analysis
+   Session" card went away together with the history tiles). */
 .card-header h5 {
     text-align: center;
 }
@@ -539,9 +449,21 @@ a {
     padding-right: 1.5rem;
 }
 
+:root {
+    /* Side gutter of every page: header, content and footer share it. */
+    --page-gutter: 2rem;
+}
+
+/* 16 px on phones, the same as the conduit panel's own padding. */
+@media (max-width: 575.98px) {
+    :root {
+        --page-gutter: 1rem;
+    }
+}
+
 .containerwide {
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-left: var(--page-gutter);
+    padding-right: var(--page-gutter);
 }
 
 .alert {
@@ -579,8 +501,8 @@ a {
     box-shadow: none;
 }
 
-/* Widoczny pierścień zamiast `outline: none` + bladej poświaty: --water-100 na
-   --surface-0 daje 1,1:1, czyli fokus niewidoczny dla klawiatury. */
+/* A visible ring instead of `outline: none` + a pale glow: --water-100 on
+   --surface-0 gives 1.1:1, that is a focus a keyboard user cannot see. */
 .form-control:focus-visible,
 .form-select:focus-visible,
 .page-link:focus-visible {
@@ -596,10 +518,63 @@ a {
     width: 100%;
 }
 
+/* Visually hidden but in place: the input keeps keyboard focus and the browser's
+   validation bubble anchors to the drop zone, not to a point 9999 px off-screen.
+   The ring on the wrapper (:focus-within) shows where the focus is. */
 .file-input-wrapper input[type=file] {
     position: absolute;
-    left: -9999px;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
     opacity: 0;
+}
+
+.file-input-wrapper:focus-within .file-input-display {
+    outline: 2px solid var(--water-600);
+    outline-offset: 2px;
+    border-color: var(--water-600);
+}
+
+.file-input-wrapper.has-error .file-input-display {
+    border-color: var(--bad);
+    background-color: var(--bad-wash);
+}
+
+/* Compact variant (avatar on the account page): one row, icon on the left. */
+.file-input-wrapper--compact .file-input-display {
+    gap: 0.9rem;
+    min-height: 0;
+    padding: 0.85rem 1rem;
+    text-align: left;
+    font-weight: 400;
+}
+
+.file-input-wrapper--compact .file-input-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    text-align: left;
+}
+
+.file-input-wrapper--compact .file-input-icon {
+    flex: none;
+    margin: 0;
+    font-size: 1.6rem;
+}
+
+.file-input-wrapper--compact .file-input-text {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.file-input-wrapper--compact .file-input-display:hover {
+    transform: none;
 }
 
 .file-input-display {
@@ -624,8 +599,8 @@ a {
     box-shadow: var(--shadow-2);
 }
 
-/* Przeciąganie pliku nad polem: mocniejsza ramka i pełna podkładka - stan musi być
-   odróżnialny od zwykłego hoveru, który jest gradientem od --water-050. */
+/* A file dragged over the field: a stronger border and a full wash - the state has to
+   be told apart from the plain hover, which is a gradient from --water-050. */
 .file-input-display.drag-over {
     border-color: var(--water-600);
     background: var(--water-100);
@@ -635,6 +610,16 @@ a {
 .file-input-content {
     width: 100%;
     text-align: center;
+}
+
+/* The drop zone is a <label> (it opens the picker without script), so its parts are
+   spans and have to be stacked explicitly. */
+.file-input-content > span {
+    display: block;
+}
+
+.file-input-display {
+    font-weight: 400;
 }
 
 .file-input-icon {
@@ -653,6 +638,8 @@ a {
     color: var(--text);
     font-weight: 600;
     margin-bottom: 0.5rem;
+    /* A chosen file's name replaces the text and may be one long word. */
+    overflow-wrap: anywhere;
 }
 
 .file-input-subtext {
@@ -704,6 +691,50 @@ a {
 
 .upload-card:hover {
     box-shadow: var(--shadow-2);
+}
+
+/* The page heading sits in the card's header band, at the band's size. */
+.upload-title {
+    margin: 0;
+    font-size: 1.05rem;
+    text-align: center;
+}
+
+.upload-help {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+.upload-error {
+    margin-top: 0.5rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--bad);
+}
+
+.upload-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 1rem 0 0;
+    color: var(--water-700);
+    font-weight: 600;
+}
+
+/* Bootstrap paints a disabled .btn-primary in its own blue; keep the water colour. */
+#uploadForm .btn-primary:disabled {
+    background-color: var(--water-600);
+    border-color: var(--water-600);
+    opacity: 0.55;
+}
+
+/* While SWMM runs the form is aria-busy: the drop zone no longer invites a drop. */
+#uploadForm[aria-busy="true"] .file-input-display {
+    opacity: 0.6;
+    pointer-events: none;
 }
 
 /* Footer styling */
@@ -807,6 +838,27 @@ footer {
     margin-bottom: 0;
 }
 
+.feature-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.85rem;
+    color: var(--water-700);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.feature-link:hover,
+.feature-link:focus-visible {
+    color: var(--water-600);
+    text-decoration: underline;
+}
+
+.feature-link i {
+    font-size: 0.75em;
+}
+
 @media (max-width: 768px) {
     .features-grid {
         grid-template-columns: 1fr;
@@ -822,7 +874,7 @@ footer {
 }
 
 /* ============================================================
-   MOTYW AKADEMICKI (dawny academic-theme.css)
+   ACADEMIC THEME (the former academic-theme.css)
    ============================================================ */
 
 /* ============================================================
@@ -831,8 +883,8 @@ footer {
 
 body {
     font-family: var(--font-body);
-    /* Papier (neutralny) zostaje na stronie, karty są białe:
-       dopiero ta różnica daje im brzeg. */
+    /* The (neutral) paper stays on the page, the cards are white:
+       only that difference gives them an edge. */
     background: var(--surface-1);
     color: var(--text);
     font-size: 15px;
@@ -874,9 +926,9 @@ a.card:hover {
 }
 
 .card-header {
-    /* Pasmo nagłówka: chłodny gradient odcina nagłówek od białej karty.
-       background-color stoi obok gradientu jako wartość realna (starsze
-       przeglądarki czytają samo tło). */
+    /* The header band: a cool gradient sets the header off from the white card.
+       background-color stands beside the gradient as a real value (older
+       browsers read the background alone). */
     background-color: var(--slate-band-top);
     background-image: linear-gradient(to bottom, var(--slate-band-top) 0%, var(--slate-band-bottom) 100%);
     border-bottom: 1px solid var(--slate-300);
@@ -958,7 +1010,7 @@ table thead {
 }
 
 .table thead th {
-    /* Pasmo slate, ale PŁASKIE, nie gradientowe. */
+    /* A slate band, but FLAT, not a gradient. */
     background-color: var(--slate-200);
     background-image: none;
     color: var(--ink);
@@ -974,15 +1026,15 @@ table thead {
     position: relative;
 }
 
-/* Wykluczenie panelu przewodu: ta strona ma własną, płaską skórkę, a podniesionej
-   wagi poniżej nie da się przebić bez dokładania kolejnej pozycji do budżetu wag. */
+/* The conduit panel is excluded: that page has its own flat skin, and the raised
+   weight below cannot be beaten without adding another entry to the weight budget. */
 thead th:not(:where(.conduit-page *)) {
-    /* `thead th` (0,0,2) przegrywa z Bootstrapowym `.table > :not(caption) > * > *`
-       (0,1,3), które maluje komórki na var(--bs-table-bg), oraz z `.table-dark`
-       (0,1,0), które ustawia color: #fff - stąd !important na obu własnościach. */
+    /* `thead th` (0,0,2) loses to Bootstrap's `.table > :not(caption) > * > *`
+       (0,1,3), which paints the cells with var(--bs-table-bg), and to `.table-dark`
+       (0,1,0), which sets color: #fff - hence !important on both properties. */
     background-color: var(--slate-200) !important;
-    /* Bootstrap nie ustawia background-image; ta deklaracja gasi gradienty warstwy
-       bazowej, żeby nagłówek tabeli miał jednolite, nieprzezroczyste tło. */
+    /* Bootstrap sets no background-image; this declaration switches off the gradients
+       of the base layer, so that the table header has a plain, opaque background. */
     background-image: none !important;
     color: var(--ink) !important;
 }
@@ -1100,26 +1152,26 @@ thead th:not(:where(.conduit-page *)) {
 
 .badge.bg-success,
 .bg-success {
-    background-color: var(--ok-wash) !important;  /* bije .bg-success Bootstrapa (utility ma !important) */
+    background-color: var(--ok-wash) !important;  /* beats Bootstrap's .bg-success (the utility has !important) */
     color: var(--ok);
 }
 
 .badge.bg-warning,
 .bg-warning {
-    background-color: var(--warn-wash) !important;  /* bije .bg-warning Bootstrapa (utility ma !important) */
+    background-color: var(--warn-wash) !important;  /* beats Bootstrap's .bg-warning (the utility has !important) */
     color: var(--warn);
 }
 
 .badge.bg-danger,
 .bg-danger {
-    background-color: var(--bad-wash) !important;  /* bije .bg-danger Bootstrapa (utility ma !important) */
+    background-color: var(--bad-wash) !important;  /* beats Bootstrap's .bg-danger (the utility has !important) */
     color: var(--bad);
 }
 
 /* bg-primary is informational, so it takes the accent wash rather than a status colour. */
 .badge.bg-primary,
 .bg-primary {
-    background-color: var(--water-100) !important;  /* bije .bg-primary Bootstrapa (utility ma !important) */
+    background-color: var(--water-100) !important;  /* beats Bootstrap's .bg-primary (the utility has !important) */
     color: var(--water-700);
 }
 
@@ -1156,8 +1208,8 @@ thead th:not(:where(.conduit-page *)) {
     color: #ffffff;
 }
 
-/* Kontur: 2 px slate. Blada ciepła krawędź ginęła na papierze,
-   a to jest przycisk powrotu, nie ozdoba. Wypełniony .btn-primary zostaje wodny. */
+/* Outline: 2 px of slate. A pale warm edge was lost on the paper, and this is a
+   back button, not an ornament. The filled .btn-primary stays water-coloured. */
 .btn-outline-primary {
     color: var(--slate-600);
     background-color: transparent;
@@ -1232,57 +1284,6 @@ thead th:not(:where(.conduit-page *)) {
     background-color: var(--bad-wash);
     border-color: transparent;
     color: var(--bad);
-}
-
-/* ============================================================
-   ACCORDION REFINEMENTS
-   ============================================================ */
-
-.accordion {
-    border-radius: var(--radius-md);
-}
-
-.accordion-item {
-    border: 1px solid var(--slate-300);
-    border-radius: var(--radius-md) !important;  /* bije .accordion-item:last-of-type Bootstrapa */
-    margin-bottom: 0.75rem;
-    overflow: hidden;
-}
-
-.accordion-button {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--ink);
-    /* To samo pasmo co .card-header - nagłówek sekcji wyników ma być widoczną
-       krawędzią, nie kolejnym odcieniem papieru. */
-    background-color: var(--slate-band-top);
-    background-image: linear-gradient(to bottom, var(--slate-band-top) 0%, var(--slate-band-bottom) 100%);
-    padding: 1rem 1.25rem;
-    border: none;
-    border-bottom: 1px solid var(--slate-300);
-}
-
-.accordion-button:not(.collapsed) {
-    background-color: var(--slate-band-bottom);
-    background-image: none;
-    color: var(--ink);
-    box-shadow: none;
-}
-
-.accordion-button:focus {
-    box-shadow: none;
-    border-color: var(--rule-strong);
-}
-
-.accordion-button::after {
-    background-size: 1rem;
-    opacity: 0.6;
-}
-
-.accordion-body {
-    padding: 0;
-    background-color: var(--surface-0);
 }
 
 /* ============================================================
@@ -1366,6 +1367,61 @@ small {
     width: auto;
 }
 
+/* The brand is a link: logo + wordmark. justify-content keeps it at the left edge
+   now that the flank grows with flex: 1 above the collapse breakpoint. */
+.site-brand {
+    gap: 0.55rem;
+    justify-content: flex-start;
+    color: var(--ink);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+}
+
+.site-wordmark {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.site-brand:hover .site-wordmark {
+    color: var(--water-700);
+}
+
+.site-brand:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 4px;
+}
+
+/* Skip link: the first focusable element of every page, off-screen until focused. */
+.skip-link {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: calc(var(--z-header) + 1);
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-sm);
+    background-color: var(--water-700);
+    color: #ffffff;
+    font-weight: 600;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+    color: #ffffff;
+}
+
+/* <main> takes focus from the skip link only; it never needs a visible ring. */
+#main-content:focus {
+    outline: none;
+}
+
 .site-nav .nav {
     gap: 0.25rem;
     flex-wrap: wrap;
@@ -1447,15 +1503,15 @@ small {
    ============================================================ */
 
 .text-primary {
-    color: var(--water-700) !important;  /* bije .text-primary Bootstrapa (utility ma !important) */
+    color: var(--water-700) !important;  /* beats Bootstrap's .text-primary (the utility has !important) */
 }
 
 .text-danger {
-    color: var(--bad) !important;  /* bije .text-danger Bootstrapa (utility ma !important) */
+    color: var(--bad) !important;  /* beats Bootstrap's .text-danger (the utility has !important) */
 }
 
 .text-muted {
-    color: var(--muted) !important;  /* bije .text-muted Bootstrapa (utility ma !important) */
+    color: var(--muted) !important;  /* beats Bootstrap's .text-muted (the utility has !important) */
 }
 
 /* ============================================================
@@ -1490,7 +1546,7 @@ small {
 }
 
 .page-item.disabled .page-link {
-    color: var(--muted);  /* --subtle (2,97:1 na --surface-0) jest tylko do dekoracji */
+    color: var(--muted);  /* --subtle (2.97:1 on --surface-0) is for decoration only */
     background-color: transparent;
     border-color: transparent;
 }
@@ -1501,7 +1557,7 @@ small {
 }
 
 .gap-3 {
-    gap: 0.75rem !important;  /* bije .gap-3 Bootstrapa (1rem, utility ma !important) */
+    gap: 0.75rem !important;  /* beats Bootstrap's .gap-3 (1rem, the utility has !important) */
 }
 
 /* ============================================================
@@ -1509,8 +1565,8 @@ small {
    ============================================================ */
 
 footer {
-    /* Stopka: --surface-2 nad kreską --rule-soft, tekst --muted. Kreska to
-       --rule-soft, bo slate byłby zbyt twardy pod stopką. */
+    /* Footer: --surface-2 over a --rule-soft line, text in --muted. The line is
+       --rule-soft because slate would be too hard under the footer. */
     background-color: var(--surface-2);
     border-top: 1px solid var(--rule-soft);
     color: var(--muted);
@@ -1556,6 +1612,164 @@ footer {
     text-decoration: underline;
 }
 
+/* BEGIN site-messages */
+/* ============================================================
+   MESSAGES (django.contrib.messages, rendered by base.html)
+   ============================================================ */
+
+/* One strip under the header, outside <main>, so the full-bleed pages (conduit
+   panel, results) keep their own negative margins against .content-wrapper. */
+.site-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 1rem;
+}
+
+.site-message {
+    --message-ink: var(--info);
+    --message-wash: var(--info-wash);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0.7rem 0.85rem 0.7rem 1rem;
+    border: 1px solid var(--rule-soft);
+    border-left: 4px solid var(--message-ink);
+    border-radius: var(--radius-md);
+    background-color: var(--message-wash);
+    box-shadow: var(--shadow-1);
+    color: var(--ink);
+    font-size: 0.95rem;
+}
+
+.site-message--success { --message-ink: var(--ok);   --message-wash: var(--ok-wash); }
+.site-message--warning { --message-ink: var(--warn); --message-wash: var(--warn-wash); }
+.site-message--error   { --message-ink: var(--bad);  --message-wash: var(--bad-wash); }
+
+.site-message-icon {
+    flex: none;
+    margin-top: 0.2rem;
+    color: var(--message-ink);
+}
+
+.site-message-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Bootstrap positions the close button absolutely inside .alert-dismissible; in a
+   flex row it is simply the last item, and the padding Bootstrap reserves for it
+   is not needed. */
+.site-message.alert-dismissible {
+    padding-right: 0.5rem;
+}
+
+/* The same component above the analysis form, for an analysis that failed; it is not
+   dismissible, so the text keeps the padding on both sides. */
+.site-message.analysis-error {
+    margin-bottom: 1rem;
+    padding-right: 1rem;
+}
+
+.site-message .btn-close {
+    position: static;
+    flex: none;
+    padding: 0.6rem;
+    margin: -0.25rem 0 -0.25rem auto;
+    opacity: 0.6;
+}
+
+.site-message .btn-close:hover {
+    opacity: 1;
+}
+
+.site-message .btn-close:focus {
+    box-shadow: none;
+}
+
+.site-message .btn-close:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+    opacity: 1;
+}
+/* END site-messages */
+
+/* BEGIN error-pages */
+/* ============================================================
+   ERROR PAGES (400, 403, 404, 500)
+   ============================================================ */
+
+.error-page {
+    display: flex;
+    justify-content: center;
+    padding: 3rem 0 4rem;
+}
+
+.error-card {
+    width: 100%;
+    max-width: 520px;
+    padding: 2rem;
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+}
+
+.error-code {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+.error-title {
+    margin: 0 0 0.6rem;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    text-align: left;
+    color: var(--ink);
+}
+
+.error-text {
+    margin: 0 0 1.5rem;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+.error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* 500.html loads no Bootstrap, so the buttons get their box from here. */
+.error-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    text-decoration: none;
+}
+
+@media (max-width: 575.98px) {
+    .error-page {
+        padding: 1rem 0 2rem;
+    }
+
+    .error-card {
+        padding: 1.5rem 1.25rem;
+    }
+}
+/* END error-pages */
+
 /* ============================================================
    BACK TO TOP
    ============================================================ */
@@ -1563,7 +1777,9 @@ footer {
 .back-to-top {
     position: fixed;
     right: 1.5rem;
-    bottom: 1.5rem;
+    /* main.js sets the lift to the height of the footer showing in the viewport, so
+       the button stops above the footer instead of covering its links. */
+    bottom: calc(1.5rem + var(--back-to-top-lift, 0px));
     z-index: var(--z-fab);
     width: 44px;
     height: 44px;
@@ -1671,12 +1887,12 @@ footer {
 
 tr.selected td,
 tr.selected td:first-child {
-    background-color: var(--water-100) !important;  /* bije tła komórek .table tbody td */
+    background-color: var(--water-100) !important;  /* beats the cell backgrounds of .table tbody td */
 }
 
 tr.selected:hover td,
 tr.selected:hover td:first-child {
-    background-color: var(--water-300) !important;  /* bije podświetlenie hover i zaznaczenie wiersza */
+    background-color: var(--water-300) !important;  /* beats the hover highlight and the selection of a row */
 }
 
 .checkbox-cell {
@@ -1754,7 +1970,6 @@ tr.selected:hover td:first-child {
 /* Scoped to /history/ (`.history-page` wraps the view). The status pill, the bulk
    bar and the row checkboxes are styled higher up in this file; what follows is the
    page frame, the filter bar, the count chips and the two empty states. */
-
 
 /* Filter bar: search grows, the three selects keep their natural width. */
 .history-filters {
@@ -1928,8 +2143,8 @@ tr.selected:hover td:first-child {
 
 /* Mobile ------------------------------------------------------------------ */
 
-/* 767.98, nie 768 - patrz komentarz przy nagłówku: przy dokładnie 768 CSS px
-   pasowałby i ten blok, i Bootstrapowy `min-width: 768px`. */
+/* 767.98, not 768 - see the comment at the header: at exactly 768 CSS px both
+   this block and Bootstrap's `min-width: 768px` would match. */
 @media (max-width: 767.98px) {
     /* Only the table scrolls sideways; the document itself must not. */
     .history-table-wrapper {
@@ -1958,6 +2173,329 @@ tr.selected:hover td:first-child {
     }
 }
 
+/* Rows, controls and dialogs added with the card layout -------------------- */
+
+.bulk-action-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.5rem 0;
+}
+
+.bulk-action-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+}
+
+/* A 44 px tap target around each 18 px checkbox. */
+.check-target {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin: -0.75rem -0.5rem;
+    cursor: pointer;
+}
+
+.history-table .checkbox-cell {
+    vertical-align: middle;
+}
+
+/* The file name is cut with an ellipsis in the table; the full name is in the title
+   and, on a phone, in the card. */
+.history-file {
+    display: inline-block;
+    max-width: 22rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    word-break: normal;
+}
+
+.history-processing {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--warn);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.history-error-toggle[aria-expanded="true"] {
+    background-color: var(--bad-wash);
+    border-color: var(--bad);
+}
+
+#sessionsTable tbody tr.history-error-row td {
+    padding: 0.75rem 1rem 0.9rem;
+    text-align: left;
+    white-space: normal;
+    background-color: var(--bad-wash);
+    border-bottom: 1px solid var(--rule-soft);
+}
+
+.history-error-text {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.history-error-text strong {
+    color: var(--bad);
+}
+
+#deleteModal .modal-title,
+#bulkDeleteModal .modal-title {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+#deleteModal .modal-body strong {
+    overflow-wrap: anywhere;
+}
+
+.history-modal-error {
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--bad);
+    border-radius: var(--radius-sm);
+    background-color: var(--bad-wash);
+    color: var(--bad);
+    font-size: 0.9rem;
+}
+
+.history-empty h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Cards below 992 px: nine columns do not fit a phone or a portrait tablet, and scrolling
+   the table sideways hid "View Results" and the bin. Each row becomes a card: file and status on top,
+   then date, zone and counts as labelled lines, actions at the bottom. */
+@media (max-width: 991.98px) {
+    .history-table-wrapper {
+        overflow: visible;
+        border: none;
+        box-shadow: none;
+    }
+
+    .history-table,
+    .history-table tbody {
+        display: block;
+        width: 100%;
+        border: none;
+        box-shadow: none;
+    }
+
+    #sessionsTable {
+        overflow: visible;
+        border-radius: 0;
+    }
+
+    .history-table thead {
+        /* The select-all box stays reachable: only the column labels are hidden. */
+        display: block;
+    }
+
+    .history-table thead tr {
+        display: flex;
+        align-items: center;
+    }
+
+    .history-table thead th:not(.checkbox-cell) {
+        display: none;
+    }
+
+    #sessionsTable thead th.checkbox-cell {
+        position: static;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: auto;
+        padding: 0 0 0.5rem;
+        background: transparent !important;  /* beats the app-wide thead th band */
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    #sessionsTable thead th.checkbox-cell::after {
+        content: "Select all";
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--muted);
+    }
+
+    .history-table tbody tr[data-session-id] {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        column-gap: 0.75rem;
+        row-gap: 0.15rem;
+        margin-top: 0.75rem;
+        padding: 0.85rem 1rem;
+        background-color: var(--surface-0);
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-1);
+    }
+
+    .history-table tbody tr[data-session-id] > td {
+        position: static;
+        display: block;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        text-align: left;
+        white-space: normal;
+        overflow: visible;
+    }
+
+    .history-table tbody tr:hover td,
+    .history-table tbody tr:hover td:first-child {
+        background: transparent;
+    }
+
+    .history-table tbody tr.selected {
+        background-color: var(--water-100);
+        border-color: var(--water-300);
+    }
+
+    tr.selected td,
+    tr.selected td:first-child,
+    tr.selected:hover td,
+    tr.selected:hover td:first-child {
+        background-color: transparent !important;  /* the card carries the selection colour */
+    }
+
+    .history-table td.checkbox-cell {
+        grid-column: 1;
+        grid-row: 1;
+        width: auto;
+    }
+
+    .history-table td.history-file-cell {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .history-table td.history-status {
+        grid-column: 3;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .history-file {
+        max-width: none;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .history-table tbody tr[data-session-id] > td.history-date,
+    .history-table tbody tr[data-session-id] > td.history-zone,
+    .history-table tbody tr[data-session-id] > td.count-col {
+        grid-column: 1 / -1;
+        white-space: nowrap;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        font-size: 0.88rem;
+        color: var(--text);
+    }
+
+    .history-table td[data-label]:not(.history-file-cell):not(.history-status)::before {
+        content: attr(data-label);
+        flex: 0 0 7.25rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+
+    .history-table td.history-date time {
+        display: inline-flex;
+        flex-wrap: wrap;
+        column-gap: 0.4rem;
+        white-space: nowrap;
+    }
+
+    .history-table tbody tr[data-session-id] > td.history-date {
+        white-space: normal;
+    }
+
+    .history-date-day,
+    .history-date-time {
+        display: inline;
+        font-size: 0.85rem;
+    }
+
+    /* On one line the date reads as everywhere else: "15 Nov 2026, 04:43 UTC". */
+    .history-date-day::after {
+        content: ",";
+    }
+
+    .history-table .count-chip {
+        min-width: 0;
+        padding: 0;
+        background: none;
+    }
+
+    .history-table td.actions-col {
+        grid-column: 1 / -1;
+        margin-top: 0.6rem;
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--rule-soft);
+    }
+
+    .history-actions {
+        justify-content: space-between;
+    }
+
+    .history-actions .btn-sm {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .history-actions .delete-btn {
+        width: 44px;
+        height: 44px;
+        margin-left: auto;
+    }
+
+    .history-table tbody tr.history-error-row:not([hidden]) {
+        display: block;
+        margin-top: -0.35rem;
+        border: 1px solid var(--slate-300);
+        border-top: none;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        overflow: hidden;
+    }
+
+    .history-table tbody tr.history-error-row td {
+        display: block;
+        position: static;
+        box-shadow: none;
+    }
+
+    .history-filters-label {
+        margin-top: 0.25rem;
+    }
+}
 /* END history */
 
 /* BEGIN mobile-nav */
@@ -2259,6 +2797,190 @@ tr.selected:hover td:first-child {
 }
 /* END auth */
 
+/* BEGIN account */
+/* ============================================================
+   ACCOUNT PAGE (/accounts/user/profile/)
+   ============================================================ */
+
+.account-page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0.5rem 0 2rem;
+}
+
+.account-header {
+    margin-bottom: 1.5rem;
+}
+
+.account-kicker {
+    margin: 0 0 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* The heading is the e-mail address: left-aligned like the cards and broken
+   anywhere, because an address has no spaces to wrap at. */
+.account-title {
+    margin: 0 0 0.3rem;
+    font-size: 1.9rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.account-meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.account-card {
+    margin-bottom: 1.25rem;
+    padding: 1.5rem;
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+    scroll-margin-top: calc(var(--header-h) + 1rem);
+}
+
+.account-card.has-errors {
+    border-color: var(--bad);
+}
+
+.account-card-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.25rem;
+}
+
+.account-card-lede {
+    margin: 0 0 1.25rem;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.account-field {
+    margin-bottom: 1rem;
+}
+
+.account-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.account-optional {
+    font-weight: 400;
+    color: var(--muted);
+}
+
+.account-field input {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+    color: var(--text);
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-sm);
+}
+
+.account-field input:focus {
+    border-color: var(--water-600);
+    outline: none;
+}
+
+.account-field input:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+}
+
+.account-field.has-error input {
+    border-color: var(--bad);
+}
+
+.account-help {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.account-help ul {
+    margin: 0.2rem 0 0;
+    padding-left: 1.1rem;
+}
+
+.account-error,
+.account-form-error {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--bad);
+}
+
+.account-form-error {
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--bad);
+    border-radius: var(--radius-sm);
+    background-color: var(--bad-wash);
+}
+
+.account-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.account-actions .btn {
+    min-height: 40px;
+}
+
+.account-avatar {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+}
+
+.account-avatar-image {
+    flex: none;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--slate-300);
+}
+
+.account-avatar-form {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+@media (max-width: 575.98px) {
+    .account-title {
+        font-size: 1.5rem;
+    }
+
+    .account-card {
+        padding: 1.25rem 1rem;
+    }
+
+    .account-avatar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .account-avatar-image {
+        width: 72px;
+        height: 72px;
+    }
+}
+/* END account */
+
 /* BEGIN conduit-panel */
 /* Skin of the conduit panel. The page carries its own light palette, which takes
    precedence over the application layer here. Every rule below is scoped by
@@ -2312,11 +3034,17 @@ tr.selected:hover td:first-child {
 
 .conduit-page h1,
 .conduit-page h2,
+.conduit-page h3,
 .conduit-page h6 {
     font-family: var(--font-body);
     color: var(--cp-text);
     text-align: left;
     margin: 0;
+}
+
+/* Node names and group titles: level-3 headings in the panel's body type. */
+.conduit-page h3 {
+    letter-spacing: normal;
 }
 
 .conduit-page a {
@@ -2566,6 +3294,24 @@ tr.selected:hover td:first-child {
     fill: var(--cp-muted);
 }
 
+/* "No data to draw the profile" instead of a drawing (data-state set by
+   conduit-panel.js): it fits the card instead of scrolling sideways, so a phone does
+   not cut it off.  Below the drawing's minimum width the message is set larger in
+   viewBox units, as the drawing then shrinks with the card. */
+.conduit-page .conduit-profile[data-state="message"] {
+    min-width: 0;
+}
+
+@media (max-width: 619.98px) {
+    .conduit-page .conduit-profile[data-state="message"] {
+        height: 160px;
+    }
+
+    .conduit-page .conduit-profile[data-state="message"] text {
+        font-size: 21px;
+    }
+}
+
 .conduit-profile .cp-small {
     font-size: 10px;
 }
@@ -2758,6 +3504,22 @@ tr.selected:hover td:first-child {
 .conduit-page .chain-link:hover,
 .conduit-page .chain-link:focus-visible {
     text-decoration: underline;
+}
+
+/* The conduit on display in a node card's list: plain text where its neighbours are links. */
+.conduit-page .chain-current {
+    display: inline-block;
+    margin: 0 8px 2px 0;
+    color: var(--cp-text);
+}
+
+/* Long element names wrap instead of widening the page. */
+.conduit-page .panel-page-title,
+.conduit-page .node-card-name,
+.conduit-page .chain-link,
+.conduit-page .chain-current {
+    overflow-wrap: anywhere;
+    min-width: 0;
 }
 
 .conduit-page .node-card-missing,
@@ -3049,6 +3811,15 @@ tr.selected:hover td:first-child {
     color: var(--cp-muted);
 }
 
+/* A help line under a property label ("model score, in percentage points"). */
+.conduit-page .property-help {
+    display: block;
+    margin-top: 2px;
+    color: var(--cp-muted);
+    font-size: var(--cp-fs-eyebrow);
+    font-weight: 400;
+}
+
 .conduit-page .property b {
     font-weight: 500;
     text-align: right;
@@ -3221,13 +3992,36 @@ tr.selected:hover td:first-child {
 }
 /* END conduit-panel */
 
+/* BEGIN page-gutter */
+/* On phones the page gutter (--page-gutter) is the only side margin: the pages'
+   own inner padding goes, so content starts 16 px from the edge on every page. Placed
+   after the conduit-panel block because its full-bleed margins must follow the
+   gutter, and source order decides between rules of equal weight. */
+@media (max-width: 575.98px) {
+    .index-page {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .history-page.container-fluid {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .conduit-page {
+        margin-left: calc(-1 * var(--page-gutter));
+        margin-right: calc(-1 * var(--page-gutter));
+    }
+}
+/* END page-gutter */
+
 /* ============================================================
    PREFERS-REDUCED-MOTION
    ============================================================
 
-   Jeden blok na końcu arkusza, nie przy każdym komponencie: media query nie
-   dodaje specyficzności, więc `animation: none` postawione PRZED regułą, która
-   animację włącza, przegrywa na kolejności źródła i cicho nic nie robi. */
+   One block at the end of the sheet, not one per component: a media query adds
+   no specificity, so an `animation: none` placed BEFORE the rule that switches
+   the animation on loses on source order and quietly does nothing. */
 
 @media (prefers-reduced-motion: reduce) {
     html {

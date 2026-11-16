@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load sa_static %}
+{% load sa_labels %}
 
-{% block title %} Analysis Results {% endblock %}
+{% block title %}{{ session.swmm_model.file|file_label }} · Results{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% versioned_static 'css/results-v2.css' %}">
@@ -14,13 +15,36 @@
     <!-- Results V2 Root Container -->
     <div id="storm-results-v2" data-density="compact" data-stripe="false" aria-label="Simulation results workspace">
 
+        {% comment %}
+        Which analysis this is, in one line: the file as the heading, then the date and
+        the frost zone. The two page actions stand at the end of the same line, so the tab
+        row below holds tabs only and fits one scrollable row on a phone.
+        {% endcomment %}
+        <header class="r-pagehead">
+            <div class="r-pagehead-text">
+                <h1 class="r-title"><span class="r-title-kicker">Results</span> <span class="r-title-file">{{ session.swmm_model.file|file_label }}</span></h1>
+                <p class="r-meta">
+                    <span><i class="fas fa-calendar-alt" aria-hidden="true"></i><time datetime="{{ session.created_at|date:'c' }}">{{ session.created_at|utc_datetime }}</time></span>
+                    <span><i class="fas fa-snowflake" aria-hidden="true"></i><span class="visually-hidden">Frost zone: </span>{{ session.swmm_model|zone_label }}</span>
+                </p>
+            </div>
+            <div class="r-tabs-actions">
+                <a href="{% url 'sa:analysis' %}" class="r-action-btn r-action-btn-primary" title="New Analysis">
+                    <i class="fas fa-plus" aria-hidden="true"></i><span class="r-action-label">New Analysis</span>
+                </a>
+                <a href="{% url 'sa:history' %}" class="r-action-btn r-action-btn-secondary" title="History">
+                    <i class="fas fa-history" aria-hidden="true"></i><span class="r-action-label">History</span>
+                </a>
+            </div>
+        </header>
+
         <div id="r-overview">
             <!-- Tabbed Results Workspace Card -->
             <div class="r-workspace">
 
-                <!-- Tab Navigation & Header Actions -->
-                <div class="r-tabs" role="tablist" aria-label="Network elements">
-                    <div class="r-tabs-list">
+                <!-- Tab Navigation -->
+                <div class="r-tabs">
+                    <div class="r-tabs-list" role="tablist" aria-label="Network elements">
                         <button type="button" class="r-tab" id="r-tab-map" data-tab="map" role="tab" aria-controls="r-map-panel" aria-selected="{% if network_map_data.available %}true{% else %}false{% endif %}">
                             <i class="fas fa-project-diagram me-1" aria-hidden="true"></i>Map
                         </button>
@@ -36,14 +60,6 @@
                         <button type="button" class="r-tab" id="r-tab-info" data-tab="info" role="tab" aria-controls="r-info-panel" aria-selected="false">
                             <i class="fas fa-info-circle me-1" aria-hidden="true"></i>Info
                         </button>
-                    </div>
-                    <div class="r-tabs-actions">
-                        <a href="{% url 'sa:analysis' %}" class="r-action-btn r-action-btn-primary">
-                            <i class="fas fa-plus" aria-hidden="true"></i><span>New Analysis</span>
-                        </a>
-                        <a href="{% url 'sa:history' %}" class="r-action-btn r-action-btn-secondary">
-                            <i class="fas fa-history" aria-hidden="true"></i><span>History</span>
-                        </a>
                     </div>
                 </div>
 
@@ -87,7 +103,7 @@
                     <!-- Viewline: Filter Summary and Reset Button -->
                     <div class="r-viewline">
                         <span id="r-filter-summary"></span>
-                        <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear filters</button>
+                        <button type="button" class="r-reset" id="r-clear-filters" hidden>Clear Filters</button>
                     </div>
 
                     <!-- Column Selection Drawer -->
@@ -100,7 +116,7 @@
                             <div class="r-presets">
                                 <button type="button" class="r-preset" data-preset="overview">Overview</button>
                                 <button type="button" class="r-preset" data-preset="technical" id="r-technical-preset">Hydraulics</button>
-                                <button type="button" class="r-preset" data-preset="all">All columns</button>
+                                <button type="button" class="r-preset" data-preset="all">All Columns</button>
                                 <button type="button" class="r-close" id="r-close-columns" aria-label="Close column selection">&times;</button>
                             </div>
                         </div>
@@ -123,7 +139,7 @@
                         <span id="r-row-count"></span>
                         <span class="r-scrollhint" id="r-scrollhint" hidden>
                             <span aria-hidden="true">&harr;</span>
-                            <button type="button" id="r-scroll-columns">More columns to the right</button>
+                            <button type="button" id="r-scroll-columns">More Columns to the Right</button>
                         </span>
                         <span id="r-foot-columns"></span>
                     </footer>
@@ -132,36 +148,47 @@
 
                 <!-- Info Panel (shown when Info tab is active) -->
                 <section id="r-info-panel" class="r-info" role="tabpanel" aria-labelledby="r-tab-info" hidden>
-                    <div class="r-info-grid">
+                    {% with model=results_v2_data.session.model %}
+                    <dl class="r-info-grid">
                         <div class="r-info-item">
                             <span class="r-info-icon"><i class="fas fa-file-alt" aria-hidden="true"></i></span>
                             <div>
                                 <dt>Model file</dt>
-                                <dd>{{ session.swmm_model.file.name|default:"model.inp" }}</dd>
+                                <dd>{{ session.swmm_model.file|file_label }}</dd>
                             </div>
                         </div>
                         <div class="r-info-item">
                             <span class="r-info-icon"><i class="fas fa-calendar-alt" aria-hidden="true"></i></span>
                             <div>
                                 <dt>Simulation date</dt>
-                                <dd>{{ session.created_at|date:"d M Y, H:i" }}</dd>
+                                <dd><time datetime="{{ session.created_at|date:'c' }}">{{ session.created_at|utc_datetime }}</time></dd>
                             </div>
                         </div>
                         <div class="r-info-item">
                             <span class="r-info-icon"><i class="fas fa-snowflake" aria-hidden="true"></i></span>
                             <div>
                                 <dt>Frost zone</dt>
-                                <dd>{{ session.swmm_model.get_zone_display_name|default:"0.80 m" }}</dd>
+                                <dd>{{ session.swmm_model|zone_label }}</dd>
                             </div>
                         </div>
                         <div class="r-info-item">
                             <span class="r-info-icon"><i class="fas fa-brain" aria-hidden="true"></i></span>
                             <div>
-                                <dt>Prediction model</dt>
-                                <dd>{% if results_v2_data.session.model_metadata.model_id %}{{ results_v2_data.session.model_metadata.model_id }} ({{ results_v2_data.session.model_metadata.feature_contract }}, {{ results_v2_data.session.model_metadata.target_contract }}){% else %}None (recommendations are switched off){% endif %}</dd>
+                                <dt>Recommendation model</dt>
+                                <dd{% if model.note %} title="{{ model.note }}"{% endif %}>{{ model.summary }}
+                                    {% if model.model_id %}
+                                    <dl class="r-info-detail" aria-label="Technical details of the model">
+                                        <dt>Model id</dt><dd><code>{{ model.model_id }}</code></dd>
+                                        {% if model.feature_contract %}<dt>Feature contract</dt><dd><code>{{ model.feature_contract }}</code></dd>{% endif %}
+                                        {% if model.target_contract %}<dt>Target contract</dt><dd><code>{{ model.target_contract }}</code></dd>{% endif %}
+                                        {% if model.weights_digest %}<dt>Weights digest</dt><dd><code title="{{ model.weights_digest }}">{{ model.weights_digest_short }}</code></dd>{% endif %}
+                                    </dl>
+                                    {% endif %}
+                                </dd>
                             </div>
                         </div>
-                    </div>
+                    </dl>
+                    {% endwith %}
                 </section>
 
                 <!-- Network Map Panel (default tab whenever geometry was stored) -->

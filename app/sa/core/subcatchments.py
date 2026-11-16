@@ -81,14 +81,34 @@ class SubcatchmentFeatureEngineeringService:
         if self.dfs is None or len(self.dfs) == 0:
             return
 
-        if hasattr(self.model.inp, "tags") and self.model.inp.tags is not None:
-            subcatch_tags = self.model.inp.tags[self.model.inp.tags.index.str.startswith("Subcatch")]
+        tags = getattr(self.model.inp, "tags", None)
+        # Without a [TAGS] section swmmio returns an empty frame whose index is not
+        # text, so it counts as no section rather than going through ``.str``.
+        if tags is not None and len(tags) > 0:
+            subcatch_tags = tags[tags.index.astype(str).str.startswith("Subcatch")]
 
             if not subcatch_tags.empty:
-                category_map = dict(zip(subcatch_tags["Name"], subcatch_tags["Tag"]))
+                from stormlab.features.subcatchments import category_from_tag
+
+                # A tag counts only when it names one of the twelve classes; any other
+                # label leaves the subcatchment to the classifier, like no tag at all.
+                category_map = {}
+                foreign = []
+                for name, tag in zip(subcatch_tags["Name"], subcatch_tags["Tag"]):
+                    category = category_from_tag(tag, SUBCATCHMENT_CATEGORIES)
+                    if category is None:
+                        foreign.append(f"{name}={tag!r}")
+                    else:
+                        category_map[name] = category
+                if foreign:
+                    logger.warning(
+                        "%d subcatchment tag(s) name no land cover class and go to the classifier: %s",
+                        len(foreign),
+                        ", ".join(foreign[:10]),
+                    )
                 self.dfs["category"] = self.dfs.index.map(category_map)
                 categorized_count = int(self.dfs["category"].notna().sum())
-                logger.info(f"Assigned categories to {categorized_count} subcatchments from TAGS section")
+                logger.info("Assigned categories to %d subcatchments from TAGS section", categorized_count)
                 if categorized_count == len(self.dfs):
                     return
             else:

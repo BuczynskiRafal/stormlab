@@ -1,20 +1,21 @@
 {% extends "base.html" %}
 {% load crispy_forms_tags %}
 
-{% block title %} Create account {% endblock %}
+{% block title %}Sign up{% endblock %}
 
 {% block content %}
     <div class="auth-shell">
         <div class="auth-card">
-            <p class="auth-kicker">Stormwater analysis</p>
-            <h1 class="auth-title">Create account</h1>
-            <p class="auth-lede">An account keeps every model you upload and its validation report.</p>
+            <p class="auth-kicker">StormLab</p>
+            <h1 class="auth-title">Sign up</h1>
+            {# Uploaded .inp files are analysed from a temporary copy and deleted; only the results are stored. #}
+            <p class="auth-lede">An account lets you run analyses and return to their results in History. The model files you upload are not kept; the results of each analysis are.</p>
 
             <form method="post">
                 {% csrf_token %}
                 {# The crispy filter renders form.non_field_errors as .alert.alert-danger above the fields. #}
                 {{ form|crispy }}
-                <button type="submit" class="btn btn-primary auth-submit">Create account</button>
+                <button type="submit" class="btn btn-primary auth-submit">Sign up</button>
             </form>
 
             <p class="auth-alt">Already registered? <a href="{% url 'accounts:login' %}">Log in</a></p>

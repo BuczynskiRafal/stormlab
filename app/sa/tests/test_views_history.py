@@ -188,7 +188,7 @@ class HistorySearchAndFilterTests(TestCase):
         self.assertEqual(count_rows(response), 0)
         self.assertTrue(response.context["filters_active"])
         self.assertContains(response, "No sessions match these filters")
-        self.assertContains(response, "Clear filters")
+        self.assertContains(response, "Clear Filters")
         # The controls stay on the page, otherwise the filter cannot be undone.
         self.assertContains(response, 'id="historyFilters"')
 
@@ -262,7 +262,7 @@ class HistoryEmptyAccountTests(TestCase):
 
         self.assertFalse(response.context["filters_active"])
         self.assertContains(response, "No analysis history")
-        self.assertContains(response, "Start your first analysis")
+        self.assertContains(response, "Start Your First Analysis")
         self.assertNotContains(response, "No sessions match these filters")
         # Nothing to filter: the bar would only be noise.
         self.assertNotContains(response, 'id="historyFilters"')
@@ -313,7 +313,7 @@ class HistoryPaginationQueryStringTests(TestCase):
         )
         self.assertEqual(rendered_session_ids(first), expected[:10])
         self.assertEqual(rendered_session_ids(second), expected[10:20])
-        self.assertContains(second, "Showing 11-20 of 25 sessions")
+        self.assertContains(second, "Showing 11–20 of 25 sessions")
         for href in page_link_hrefs(second):
             self.assertIn("q=model", href)
 
@@ -427,3 +427,122 @@ class HistorySortStabilityTests(TestCase):
 
         self.assertEqual(len(seen), 12)
         self.assertEqual(sorted(seen), sorted(CalculationSession.objects.filter(user=self.user).values_list("id", flat=True)))
+
+
+class HistoryPageClampTests(TestCase):
+    """A page number past the end or not a number shows a real page instead of 404."""
+
+    def setUp(self) -> None:
+        self.user = make_user(email="pages@example.com")
+        self.client.force_login(self.user)
+        self.sessions = [make_session(self.user) for _ in range(12)]  # two pages of 10
+
+    def page_number(self, query: dict) -> int:
+        response = self.client.get(reverse("sa:history"), query)
+        self.assertEqual(response.status_code, 200)
+        return response.context["page_obj"].number
+
+    def test_a_page_past_the_end_shows_the_last_page(self):
+        self.assertEqual(self.page_number({"page": 99}), 2)
+
+    def test_junk_or_an_empty_page_shows_the_first_page(self):
+        for value in ("abc", "", "-3", "0", "1.5"):
+            with self.subTest(page=value):
+                self.assertEqual(self.page_number({"page": value}), 1)
+
+    def test_the_page_left_empty_by_a_delete_falls_back_to_the_last_one(self):
+        on_page_two = CalculationSession.objects.filter(user=self.user).order_by("-created_at", "-pk")[10:]
+        for session in list(on_page_two):
+            self.client.post(reverse("sa:delete_session", args=[session.id]))
+
+        self.assertEqual(self.page_number({"page": 2}), 1)
+
+    def test_an_account_without_sessions_still_shows_page_one(self):
+        CalculationSession.objects.filter(user=self.user).delete()
+        self.assertEqual(self.page_number({"page": 5}), 1)
+
+
+class HistoryTemplateTests(TestCase):
+    """What a row says and how it can be operated, on a phone and with a keyboard."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from datetime import datetime, timezone
+
+        cls.user = make_user(email="history-template@example.com")
+        cls.done = make_session(
+            cls.user, swmm_model=make_swmm_model(cls.user, file="network_with_a_rather_long_name.inp", zone=3)
+        )
+        cls.failed = make_session(cls.user, status="failed", error_message="x" * 140 + " The network has no outfall.")
+        cls.processing = make_session(cls.user, status="processing")
+        stamp = datetime(2026, 11, 15, 4, 43, tzinfo=timezone.utc)
+        CalculationSession.objects.filter(pk=cls.done.pk).update(created_at=stamp)
+
+    def setUp(self):
+        self.client.force_login(self.user)
+        self.response = self.client.get(reverse("sa:history"))
+        self.html = self.response.content.decode()
+
+    def test_heading_is_a_sentence_case_h1(self):
+        self.assertContains(self.response, '<h1 class="page-title mb-3">Analysis history</h1>')
+
+    def test_dates_use_the_shared_format_with_utc(self):
+        self.assertContains(self.response, '<span class="history-date-day">15 Nov 2026</span>')
+        self.assertContains(self.response, '<span class="history-date-time">04:43 UTC</span>')
+
+    def test_frost_zone_is_labelled_like_the_form(self):
+        self.assertContains(self.response, '<td class="history-zone" data-label="Frost zone">Zone III (1.2 m)</td>')
+
+    def test_full_error_message_opens_from_a_button(self):
+        row_id = f"session-error-{self.failed.id}"
+
+        self.assertContains(self.response, f'aria-expanded="false" aria-controls="{row_id}"')
+        self.assertContains(self.response, f'<tr class="history-error-row" id="{row_id}" hidden>')
+        self.assertContains(self.response, "x" * 140 + " The network has no outfall.")
+        self.assertNotContains(self.response, 'data-bs-toggle="tooltip"')
+
+    def test_select_all_and_row_checkboxes_are_labelled_and_large(self):
+        self.assertContains(self.response, 'aria-label="Select all sessions on this page"')
+        self.assertContains(self.response, 'aria-label="Select network_with_a_rather_long_name.inp, 15 Nov 2026, 04:43 UTC"')
+        self.assertEqual(self.html.count('<label class="check-target"'), 4)
+
+    def test_delete_dialog_names_the_file_and_the_date(self):
+        self.assertContains(self.response, 'data-session-name="network_with_a_rather_long_name.inp"')
+        self.assertContains(self.response, 'data-session-date="15 Nov 2026, 04:43 UTC"')
+        self.assertContains(self.response, "Delete this analysis?")
+        self.assertNotContains(self.response, "Confirm Deletion")
+        self.assertNotContains(self.response, "Delete Session")
+
+    def test_a_processing_row_offers_delete_not_a_cancel_that_cancels_nothing(self):
+        self.assertNotContains(self.response, "Cancel processing")
+        self.assertNotContains(self.response, "fa-ban")
+
+    def test_range_line_uses_an_en_dash_and_a_proper_plural(self):
+        self.assertContains(self.response, "Showing 1–3 of 3 sessions")
+
+        CalculationSession.objects.exclude(pk=self.done.pk).delete()
+        single = self.client.get(reverse("sa:history"))
+        self.assertContains(single, "Showing 1–1 of 1 session\n")
+
+    def test_table_tells_the_script_where_it_is(self):
+        self.assertContains(self.response, 'data-page="1" data-per-page="10" data-total="3"')
+
+    def test_copy_has_no_ascii_ellipsis_or_hyphen_dash(self):
+        self.assertNotContains(self.response, "...")
+        self.assertNotContains(self.response, " - nothing here fits")
+        self.assertNotContains(self.response, "session(s)")
+
+    def test_cards_replace_the_wide_table_on_phones(self):
+        from pathlib import Path
+
+        css = (Path(__file__).resolve().parents[2] / "static" / "css" / "app.css").read_text(encoding="utf-8")
+        self.assertIn("@media (max-width: 991.98px)", css)
+        self.assertIn(".history-table tbody tr[data-session-id] {\n        display: grid;", css)
+
+    def test_script_lands_on_an_existing_page_after_a_delete(self):
+        from pathlib import Path
+
+        script = (Path(__file__).resolve().parents[2] / "static" / "js" / "main.js").read_text(encoding="utf-8")
+        self.assertIn("function reloadAfterDelete(deletedCount)", script)
+        self.assertIn("reloadAfterDelete(data.deleted_count || sessionIds.length)", script)
+        self.assertNotIn("'Cancel Processing'", script)

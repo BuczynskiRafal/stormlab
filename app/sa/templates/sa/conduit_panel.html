@@ -2,8 +2,9 @@
 {% load static %}
 {% load sa_static %}
 {% load confidence_filters %}
+{% load sa_labels %}
 
-{% block title %}Conduit {{ conduit.conduit_name }} - Session {{ session.id }}{% endblock %}
+{% block title %}Conduit {{ conduit.conduit_name }} · {{ session.swmm_model.file|file_label }}{% endblock %}
 
 {% block content %}
 {% comment %}
@@ -59,7 +60,7 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                         </span>
                         {% endif %}
                     </nav>
-                    <a href="{{ results_url }}" class="panel-back"><span aria-hidden="true">&larr;</span>Back to Results</a>
+                    <a href="{{ results_url }}" class="panel-back" data-results-session="{{ session.id }}"><span aria-hidden="true">&larr;</span>Back to Results</a>
                 </div>
             </div>
             <div id="conduit-diagram">
@@ -104,7 +105,7 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                         <span style="width: {{ pct }}%;"></span>
                     </div>
                     {% endwith %}{% else %}
-                    <div class="selected-value">{{ conduit.recommendation|title }}</div>
+                    <div class="selected-value">{{ conduit.recommendation|action_label }}</div>
                     {% endif %}
                 </div>
 
@@ -186,54 +187,60 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
             <div class="propertygrid">
                 <div class="property"><span>Name</span><b>{{ conduit.conduit_name }}</b></div>
                 <div class="property"><span>Diameter</span><b class="prop-num">{{ conduit.geom1|floatformat:2 }} m</b></div>
-                <div class="property"><span>Inlet Node</span><b>{{ conduit.inlet_node }}</b></div>
-                <div class="property"><span>Outlet Node</span><b>{{ conduit.outlet_node }}</b></div>
-                <div class="property"><span>Inlet Ground Elevation</span><b class="prop-num">{{ conduit.inlet_ground_elevation|floatformat:2 }} m</b></div>
-                <div class="property"><span>Outlet Ground Elevation</span><b class="prop-num">{{ conduit.outlet_ground_elevation|floatformat:2 }} m</b></div>
-                <div class="property"><span>Inlet Ground Cover</span><b class="prop-num">{{ conduit.inlet_ground_cover|floatformat:2 }} m</b></div>
-                <div class="property"><span>Outlet Ground Cover</span><b class="prop-num">{{ conduit.outlet_ground_cover|floatformat:2 }} m</b></div>
+                <div class="property"><span>Inlet node</span><b>{{ conduit.inlet_node }}</b></div>
+                <div class="property"><span>Outlet node</span><b>{{ conduit.outlet_node }}</b></div>
+                <div class="property"><span>Inlet ground elevation</span><b class="prop-num">{{ conduit.inlet_ground_elevation|floatformat:2 }} m</b></div>
+                <div class="property"><span>Outlet ground elevation</span><b class="prop-num">{{ conduit.outlet_ground_elevation|floatformat:2 }} m</b></div>
+                <div class="property"><span>Inlet ground cover</span><b class="prop-num">{{ conduit.inlet_ground_cover|floatformat:2 }} m</b></div>
+                <div class="property"><span>Outlet ground cover</span><b class="prop-num">{{ conduit.outlet_ground_cover|floatformat:2 }} m</b></div>
                 <div class="property"><span>Length</span><b class="prop-num">{{ conduit.length|floatformat:2 }} m</b></div>
             </div>
         </div>
 
         <div class="panel-tabpanel" role="tabpanel" id="tabpanel-hydraulics" aria-labelledby="tab-hydraulics" tabindex="0">
             <div class="propertygrid">
-                <div class="property"><span>Max Velocity</span><b class="prop-num">{{ conduit.max_v|floatformat:2 }} m/s</b></div>
-                <div class="property"><span>Max Flow</span><b class="prop-num">{{ conduit.max_q|floatformat:3 }} m³/s</b></div>
-                <div class="property"><span>Filling</span><b class="prop-num">{{ conduit.filling|floatformat:2 }} m</b></div>
-                <div class="property"><span>Slope</span><b class="prop-num">{{ conduit.slope_per_mile|floatformat:4 }}‰</b></div>
-                <div class="property"><span>Min Required Slope</span><b class="prop-num">{{ conduit.min_required_slope|floatformat:4 }}‰</b></div>
-                <div class="property"><span>Max Allowable Slope</span><b class="prop-num">{{ conduit.max_allowable_slope|floatformat:4 }}‰</b></div>
+                <div class="property"><span>Max velocity</span><b class="prop-num">{{ conduit.max_v|floatformat:2 }} m/s</b></div>
+                <div class="property"><span>Max flow</span><b class="prop-num">{{ conduit.max_q|floatformat:3 }} m³/s</b></div>
+                {# The water depth in the pipe, not the filling share the Filling card shows. #}
+                <div class="property"><span>Max water depth</span><b class="prop-num">{{ conduit.filling|floatformat:2 }} m</b></div>
+                <div class="property"><span>Slope</span><b class="prop-num">{{ conduit.slope_per_mile|floatformat:4 }} ‰</b></div>
+                <div class="property"><span>Min required slope</span><b class="prop-num">{% if conduit.min_required_slope is None %}not assessed{% else %}{{ conduit.min_required_slope|floatformat:4 }} ‰{% endif %}</b></div>
+                <div class="property"><span>Max allowable slope</span><b class="prop-num">{% if conduit.max_allowable_slope is None %}not assessed{% else %}{{ conduit.max_allowable_slope|floatformat:4 }} ‰{% endif %}</b></div>
             </div>
             <div class="propertygroup">
-                <h6 class="propertygroup-title">Model</h6>
+                <h3 class="propertygroup-title">Model</h3>
                 <div class="propertygrid">
                     <div class="property"><span>Subcatchment (model)</span><b>{{ conduit.subcatchment }}</b></div>
-                    <div class="property"><span>Subcatchment Category</span><b>{{ conduit.sbc_category }}</b></div>
-                    <div class="property"><span>Recommendation</span><b>{{ conduit.recommendation }}</b></div>
-                    <div class="property"><span>Model Artifact</span><b>{% if panel.model_metadata.model_id %}{{ panel.model_metadata.model_id }} ({{ panel.model_metadata.feature_contract }}){% else %}None (recommendations are switched off){% endif %}</b></div>
+                    <div class="property"><span>Subcatchment category</span><b>{{ conduit.sbc_category|category_label }}</b></div>
+                    <div class="property"><span>Recommendation</span><b>{{ conduit.recommendation|action_label }}</b></div>
+                    <div class="property"><span>Model</span><b{% if panel.model.model_id %} title="{{ panel.model.model_id }}{% if panel.model.feature_contract %} · {{ panel.model.feature_contract }}{% endif %}"{% elif panel.model.note %} title="{{ panel.model.note }}"{% endif %}>{{ panel.model.summary }}</b></div>
                     {% if panel.confidence_margin is not None %}
-                    <div class="property"><span>Top-2 Margin (&Delta;p)</span><b>{{ panel.confidence_margin|floatformat:1 }} pp</b></div>
+                    <div class="property" title="How many percentage points the model score of the recommended action is above the next-best action. A small lead means two actions are close alternatives."><span>Lead over the next action<small class="property-help">model score, in percentage points</small></span><b>{{ panel.confidence_margin|floatformat:1 }} pp</b></div>
                     {% endif %}
-                    <div class="property"><span>Simple Rule</span><b>{% if panel.simple_rule_passed %}Within band (0.2&ndash;0.7 D, 0.8&ndash;3.0 m/s){% else %}Outside band{% endif %}</b></div>
+                    {% comment %}
+                    Not the simple rule of the method (a baseline that reads the flooding of
+                    the inlet): this row checks the filling and velocity band of
+                    simple_band_rule_passed in sa/services.py.
+                    {% endcomment %}
+                    <div class="property" title="Passed when the water depth is 0.2–0.7 of the diameter and the maximum velocity is 0.8–3.0 m/s. An operating band, separate from the seven design checks and from the simple-rule baseline of the method."><span>Filling and velocity band<small class="property-help">depth 0.2&ndash;0.7 D, velocity 0.8&ndash;3.0 m/s</small></span><b>{% if panel.simple_rule_passed %}Within band (0.2&ndash;0.7 D, 0.8&ndash;3.0 m/s){% else %}Outside band{% endif %}</b></div>
                 </div>
             </div>
         </div>
 
         <div class="panel-tabpanel catchment-section" role="tabpanel" id="tabpanel-catchments" aria-labelledby="tab-catchments" tabindex="0">
-            <h6 class="catchment-title">Catchments connected directly to inlet node {{ panel.inlet.name }}</h6>
+            <h3 class="catchment-title">Catchments connected directly to inlet node {{ panel.inlet.name }}</h3>
             {% if panel.direct_catchments %}
             <div class="table-responsive">
                 <table class="table catchment-table">
                     <thead>
                         <tr>
                             <th>Catchment</th>
-                            <th>Area [ha]</th>
-                            <th>Imperv. [%]</th>
-                            <th>Slope [%]</th>
+                            <th>Area (ha)</th>
+                            <th>Imperv. (%)</th>
+                            <th>Slope (%)</th>
                             <th>Category</th>
-                            <th>Total runoff [10⁶ l]</th>
-                            <th>Peak runoff [m³/s]</th>
+                            <th>Total runoff (10⁶ L)</th>
+                            <th>Peak runoff (m³/s)</th>
                             <th>Runoff coeff.</th>
                         </tr>
                     </thead>
@@ -244,7 +251,7 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
                             <td class="num">{{ s.area|floatformat:3 }}</td>
                             <td class="num">{{ s.perc_imperv|floatformat:1 }}</td>
                             <td class="num">{{ s.perc_slope|floatformat:2 }}</td>
-                            <td>{{ s.category }}</td>
+                            <td>{{ s.category|category_label }}</td>
                             <td class="num">{{ s.total_runoff_mg|floatformat:3|default:"—" }}</td>
                             <td class="num">{{ s.peak_runoff|floatformat:3|default:"—" }}</td>
                             <td class="num">{{ s.runoff_coeff|floatformat:3|default:"—" }}</td>
@@ -259,7 +266,7 @@ are inline SVG). Everything below is scoped by .conduit-page, so no other page c
             {% if panel.model_catchment_name %}
             <p class="panel-note">Model feature (Subcatchment (model)): <strong>{{ panel.model_catchment_name }}</strong>{% if panel.model_catchment_differs %} &mdash; {% if panel.model_catchment_is_direct %}the pipeline kept only this one of the direct catchments above{% else %}differs from the direct catchments above{% endif %}{% endif %}</p>
             {% endif %}
-            <p class="panel-footnote">Values as reported by SWMM; the app accepts FLOW_UNITS CMS only.</p>
+            <p class="panel-footnote">Values as reported by SWMM; StormLab accepts FLOW_UNITS CMS only.</p>
         </div>
     </div>
 </div>

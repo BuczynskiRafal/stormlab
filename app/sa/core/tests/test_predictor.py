@@ -74,6 +74,67 @@ class TestGnnWeightNames:
         assert predictor._gnn_weight_names(" b.weights.h5, a.weights.h5 ,") == ("b.weights.h5", "a.weights.h5")
 
 
+class TestModelSwitches:
+    """The switches of app/.env.example: unset or blank is the default, as that file says."""
+
+    DEFAULTS = {
+        "model_id": "gnn_recommender_v1",
+        "weights": predictor._DEFAULT_GNN_WEIGHTS,
+        "spec": "gnn_recommender.spec.json",
+        "imputation": "gnn_recommender.imputation.json",
+        "max_hops": 2,
+    }
+    NAMES = ("GNN_MODEL_ID", "GNN_WEIGHTS", "GNN_SPEC", "GNN_IMPUTATION", "GNN_MAX_HOPS")
+
+    def test_unset_switches_give_the_shipped_model(self):
+        assert predictor._gnn_config({}) == self.DEFAULTS
+
+    @pytest.mark.parametrize("blank", ["", "   "])
+    def test_blank_switches_give_the_shipped_model(self, blank):
+        # A blank GNN_SPEC or GNN_IMPUTATION used to resolve to the recommendations
+        # directory itself, and a blank GNN_MAX_HOPS failed on int("").
+        assert predictor._gnn_config(dict.fromkeys(self.NAMES, blank)) == self.DEFAULTS
+
+    def test_set_switches_are_read_stripped(self):
+        config = predictor._gnn_config(
+            {
+                "GNN_MODEL_ID": " other_model ",
+                "GNN_WEIGHTS": "a.weights.h5,b.weights.h5",
+                "GNN_SPEC": " other.spec.json ",
+                "GNN_IMPUTATION": "other.imputation.json",
+                "GNN_MAX_HOPS": " 3 ",
+            }
+        )
+        assert config == {
+            "model_id": "other_model",
+            "weights": ("a.weights.h5", "b.weights.h5"),
+            "spec": "other.spec.json",
+            "imputation": "other.imputation.json",
+            "max_hops": 3,
+        }
+
+    def test_the_served_configuration_is_built_by_the_same_function(self):
+        import os
+
+        assert predictor.GNN_CONFIG.keys() == predictor._gnn_config(os.environ).keys()
+        assert predictor.gnn_spec_path.endswith(predictor.GNN_CONFIG["spec"])
+        assert os.path.isfile(predictor.gnn_spec_path)
+
+    @pytest.mark.parametrize("blank", ["", "  "])
+    def test_a_blank_gnn_enabled_is_unset_not_off(self, monkeypatch, blank):
+        monkeypatch.setenv("GNN_ENABLED", blank)
+        assert predictor.gnn_enabled_setting() is None
+        assert predictor.gnn_enabled() is True  # the shipped weight files exist
+
+    @pytest.mark.parametrize(
+        ("raw", "enabled"), [("true", True), (" On ", True), ("1", True), ("false", False), ("0", False), ("no", False)]
+    )
+    def test_a_written_gnn_enabled_decides(self, monkeypatch, raw, enabled):
+        monkeypatch.setenv("GNN_ENABLED", raw)
+        assert predictor.gnn_enabled_setting() == raw.strip()
+        assert predictor.gnn_enabled() is enabled
+
+
 class TestLoadModels:
     """Tests for _load_models function."""
 
@@ -163,15 +224,24 @@ class TestLoadModels:
         errors = [record.getMessage() for record in caplog.records if record.levelname == "ERROR"]
         assert errors == [f"Cannot load MLP recommendation model: {broken}"]
 
-    @pytest.mark.skipif(HAS_TENSORFLOW, reason="Test requires TensorFlow to be unavailable")
-    def test_handles_missing_tensorflow(self, reset_predictor_state):
-        """Test that _load_models handles missing TensorFlow gracefully."""
-        predictor._load_models()
+    def test_handles_missing_tensorflow(self, reset_predictor_state, monkeypatch, caplog):
+        """Without TensorFlow the load attempt finishes, loads nothing and says why.
+
+        A ``None`` entry in ``sys.modules`` makes the import fail the way an absent
+        package does, so the test runs whether or not TensorFlow is installed.
+        """
+        import sys
+
+        monkeypatch.setitem(sys.modules, "tensorflow.keras.models", None)
+
+        with caplog.at_level("WARNING", logger=predictor.logger.name):
+            predictor._load_models()
 
         assert predictor._models_loaded is True
-        # Models should be None when TF is not available
         assert predictor._classifier is None
         assert predictor._recommendation is None
+        assert predictor._gnn_recommendation is None
+        assert "TensorFlow not available - models will not be loaded" in caplog.text
 
 
 class TestGetterFunctions:

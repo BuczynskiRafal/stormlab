@@ -1,23 +1,23 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Stormwater Analysis System{% endblock %}
+{% block head_title %}StormLab · Decision support for storm sewer design{% endblock %}
 
 {% block content %}
 <div class="index-page">
     <div class="index-container">
         <div class="hero-section">
-            <h1 class="hero-title">Stormwater Analysis System</h1>
+            <h1 class="hero-title">StormLab</h1>
             <p class="hero-subtitle">
                 Hydraulic simulation, design checks and graph neural network
                 recommendations for storm sewer networks
             </p>
             <div class="hero-actions">
                 <a href="{% url 'sa:analysis' %}" class="btn btn-primary btn-lg">
-                    <i class="fas fa-upload me-2"></i>Start Analysis
+                    <i class="fas fa-upload me-2" aria-hidden="true"></i>Start Analysis
                 </a>
                 <a href="{% url 'sa:about' %}" class="btn btn-outline-primary btn-lg">
-                    <i class="fas fa-info-circle me-2"></i>Learn More
+                    <i class="fas fa-info-circle me-2" aria-hidden="true"></i>Learn More
                 </a>
             </div>
         </div>
@@ -26,9 +26,9 @@
             <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="fas fa-water"></i>
+                        <i class="fas fa-water" aria-hidden="true"></i>
                     </div>
-                    <h3 class="feature-title">Hydraulic Validation</h3>
+                    <h2 class="feature-title">Design checks</h2>
                     <p class="feature-description">
                         Seven checks for every conduit against Polish and European design
                         criteria: filling, velocity, slope, depth and cover.
@@ -36,19 +36,22 @@
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="fas fa-brain"></i>
+                        <i class="fas fa-brain" aria-hidden="true"></i>
                     </div>
-                    <h3 class="feature-title">Recommendations</h3>
+                    <h2 class="feature-title">Recommendations</h2>
                     <p class="feature-description">
                         A graph neural network reads each conduit together with the conduits
                         that drain into it and suggests one of nine actions.
                     </p>
+                    <a class="feature-link" href="{% url 'sa:method' %}">
+                        How it works<i class="fas fa-arrow-right" aria-hidden="true"></i>
+                    </a>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">
-                        <i class="fas fa-chart-line"></i>
+                        <i class="fas fa-chart-line" aria-hidden="true"></i>
                     </div>
-                    <h3 class="feature-title">Map and Profiles</h3>
+                    <h2 class="feature-title">Map and profiles</h2>
                     <p class="feature-description">
                         An interactive map of the network and a longitudinal profile
                         with the check results for every conduit.

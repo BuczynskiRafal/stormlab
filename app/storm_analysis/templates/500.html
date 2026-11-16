@@ -1,0 +1,45 @@
+{% load static %}<!DOCTYPE html>
+{% comment %}
+Self-contained on purpose: Django renders this page with an empty context and no
+request, often because something below the view failed (the database, a context
+processor, the URL configuration). So it does not extend base.html and uses no {% url %},
+no user and no context processor: only fixed links, app.css and the logo.
+{% endcomment %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32.png' %}">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <title>Server error · StormLab</title>
+</head>
+<body>
+<header class="site-header">
+    <div class="containerwide site-header-inner">
+        <a href="/" class="site-brand" aria-label="StormLab, home">
+            <img src="{% static 'img/logo.png' %}" alt="" height="44" width="36">
+            <span class="site-wordmark" aria-hidden="true">StormLab</span>
+        </a>
+    </div>
+</header>
+<main class="containerwide content-wrapper" id="main-content">
+    <div class="error-page">
+        <div class="error-card">
+            <p class="error-code">Error 500</p>
+            <h1 class="error-title">Something went wrong</h1>
+            <p class="error-text">The server failed while preparing this page. Try again in a moment; if it keeps happening, start again from the home page.</p>
+            <div class="error-actions">
+                <a class="btn btn-primary" href="/">Home</a>
+                <a class="btn btn-outline-primary" href="/analysis/">Analysis</a>
+            </div>
+        </div>
+    </div>
+</main>
+<footer class="site-footer">
+    <div class="containerwide site-footer-inner">
+        <p class="site-footer-copy">StormLab</p>
+    </div>
+</footer>
+</body>
+</html>

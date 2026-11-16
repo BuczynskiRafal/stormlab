@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import shutil
-import tempfile
 from functools import cached_property
 from pathlib import Path
 
@@ -18,9 +17,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
+from .core.inp_encoding import utf8_chunks
 from .forms import SWMMModelForm
+from .housekeeping import new_analysis_file, reap_stale_work, remove_analysis_files
+from .labels import ACTION_LABELS, ACTION_MEANINGS, CATEGORY_LABELS
 from .models import CalculationSession, ConduitData, NodeData, SubcatchmentData, SWMMModel
-from .services import AnalysisService, CalculationRetrievalService, ConduitPanelService, NavigationService
+from .services import (
+    AnalysisService,
+    CalculationRetrievalService,
+    ConduitPanelService,
+    NavigationService,
+    SessionDeletionService,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEST_FILE = str(REPO_ROOT / "examples" / "wroclaw_rakowiec.inp")
@@ -57,8 +65,11 @@ class SessionOwnerMixin:
 
     def validate_completed_or_redirect(self, session):
         """Check if session is completed. Returns redirect response or None."""
+        if session.status == "processing":
+            messages.info(self.request, "This analysis is still running. Open it from History when it has finished.")
+            return redirect("sa:analysis")
         if session.status != "completed":
-            messages.warning(self.request, f"Analysis session is {session.status}.")
+            messages.warning(self.request, "This analysis failed, so it has no results. History shows why.")
             return redirect("sa:analysis")
         return None
 
@@ -75,9 +86,25 @@ class IndexView(TemplateView):
 
 
 class AboutView(TemplateView):
-    """About page view."""
+    """About page view.
+
+    The action table and the list of land-cover categories come from ``sa.labels``, so
+    the page names them as the results do.
+    """
 
     template_name = "sa/about.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["actions"] = [(label, ACTION_MEANINGS[code]) for code, label in ACTION_LABELS.items()]
+        context["categories"] = list(CATEGORY_LABELS.items())
+        return context
+
+
+class MethodView(TemplateView):
+    """Method page: how the recommendation model is built, trained and evaluated."""
+
+    template_name = "sa/method.html"
 
 
 # =============================================================================
@@ -93,6 +120,7 @@ class AnalysisView(LoginRequiredMixin, View):
 
     def get(self, request):
         """Display analysis form."""
+        reap_stale_work()
         return render(request, self.template_name, {"swmm_form": SWMMModelForm()})
 
     def post(self, request):
@@ -146,9 +174,7 @@ class AnalysisView(LoginRequiredMixin, View):
                 raise FileNotFoundError(f"test network not found at {TEST_FILE}")
             zone_val = self._parse_zone(request.POST.get("zone"))
 
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".inp")
-            temp_file.close()
-            temp_path = temp_file.name
+            temp_path = new_analysis_file()
             shutil.copy2(TEST_FILE, temp_path)
 
             swmm_model = SWMMModel.objects.create(
@@ -161,8 +187,8 @@ class AnalysisView(LoginRequiredMixin, View):
                 temp_path=temp_path,
                 swmm_model=swmm_model,
             )
-        except Exception as e:
-            logger.error(f"Test file analysis error: {e}")
+        except Exception:
+            logger.exception("Analysis of the demo network failed")
             return self._render_form(request, error="The demo network could not be analysed.")
         finally:
             if temp_path:
@@ -200,32 +226,23 @@ class AnalysisView(LoginRequiredMixin, View):
 
     @staticmethod
     def _create_temp_file(uploaded_file) -> str:
-        """Create temporary file from uploaded file, cleaning up on write error."""
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".inp")
+        """Copy the upload into the analysis directory (sa.housekeeping), cleaning up on write error."""
+        path = new_analysis_file()
         try:
-            for chunk in uploaded_file.chunks():
-                temp_file.write(chunk)
-            temp_file.close()
-            return temp_file.name
+            # The copy is UTF-8 whatever the upload's encoding, so that the engine, swmmio
+            # and the upload gates all read the same bytes (see sa.core.inp_encoding).
+            with open(path, "wb") as temp_file:
+                for chunk in utf8_chunks(uploaded_file.chunks):
+                    temp_file.write(chunk)
+            return path
         except Exception:
-            temp_file.close()
-            try:
-                if os.path.exists(temp_file.name):
-                    os.unlink(temp_file.name)
-            except OSError:
-                pass
+            remove_analysis_files(path)
             raise
 
     @staticmethod
     def _cleanup_temp_file(path: str):
         """Remove temporary .inp file along with any SWMM-generated .rpt, .out, and .bak sibling files."""
-        base, _ = os.path.splitext(path)
-        for candidate in (path, f"{base}.rpt", f"{base}.out", f"{base}.bak"):
-            try:
-                if os.path.exists(candidate):
-                    os.unlink(candidate)
-            except OSError:
-                pass
+        remove_analysis_files(path)
 
 
 class AnalysisResultsView(LoginRequiredMixin, SessionOwnerMixin, TemplateView):
@@ -285,7 +302,7 @@ class ConduitDetailView(LoginRequiredMixin, SessionOwnerMixin, TemplateView):
 
         conduit = session.conduits.filter(conduit_name=kwargs["conduit_name"]).first()
         if not conduit:
-            messages.error(request, f"Conduit '{kwargs['conduit_name']}' not found in this session.")
+            messages.error(request, f"This analysis has no conduit named “{kwargs['conduit_name']}”.")
             return redirect("sa:analysis_results", session_id=session.id)
 
         panel = ConduitPanelService.build(session, conduit)
@@ -326,6 +343,31 @@ class HistoryView(LoginRequiredMixin, ListView):
     status_options = ("completed", "processing", "failed")
     sort_options = {"newest": "-created_at", "oldest": "created_at", "name": "swmm_model__file"}
     default_sort = "newest"
+
+    def get(self, request, *args, **kwargs):
+        # A session whose worker was killed would otherwise read "processing" until a restart.
+        reap_stale_work()
+        return super().get(request, *args, **kwargs)
+
+    def paginate_queryset(self, queryset, page_size):
+        """Like ``ListView``'s, but a page past the end shows the last page and junk shows the first.
+
+        A stale link (``?page=3`` after deleting the sessions on page 3) or a hand-edited
+        one would otherwise answer 404.
+        """
+        paginator = self.get_paginator(
+            queryset, page_size, orphans=self.get_paginate_orphans(), allow_empty_first_page=self.get_allow_empty()
+        )
+        raw = self.kwargs.get(self.page_kwarg) or self.request.GET.get(self.page_kwarg) or "1"
+        if raw == "last":
+            number = paginator.num_pages
+        else:
+            try:
+                number = int(raw)
+            except (TypeError, ValueError):
+                number = 1
+        page = paginator.page(min(max(number, 1), paginator.num_pages))
+        return paginator, page, page.object_list, page.has_other_pages()
 
     def get_paginate_by(self, queryset):
         per_page = self.request.GET.get("per_page")
@@ -432,13 +474,13 @@ class DeleteSessionView(LoginRequiredMixin, SessionOwnerMixin, View):
         session_id = session.id
 
         try:
-            session.delete()
-            logger.info(f"Successfully deleted session {session_id}")
+            SessionDeletionService.delete(CalculationSession.objects.filter(pk=session_id))
+            logger.info("Deleted session %s", session_id)
             return JsonResponse({"success": True, "message": f"Session {session_id} deleted successfully."})
-        except Exception as e:
-            logger.error(f"Error deleting session {session_id}: {e}")
+        except Exception:
+            logger.exception("Deleting session %s failed", session_id)
             return JsonResponse(
-                {"success": False, "message": "An error occurred while deleting the session."},
+                {"success": False, "message": "The session could not be deleted. Try again."},
                 status=500,
             )
 
@@ -447,33 +489,49 @@ class BulkDeleteSessionsView(LoginRequiredMixin, View):
     """AJAX endpoint for bulk deleting calculation sessions. Returns JSON response."""
 
     login_url = "/accounts/login/"
+    MAX_SESSIONS = 500
+    """More ids than History can select in one go (100 per page); a longer list is refused."""
+
+    @classmethod
+    def _session_ids(cls, body: bytes) -> list[int] | str:
+        """The ids of ``{"session_ids": [1, 2, ...]}``, or the reason the body is refused."""
+        try:
+            data = json.loads(body)
+        except (ValueError, UnicodeDecodeError):
+            return "Invalid request data."
+        if not isinstance(data, dict) or not isinstance(data.get("session_ids"), list):
+            return "Invalid request data."
+        ids = data["session_ids"]
+        if not ids:
+            return "No sessions selected."
+        if len(ids) > cls.MAX_SESSIONS:
+            return f"Select at most {cls.MAX_SESSIONS} sessions at a time."
+        # bool is an int in Python; true/false are not session ids.
+        if not all(isinstance(item, int) and not isinstance(item, bool) and item > 0 for item in ids):
+            return "Invalid request data."
+        return ids
 
     def post(self, request, *args, **kwargs):
+        session_ids = self._session_ids(request.body)
+        if isinstance(session_ids, str):
+            return JsonResponse({"success": False, "message": session_ids}, status=400)
         try:
-            data = json.loads(request.body)
-            session_ids = data.get("session_ids", [])
-
-            if not session_ids:
-                return JsonResponse({"success": False, "message": "No sessions selected."}, status=400)
-
             sessions = CalculationSession.objects.filter(id__in=session_ids, user=request.user)
-            deleted_count = sessions.count()
+            if not sessions.exists():
+                return JsonResponse(
+                    {"success": False, "message": "None of the selected sessions exist any more. Reload the page."}, status=404
+                )
 
-            if deleted_count == 0:
-                return JsonResponse({"success": False, "message": "No valid sessions found."}, status=404)
-
-            sessions.delete()
-            logger.info(f"Successfully bulk deleted {deleted_count} sessions for user {request.user.id}")
+            deleted_count = SessionDeletionService.delete(sessions)
+            logger.info("Bulk deleted %d sessions for user %s", deleted_count, request.user.id)
 
             return JsonResponse(
                 {"success": True, "message": f"Successfully deleted {deleted_count} session(s).", "deleted_count": deleted_count}
             )
-        except json.JSONDecodeError:
-            return JsonResponse({"success": False, "message": "Invalid request data."}, status=400)
-        except Exception as e:
-            logger.error(f"Error bulk deleting sessions: {e}")
+        except Exception:
+            logger.exception("Bulk deleting sessions failed")
             return JsonResponse(
-                {"success": False, "message": "An error occurred while deleting sessions."},
+                {"success": False, "message": "The sessions could not be deleted. Try again."},
                 status=500,
             )
 

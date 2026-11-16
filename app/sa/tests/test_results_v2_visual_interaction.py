@@ -190,6 +190,16 @@ class ResultsV2ExistingPagesZeroRegressionTests(TestCase):
 class ResultsV2CSSIsolationTests(TestCase):
     """Verify 100% of CSS rules in results-v2.css are strictly scoped under #storm-results-v2."""
 
+    def test_the_viewport_fit_of_app_css_leaves_phones_to_scroll(self):
+        """app.css fits the results page to the viewport from 576 px wide only, so
+        results-v2.css needs no rule outside #storm-results-v2 to undo it on a phone."""
+        static = Path(__file__).resolve().parent.parent.parent / "static" / "css"
+        app_css = (static / "app.css").read_text(encoding="utf-8")
+        fit = app_css.index("@media (min-height: 520px) and (min-width: 576px) {")
+        self.assertIn("body:has(#storm-results-v2),", app_css[fit : fit + 200])
+        self.assertNotIn("@media (min-height: 520px) {", app_css)
+        self.assertNotIn("body.results-v2-page", (static / "results-v2.css").read_text(encoding="utf-8"))
+
     def test_all_css_rules_scoped_under_root_id(self):
         """Every CSS rule selector must start with #storm-results-v2 to prevent Bootstrap collisions."""
         css_path = Path(__file__).resolve().parent.parent.parent / "static" / "css" / "results-v2.css"
@@ -237,6 +247,32 @@ class ResultsV2CSSIsolationTests(TestCase):
             f"Found {len(unscoped_selectors)} unscoped CSS selectors in results-v2.css:\n"
             + "\n".join(f"Line {idx}: {sel}" for idx, sel in unscoped_selectors[:10]),
         )
+
+
+class ResultsV2PhoneLeftoversTests(TestCase):
+    """Small-screen details of the results page and the conduit panel."""
+
+    @staticmethod
+    def _static(folder: str, name: str) -> str:
+        return (Path(__file__).resolve().parent.parent.parent / "static" / folder / name).read_text(encoding="utf-8")
+
+    def test_the_tab_row_fades_at_an_edge_with_more_tabs_behind_it(self):
+        css = self._static("css", "results-v2.css")
+        script = self._static("js", "results-v2.js")
+        self.assertIn("#storm-results-v2 .r-tabs[data-more-right=true]::after", css)
+        self.assertIn("#storm-results-v2 .r-tabs[data-more-left=true]::before", css)
+        self.assertIn("tabList.addEventListener('scroll', updateTabEdges, { passive: true });", script)
+
+    def test_the_tools_take_a_row_of_their_own_on_the_narrowest_phones(self):
+        css = self._static("css", "results-v2.css")
+        narrow = css[css.index("@media (max-width: 380px) {") :]
+        self.assertRegex(narrow, r"\.r-tools \{\s*flex: 1 1 100%;\s*margin-left: 0;")
+        self.assertRegex(narrow, r"\.r-tools \.r-button \{\s*flex: 1 1 0;")
+
+    def test_the_no_data_message_of_the_profile_fits_a_phone(self):
+        css = self._static("css", "app.css")
+        self.assertRegex(css, r'\.conduit-page \.conduit-profile\[data-state="message"\] \{\s*min-width: 0;')
+        self.assertIn("svg.setAttribute('data-state', 'message');", self._static("js", "conduit-panel.js"))
 
 
 class ResultsV2JavaScriptEmpiricalHarnessTests(TestCase):
@@ -605,13 +641,14 @@ class ResultsV2NetworkMapTemplateTests(TestCase):
     def test_map_panel_inset_matches_the_table_toolbar(self):
         """The unconditional inset of the map panel equals the toolbar's, side for side.
 
-        The block of ``@media (min-height: 520px)`` is cut out first: it carries the
+        The block of ``@media (min-height: 520px) and (min-width: 576px)`` is cut out
+        first: it carries the
         *layout* rule for the same selector (display, flex, min-height, overflow) and a
         search for the inset would otherwise stop on it.  What is asserted is equality
         between two rules of this file, never a number typed here.
         """
         source = self._css_no_comments(self._map_source("results-v2.css"))
-        unconditional = self._css_without_block(source, "@media (min-height: 520px) {")
+        unconditional = self._css_without_block(source, "@media (min-height: 520px) and (min-width: 576px) {")
         self.assertEqual(
             self._padding_sides(unconditional, "#r-map-panel"),
             self._padding_sides(unconditional, ".r-toolbar"),
@@ -722,6 +759,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         "cardRows",
         "symbolsCrowded",
         "resolveLabels",
+        "labelFitPadding",
     )
     """Every name the harness calls.  Later stages *add* to this tuple; the test asks
     for a subset and never for an exact count, so stage 7 exporting one more name is
@@ -790,7 +828,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
             f"the network map harness failed with exit code {result.returncode}:\n"
             f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}",
         )
-        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (27 / 27 PASSED)", result.stdout)
+        self.assertIn("ALL NETWORK MAP PURE-LAYER CASES VERIFIED (30 / 30 PASSED)", result.stdout)
 
     # -- 57 ---------------------------------------------------------------------
     def test_map_js_has_no_unsafe_patterns(self):
@@ -919,7 +957,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
         self.assertRegex(code, r"setAttribute\('role',\s*'group'\)")
         self.assertRegex(code, r"setAttribute\('aria-label',\s*'Selected element'\)")
         self.assertRegex(code, r"setAttribute\('aria-label',\s*'Close selection'\)")
-        self.assertIn("'Show in table'", code)
+        self.assertIn("'Show in Table'", code)
 
         self.assertEqual(code.count("createElement('a')"), 1, "the card builds exactly one anchor")
         branch = re.search(r"const href = [^;]*detail_url[^;]*;", code)
@@ -957,7 +995,7 @@ class ResultsV2NetworkMapInteractionTests(TestCase):
 
         fields = self._braced_block(code, re.search(r"const CARD_FIELDS = ", code))
         link = fields[: fields.index("node: [")]
-        for painted in ("key: 'recommendation_label'", "format: checksText", "format: fillingText"):
+        for painted in ("key: 'action_label'", "format: checksText", "format: fillingText"):
             self.assertIn(painted, link, f"the conduit card must show what a colour mode paints by ({painted})")
         for converted in ("key: 'floodVolume'", "key: 'runoff'"):
             entry = fields[fields.index(converted) :].split("}", 1)[0]
@@ -2664,3 +2702,53 @@ class ResultsV2NetworkMapContrastTests(TestCase):
             "the swatch is what says the category is off",
         )
         self.assertRegex(css, r"#storm-results-v2 \.nm-legend-off \.nm-swatch \{[^}]*box-shadow:\s*inset")
+
+
+class ResultsV2MapLegendTests(TestCase):
+    """Every legend entry is visible, and flooded nodes have a key of their own."""
+
+    @staticmethod
+    def _asset(folder: str, name: str) -> str:
+        static = Path(__file__).resolve().parent.parent.parent / "static"
+        return re.sub(r"/\*.*?\*/", "", (static / folder / name).read_text(encoding="utf-8"), flags=re.DOTALL)
+
+    def test_the_legend_wraps_and_is_never_capped(self):
+        # A cap with overflow hid six of ten entries on a phone, behind a scrollbar a
+        # touch screen does not draw.
+        css = self._asset("css", "network-map.css")
+        rule = re.search(r"#storm-results-v2 \.nm-legend \{([^}]*)\}", css)
+        self.assertIsNotNone(rule)
+        self.assertIn("flex-wrap: wrap", rule.group(1))
+        self.assertNotIn("max-height", rule.group(1))
+        self.assertNotIn("overflow", rule.group(1))
+
+    def test_flooded_nodes_have_a_legend_key_in_every_mode(self):
+        code = self._asset("js", "network-map.js")
+        build = code[code.index("function buildLegend()") :]
+        build = build[: build.index("function updateLegendState()")]
+        # The key is added after the entries of whichever mode is on, not inside one mode.
+        self.assertIn("if (hasFloodedNode)", build)
+        self.assertIn("'Flooded node'", build)
+        self.assertIn("nm-swatch nm-swatch-flooded", build)
+        self.assertIn("row.is_flooded === true", code[code.index("const hasFloodedNode") :][:300])
+
+    def test_a_flooded_node_is_told_apart_by_its_ring_not_only_its_hue(self):
+        css = self._asset("css", "network-map.css")
+        node = re.search(r"#storm-results-v2 \.nm-node\.nm-flooded \{([^}]*)\}", css).group(1)
+        # A filled disc with a dark ring: pipes carry no outline, so a red pipe (pump
+        # station, 0 / 7 checks, a full pipe) cannot be mistaken for it.
+        self.assertIn("fill: var(--r-red)", node)
+        self.assertIn("stroke: var(--r-ink)", node)
+        # The label placement counts on a 2 px stroke for a flooded node.
+        self.assertIn("stroke-width: 2", node)
+        swatch = re.search(r"\.nm-swatch\.nm-swatch-flooded \{([^}]*)\}", css).group(1)
+        self.assertIn("border-radius: 50%", swatch)
+        self.assertIn("var(--r-ink)", swatch)
+
+    def test_the_phone_canvas_takes_more_than_half_the_screen(self):
+        css = self._asset("css", "network-map.css")
+        block = css[css.index("@media (max-width: 575.98px)") :]
+        canvas = re.search(r"\.nm-canvas \{([^}]*)\}", block).group(1)
+        self.assertIn("height: 62svh", canvas)
+        self.assertIn("min-height: 300px", canvas)
+        self.assertRegex(block, r"\.nm-ctrls \{[^}]*bottom: 10px")

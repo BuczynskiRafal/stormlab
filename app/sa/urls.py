@@ -10,6 +10,7 @@ from .views import (
     ExportSessionCsvView,
     HistoryView,
     IndexView,
+    MethodView,
 )
 
 app_name = "sa"
@@ -17,6 +18,7 @@ app_name = "sa"
 urlpatterns = [
     path("", IndexView.as_view(), name="index"),
     path("about/", AboutView.as_view(), name="about"),
+    path("method/", MethodView.as_view(), name="method"),
     path("analysis/", AnalysisView.as_view(), name="analysis"),
     path("session/<int:session_id>/delete/", DeleteSessionView.as_view(), name="delete_session"),
     path("sessions/bulk-delete/", BulkDeleteSessionsView.as_view(), name="bulk_delete_sessions"),

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+
+{% block title %}Page not found{% endblock %}
+
+{% block content %}
+{% include "errors/_card.html" with code=404 heading="Page not found" text="There is no page at this address. It may have moved, or the link may be mistyped." %}
+{% endblock %}

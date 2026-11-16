@@ -8,7 +8,10 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+    {# Square icons cut from logo.png with transparent padding; the touch icon has a white ground because iOS paints transparency black. #}
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32.png' %}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'img/icon-512.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/apple-touch-icon.png' %}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
@@ -24,17 +27,18 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% versioned_static 'css/app.css' %}">
     {% block extra_css %}{% endblock %}
-    <title>
-        {% block title %} {% endblock %}
-    </title>
+    {# Every page is "Page · StormLab"; a page that needs another form (the home page) overrides head_title. #}
+    <title>{% block head_title %}{% block title %}{% endblock %} · StormLab{% endblock %}</title>
 </head>
 
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
 {% with url_name=request.resolver_match.url_name %}
 <header class="site-header">
     <div class="containerwide site-header-inner">
-        <a href="{% url 'sa:index' %}" class="site-brand" aria-label="Stormwater analysis - home">
-            <img src="{% static 'img/logo.png' %}" alt="Logo" height="50" width="50">
+        <a href="{% url 'sa:index' %}" class="site-brand" aria-label="StormLab, home">
+            <img src="{% static 'img/logo.png' %}" alt="" height="50" width="41">
+            <span class="site-wordmark" aria-hidden="true">StormLab</span>
         </a>
         <button class="navbar-toggler site-nav-toggler collapsed" type="button" data-bs-toggle="collapse"
                 data-bs-target="#siteNavCollapse" aria-controls="siteNavCollapse" aria-expanded="false"
@@ -49,6 +53,7 @@
                         <li><a href="{% url 'sa:index' %}" class="nav-link{% if url_name == 'index' %} is-active{% endif %}">Home</a></li>
                         <li><a href="{% url 'sa:analysis' %}" class="nav-link{% if url_name == 'analysis' or url_name == 'analysis_results' or url_name == 'conduit_detail' %} is-active{% endif %}">Analysis</a></li>
                         <li><a href="{% url 'sa:history' %}" class="nav-link{% if url_name == 'history' %} is-active{% endif %}">History</a></li>
+                        <li><a href="{% url 'sa:method' %}" class="nav-link{% if url_name == 'method' %} is-active{% endif %}">Method</a></li>
                         <li><a href="{% url 'sa:about' %}" class="nav-link{% if url_name == 'about' %} is-active{% endif %}">About</a></li>
                     </ul>
                 </nav>
@@ -56,14 +61,14 @@
                     {% if user.is_authenticated %}
                         <form action="{% url 'accounts:logout' %}" method="post">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-primary btn-sm">Logout</button>
+                            <button type="submit" class="btn btn-outline-primary btn-sm">Log out</button>
                         </form>
-                        <a href="{% url 'accounts:user_profile' %}" class="site-avatar-link" aria-label="Your profile">
-                            <img src="{{ user.get_avatar_url }}" class="profile-image" alt="Profile image" height="50" width="50">
+                        <a href="{% url 'accounts:user_profile' %}" class="site-avatar-link" aria-label="Your account">
+                            <img src="{{ user.get_avatar_url }}" class="profile-image" alt="" height="50" width="50">
                         </a>
                     {% else %}
-                        <a class="btn btn-outline-primary btn-sm" href="{% url 'accounts:login' %}">Login</a>
-                        {% if registration_open %}<a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">Sign-up</a>{% endif %}
+                        <a class="btn btn-outline-primary btn-sm" href="{% url 'accounts:login' %}">Log in</a>
+                        {% if registration_open %}<a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">Sign up</a>{% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -72,17 +77,32 @@
 </header>
 {% endwith %}
 
-<main class="containerwide content-wrapper">
+{% if messages %}
+{# Feedback of the previous request (saved profile, missing conduit, logout...). Errors and warnings interrupt a screen reader, the rest is announced politely. #}
+<div class="containerwide site-messages">
+    {% for message in messages %}
+    <div class="site-message site-message--{{ message.level_tag|default:'info' }} alert alert-dismissible fade show"
+         role="{% if message.level_tag == 'error' or message.level_tag == 'warning' %}alert{% else %}status{% endif %}">
+        <i class="site-message-icon fas {% if message.level_tag == 'success' %}fa-circle-check{% elif message.level_tag == 'error' %}fa-circle-exclamation{% elif message.level_tag == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}" aria-hidden="true"></i>
+        <p class="site-message-text">{{ message }}</p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss this message"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<main class="containerwide content-wrapper" id="main-content" tabindex="-1">
     {% block content%}{% endblock %}
 </main>
 
 <footer class="site-footer">
     <div class="containerwide site-footer-inner">
-        <a href="{% url 'sa:index' %}" class="site-footer-brand" aria-label="Stormwater analysis - home">
-            <img src="{% static 'img/logo.png' %}" alt="Logo" height="30" width="30">
+        <a href="{% url 'sa:index' %}" class="site-footer-brand" aria-label="StormLab, home">
+            <img src="{% static 'img/logo.png' %}" alt="" height="30" width="25">
         </a>
         <p class="site-footer-copy">&copy; Rafał Buczyński {% now "Y" %}</p>
         <ul class="nav site-footer-nav">
+            <li class="nav-item"><a href="{% url 'sa:method' %}" class="nav-link">Method</a></li>
             <li class="nav-item"><a href="{% url 'sa:about' %}" class="nav-link">About</a></li>
         </ul>
     </div>

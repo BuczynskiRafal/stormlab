@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %} Analysis {% endblock %}
+{% block title %}Analysis{% endblock %}
 
 {% block content %}
 
@@ -8,115 +8,72 @@
 <div class="row mb-4 justify-content-center">
     <div class="col-lg-8 col-xl-6">
         {% if analysis_error %}
-        <div class="alert alert-danger" role="alert">{{ analysis_error }}</div>
+        {# Why the analysis just submitted failed: the message strip's component (base.html), here above the form it belongs to. #}
+        <div class="site-message site-message--error analysis-error" role="alert">
+            <i class="site-message-icon fas fa-circle-exclamation" aria-hidden="true"></i>
+            <p class="site-message-text">{{ analysis_error }}</p>
+        </div>
         {% endif %}
         <div class="upload-card">
             <div class="card-header">
-                <h4 class="mb-0 text-center">
-                    <i class="fas fa-upload me-2"></i>Upload SWMM Model
-                </h4>
+                <h1 class="upload-title">
+                    <i class="fas fa-upload me-2" aria-hidden="true"></i>Analyse a SWMM model
+                </h1>
             </div>
             <div class="card-body p-4">
+                {# main.js (initAnalysisForm): inline error on an empty submit, progress and double-submit guard, restore on back. #}
                 <form method="post" enctype="multipart/form-data" id="uploadForm">
                     {% csrf_token %}
+                    {% with field=swmm_form.file %}
                     <div class="mb-4">
-                        <label class="form-label fw-bold mb-3">Select SWMM Model File (.inp)</label>
-                        <div class="file-input-wrapper">
-                            {{ swmm_form.file }}
-                            <div class="file-input-display" id="fileInputDisplay">
-                                <div class="file-input-content">
-                                    <div class="file-input-icon">
+                        <label class="form-label fw-bold mb-2" for="{{ field.id_for_label }}">SWMM model file</label>
+                        <div class="file-input-wrapper{% if field.errors %} has-error{% endif %}" data-file-input>
+                            {{ field }}
+                            <label class="file-input-display" for="{{ field.id_for_label }}" id="fileInputDisplay">
+                                <span class="file-input-content">
+                                    <span class="file-input-icon" aria-hidden="true">
                                         <i class="fas fa-cloud-upload-alt"></i>
-                                    </div>
-                                    <div class="file-input-text">
-                                        Drag & drop your SWMM file here
-                                    </div>
-                                    <div class="file-input-subtext">
-                                        or click to browse • Accepts .inp files
-                                    </div>
-                                </div>
-                            </div>
+                                    </span>
+                                    <span class="file-input-text" data-file-name data-empty-text="Drag and drop a .inp file here">Drag and drop a .inp file here</span>
+                                    <span class="file-input-subtext" data-file-detail data-empty-text="or click to choose one">or click to choose one</span>
+                                </span>
+                            </label>
                         </div>
-                        {% if swmm_form.file.errors %}
-                        <div class="text-danger small mt-2">{{ swmm_form.file.errors }}</div>
-                        {% endif %}
-                        {% if swmm_form.zone %}
-                        <div class="mt-3">
-                            <label for="{{ swmm_form.zone.id_for_label }}" class="form-label fw-bold">{{ swmm_form.zone.label }}</label>
-                            {{ swmm_form.zone }}
-                        </div>
-                        {% endif %}
+                        <p class="upload-help" id="{{ field.auto_id }}_helptext">
+                            {{ field.help_text }}. Flow units must be CMS (SI){% if max_inp_bytes %}; up to {{ max_inp_bytes|filesizeformat }}{% endif %}. The file is analysed from a temporary copy and not kept.
+                        </p>
+                        <div class="upload-error{% if not field.errors %} d-none{% endif %}" id="{{ field.auto_id }}_error" data-file-error data-extension-message="Choose a SWMM input file (.inp)." aria-live="polite">{% for error in field.errors %}{{ error }} {% endfor %}</div>
                     </div>
+                    {% endwith %}
+                    {% if swmm_form.zone %}
+                    {% with field=swmm_form.zone %}
+                    <div class="mb-4">
+                        <label for="{{ field.id_for_label }}" class="form-label fw-bold mb-2">Frost zone</label>
+                        {# The values, the default (the first zone) and the labels ("Zone I (0.8 m)", from zone_label) are the form's. #}
+                        <select name="{{ field.html_name }}" id="{{ field.id_for_label }}" class="form-select" required aria-describedby="{{ field.auto_id }}_helptext">
+                            {% for zone, label in field.field.choices %}
+                            <option value="{{ zone }}"{% if field.value|stringformat:"s" == zone|stringformat:"s" %} selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="upload-help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}. It sets the minimum cover in the design checks.</p>
+                        {% if field.errors %}<div class="upload-error">{{ field.errors|join:" " }}</div>{% endif %}
+                    </div>
+                    {% endwith %}
+                    {% endif %}
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary btn-lg" id="saveBtn">
-                            <i class="fas fa-upload me-2"></i>Upload & Analyze
+                            <i class="fas fa-upload me-2" aria-hidden="true"></i>Upload &amp; Analyse
                         </button>
                         <button type="submit" name="use_test_file" value="true" class="btn btn-outline-primary" formnovalidate>
-                            <i class="fas fa-play me-2"></i>Try with Demo Data
+                            <i class="fas fa-play me-2" aria-hidden="true"></i>Try with Demo Data
                         </button>
                     </div>
+                    <p class="upload-status d-none" id="uploadStatus" aria-live="polite">
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        <span>Analysing… this can take up to a minute.</span>
+                    </p>
                 </form>
             </div>
-
-            <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const fileInput = document.querySelector('input[type="file"]');
-                const fileDisplay = document.getElementById('fileInputDisplay');
-                const fileIcon = fileDisplay.querySelector('.file-input-icon i');
-                const fileText = fileDisplay.querySelector('.file-input-text');
-                const fileSubtext = fileDisplay.querySelector('.file-input-subtext');
-
-                // File input change handler
-                fileInput.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        fileDisplay.classList.add('file-input-selected');
-                        fileIcon.className = 'fas fa-file-alt';
-                        fileText.textContent = file.name;
-                        fileSubtext.textContent = `Size: ${(file.size / 1024).toFixed(1)} KB`;
-                    } else {
-                        resetFileDisplay();
-                    }
-                });
-
-                // Click handler for custom display
-                fileDisplay.addEventListener('click', function() {
-                    fileInput.click();
-                });
-
-                // Drag & drop handlers
-                fileDisplay.addEventListener('dragover', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    fileDisplay.classList.add('drag-over');
-                });
-
-                fileDisplay.addEventListener('dragleave', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    fileDisplay.classList.remove('drag-over');
-                });
-
-                fileDisplay.addEventListener('drop', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    fileDisplay.classList.remove('drag-over');
-
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        fileInput.files = files;
-                        fileInput.dispatchEvent(new Event('change'));
-                    }
-                });
-
-                function resetFileDisplay() {
-                    fileDisplay.classList.remove('file-input-selected');
-                    fileIcon.className = 'fas fa-cloud-upload-alt';
-                    fileText.textContent = 'Drag & drop your SWMM file here';
-                    fileSubtext.textContent = 'or click to browse • Accepts .inp files';
-                }
-            });
-            </script>
         </div>
     </div>
 </div>

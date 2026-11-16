@@ -80,7 +80,7 @@ class CriteriaSectionTests(TestCase):
             {key: (card["label"], card["value"], card["limit"]) for key, card in cards.items()},
             {
                 "max_q": ("Max flow", "0.150 m³/s", "SWMM peak"),
-                "val_max_fill": ("Filling", "50 %", "≤ 0.33 m (82.7 %)"),
+                "val_max_fill": ("Filling", "50 %", "≤ 0.33 m (82.7%)"),
                 "velocity": ("Velocity", "1.20 m/s", "0.70 – 5.00 m/s"),
                 "slope": ("Slope", "5.00 ‰", "2.00 – 40.00 ‰"),
                 "val_depth": ("Depth", "3.00 m", "≤ 8.00 m"),
@@ -183,8 +183,9 @@ class PageHeadingTests(TestCase):
         self.assertRegex(card, r'<h1 class="[^"]*">Conduit C1</h1>\s*<p class="panelhead-sub">Longitudinal profile</p>')
         # The Back button moved into that head, with the results URL.
         results_url = reverse("sa:analysis_results", args=[self.session.id])
-        self.assertIn(f'<a href="{results_url}" class="panel-back">', card)
-        self.assertRegex(self.page, r"<title>\s*Conduit C1 - Session")
+        self.assertIn(f'<a href="{results_url}" class="panel-back" data-results-session="{self.session.id}">', card)
+        file_name = self.session.swmm_model.file.name.rsplit("/", 1)[-1]
+        self.assertRegex(self.page, rf"<title>\s*Conduit C1 · {re.escape(file_name)} · StormLab\s*</title>")
 
     def test_the_profile_card_is_the_first_content_block(self):
         # Nothing stands between the page wrapper and the profile/prediction row: the
@@ -218,24 +219,26 @@ class PageHeadingTests(TestCase):
 
 # Every property the conduit panel showed before the details card replaced the single
 # table; each one still has to be on the page, under one of the three tabs.
+# Sentence case, as everywhere else in the app; "Max water depth" is the depth the old
+# "Filling" row printed in metres (the Filling card shows the share of the diameter).
 PROPERTY_LABELS = (
     "Name",
-    "Inlet Node",
-    "Outlet Node",
+    "Inlet node",
+    "Outlet node",
     "Length",
     "Diameter",
-    "Max Velocity",
-    "Max Flow",
-    "Filling",
+    "Max velocity",
+    "Max flow",
+    "Max water depth",
     "Slope",
-    "Min Required Slope",
-    "Max Allowable Slope",
-    "Inlet Ground Elevation",
-    "Outlet Ground Elevation",
-    "Inlet Ground Cover",
-    "Outlet Ground Cover",
+    "Min required slope",
+    "Max allowable slope",
+    "Inlet ground elevation",
+    "Outlet ground elevation",
+    "Inlet ground cover",
+    "Outlet ground cover",
     "Subcatchment (model)",
-    "Subcatchment Category",
+    "Subcatchment category",
     "Recommendation",
 )
 
@@ -415,9 +418,9 @@ class ConduitPanelTests(TestCase):
         cases = (
             ("missing", None, None, "<dd>—</dd>", False),
             ("none", 0.0, 0.0, "<dd>none</dd>", False),
-            ("flooded", 0.42, 0.013, "<dd>0.42 h · 0.013 × 10⁶ l</dd>", True),
+            ("flooded", 0.42, 0.013, "<dd>0.42 h · 0.013 × 10⁶ L</dd>", True),
             # SWMM reports Hours Flooded with two decimals: a short flood is 0.00 h.
-            ("short", 0.0, 0.003, "<dd>&lt; 0.01 h · 0.003 × 10⁶ l</dd>", True),
+            ("short", 0.0, 0.003, "<dd>&lt; 0.01 h · 0.003 × 10⁶ L</dd>", True),
         )
         for index, (name, hours, volume, expected, flooded) in enumerate(cases, start=10):
             with self.subTest(state=name):
@@ -500,7 +503,9 @@ class ConduitPanelTests(TestCase):
         self.assertContains(response, "node not in session data", count=2)
         self.assertContains(response, "no catchment connected", count=3)  # two node cards + the section
         self.assertNotContains(response, "Model feature")
-        self.assertContains(response, "<dd>none</dd>", count=4)  # incoming/outgoing on both cards
+        # Each card lists the conduit on display on its own side and nothing on the other.
+        self.assertContains(response, "<dd>none</dd>", count=2)
+        self.assertContains(response, '<span class="chain-current">C-lone (this conduit)</span>', count=2)
 
     def test_zero_invert_renders_as_zero_not_as_missing(self):
         make_node(self.session, node_name="N0", invert_elevation=0.0, max_depth=2.5)
@@ -520,10 +525,13 @@ class ConduitPanelTests(TestCase):
     def test_units_and_footnote(self):
         response = self._get()
 
-        self.assertContains(response, "Total runoff [10⁶ l]")
-        self.assertContains(response, "Peak runoff [m³/s]")
-        self.assertContains(response, "the app accepts FLOW_UNITS CMS only")
-        self.assertContains(response, "Max Flow")
+        self.assertContains(response, "Total runoff (10⁶ L)")
+        self.assertContains(response, "Peak runoff (m³/s)")
+        self.assertContains(response, "StormLab accepts FLOW_UNITS CMS only")
+        self.assertContains(response, "<span>Max flow</span>")
+        # A unit is separated from its number, the per-mille sign included.
+        self.assertContains(response, " ‰</b>", count=3)
+        self.assertNotRegex(response.content.decode(), r"\d‰")
 
     def test_no_template_comment_leaks_into_the_page(self):
         # Django's {# #} is single-line only: a comment wrapped over several lines is not
@@ -594,7 +602,7 @@ class ConduitPanelTests(TestCase):
         # are listed by descending confidence (0.02 ×3, 0.01 ×3, 0.0 last).
         self.assertEqual(len(names), 8)
         # The recommended class is named by its label, above the eight others.
-        self.assertContains(response, '<div class="selected-value">No changes needed</div>')
+        self.assertContains(response, '<div class="selected-value">No changes</div>')
         self.assertEqual(names[:3], ["Increase diameter", "Reduce diameter", "Increase slope"])
         self.assertEqual(names[-1], "Increase depth")
         # Open by default; the summary names the classes instead of an action.

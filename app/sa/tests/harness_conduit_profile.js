@@ -6,7 +6,8 @@
  * the pipe and the two manholes. The pipe runs from the inlet shaft's outer wall to the
  * outlet shaft's wall, its crown and invert are open lines (no end strokes), and each
  * shaft outline leaves an opening exactly where the pipe enters. It also pins the water
- * tooltips (pipe = max conduit depth, shaft = max node depth) and the caption text.
+ * tooltips (the max water depth of the conduit in the pipe, of the node in a shaft) and
+ * the caption text.
  *
  * The svg is a stub (innerHTML + setAttribute): the checks read the markup string that
  * renderProfile writes, so they prove what is drawn, not how a browser paints it - the
@@ -367,6 +368,7 @@ group('no data: the message only, no pipe or shaft outline', () => {
     assert.strictEqual(elements(html, role).length, 0, `no ${role} without data`);
   }
   assert.ok(/no data/.test(svg.attrs['aria-label']));
+  assert.strictEqual(svg.attrs['data-state'], 'message', 'the message may fit a narrow card');
 });
 
 /** The <title> texts inside every element with the given data-role, in document order. */
@@ -390,19 +392,19 @@ group('water tooltips: the pipe shows the conduit maximum, each shaft its node m
   // The two levels are different SWMM maxima and are drawn as they are; the titles say
   // which is which, with the numbers the drawing uses (two decimals).
   const { html } = render(CASES.large);
-  assert.deepStrictEqual(titles(html, 'water'), [['Max conduit depth 0.19 m (32 %)']]);
+  assert.deepStrictEqual(titles(html, 'water'), [['Max water depth in the conduit: 0.19 m (32%)']]);
   assert.deepStrictEqual(titles(html, 'shaft-water'), [
     ['Max water depth at N1: 0.19 m'],
     ['Max water depth at N2: 0.19 m'],
   ]);
   const flat = render(CASES.flatWide).html;
-  assert.deepStrictEqual(titles(flat, 'water'), [['Max conduit depth 0.30 m (100 %)']]);
+  assert.deepStrictEqual(titles(flat, 'water'), [['Max water depth in the conduit: 0.30 m (100%)']]);
   assert.deepStrictEqual(titles(flat, 'shaft-water'), [
     ['Max water depth at N1: 3.40 m'],
     ['Max water depth at N2: 0.30 m'],
   ]);
   // The flood marker keeps its own title; the pipe body and the walls carry none.
-  assert.deepStrictEqual(titles(flat, 'flood'), [['Flooding: 0.40 h, 0.011 × 10⁶ l']]);
+  assert.deepStrictEqual(titles(flat, 'flood'), [['Flooding: 0.40 h, 0.011 × 10⁶ L']]);
   for (const role of ['pipe', 'pipe-wall', 'shaft', 'shaft-wall']) {
     assert.ok(titles(flat, role).every((t) => t.length === 0), `${role}: no title`);
   }
@@ -419,7 +421,7 @@ group('water tooltips: a flooded node without a depth gets water but no title; n
 });
 
 group('caption: the water legend always, the exaggeration only above 1, nothing without a drawing', () => {
-  const legend = 'Water: manhole = max node depth · pipe = max conduit depth';
+  const legend = 'Max water depth: of each node in its manhole, of the conduit in the pipe';
   assert.strictEqual(cp.profileCaption(0), '');
   assert.strictEqual(cp.profileCaption(1), legend);
   assert.strictEqual(cp.profileCaption(12), legend + ' · vertical exaggeration ×12');

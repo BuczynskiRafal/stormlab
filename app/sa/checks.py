@@ -14,7 +14,7 @@ def model_files_present(app_configs: Any, **kwargs: Any) -> list[CheckMessage]:
     from .core import predictor
 
     required = [predictor.catchment_classifier_path]
-    if os.environ.get("GNN_ENABLED") is None or predictor.gnn_enabled():
+    if predictor.gnn_enabled_setting() is None or predictor.gnn_enabled():
         imputation_path = os.path.join(os.path.dirname(predictor.gnn_spec_path), predictor.GNN_CONFIG["imputation"])
         required += [*predictor.gnn_model_paths, predictor.gnn_spec_path, imputation_path]
 

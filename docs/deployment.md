@@ -22,6 +22,10 @@ Create `.env` in the repository root (it is not tracked). Compose reads it for i
 | `SECURE_HSTS_INCLUDE_SUBDOMAINS`, `SECURE_HSTS_PRELOAD` | no | `false` | HSTS opt-ins; preloading is hard to undo. |
 | `REGISTRATION_OPEN` | no | `true` | `false` hides the sign-up links and makes the sign-up page answer 404. |
 | `MAX_INP_BYTES` | no | `52428800` (50 MB) | Largest accepted `.inp` upload. |
+| `MAX_MODEL_ELEMENTS` | no | `5000` | Most conduits, nodes and subcatchments together the form accepts. |
+| `MAX_SIMULATION_HOURS` | no | `168` | Longest simulated period (START to END in `[OPTIONS]`) the form accepts. |
+| `MAX_OUTPUT_MB` | no | `200` | Largest estimated binary output of the engine (elements × report steps × 24 bytes), in MB. |
+| `MAX_ROUTING_MILLIONS` | no | `100` | Largest estimated routing work (elements, at least 50, × simulated time ÷ `ROUTING_STEP`), in millions. |
 | `MAX_REQUEST_BODY` | no | `55MB` | Request size limit at the proxy; keep it a little above `MAX_INP_BYTES`. |
 | `ADMIN_IPS` | no | `127.0.0.1/32` | Space-separated IP ranges allowed to open `/admin/`; everyone else gets 403. |
 | `WEB_CONCURRENCY` | no | `2` | Number of gunicorn worker processes. |
@@ -43,7 +47,7 @@ docker compose up -d
 docker compose exec web python manage.py createsuperuser
 ```
 
-On start, `web` applies database migrations, marks analyses stuck in processing for over 30 minutes as failed, and starts gunicorn. `docker compose logs -f web` shows the output.
+On start, `web` applies database migrations, marks analyses stuck in processing for over 30 minutes as failed, removes leftover analysis files, and starts gunicorn. `docker compose logs -f web` shows the output.
 
 ## Updating
 
@@ -73,9 +77,14 @@ docker compose cp web:/data/db/backup.sqlite3 ./backup-$(date +%F).sqlite3
 - Each worker runs one simulation at a time: the SWMM engine allows a single simulation per process, so gunicorn uses sync workers with one thread. Concurrent analyses are limited by `WEB_CONCURRENCY`.
 - The model files are part of the repository; `manage.py check` and the container start fail if one is missing.
 - The first analysis in each worker takes several seconds longer, because TensorFlow and the models load on first use.
-- Analyses run inside the request; the gunicorn timeout is 180 seconds. If a worker is killed mid-analysis, its session stays in processing until `python manage.py reap_stale_sessions` (run at startup; `--minutes` sets the age, default 30) marks it as failed.
+- Analyses run inside the request; the gunicorn timeout is 180 seconds. A worker killed mid-analysis leaves its session in processing and its files in `/tmp/stormlab-analyses`. Opening the analysis form or the history page marks sessions stuck for over 30 minutes as failed and removes analysis files of that age, so no restart is needed; `python manage.py reap_stale_sessions` does the same by hand (`--minutes` sets the age, default 30), and the container runs it at startup with `--all-temp-files`, which empties the directory before gunicorn starts. The application writes temporary files nowhere else.
 - `/admin/` is blocked at the proxy except for `ADMIN_IPS`. Management commands work without it via `docker compose exec web python manage.py ...`.
 - Set `REGISTRATION_OPEN=false` to stop new sign-ups on a public instance; existing accounts keep working.
+- One analysis must fit in the gunicorn timeout (180 s) and in `/tmp` (512 MB, shared by the workers). The form refuses a model above `MAX_MODEL_ELEMENTS` or `MAX_SIMULATION_HOURS`, or whose estimates exceed the two cost limits:
+  - binary output = elements × report steps × 24 bytes (a subcatchment writes 8 values, a node 6 and a link 5, four bytes each), against `MAX_OUTPUT_MB`. At 200 MB a 162-element network may report about 51,000 steps and a 5000-element one about 1,600, so two concurrent runs leave room in `/tmp`.
+  - routing work = elements × simulated time ÷ `ROUTING_STEP`, counting at least 50 elements because every routing step has a fixed cost, against `MAX_ROUTING_MILLIONS`. The engine took up to about 0.44 µs per element routing step on the development machine, so 100 million is about 45 s of engine time, which leaves the rest of the pipeline (about 15 s at 5000 elements) well inside the timeout on a slower server. With `VARIABLE_STEP` the engine may shorten the step below `ROUTING_STEP`, so this is an estimate.
+
+  The shipped examples (at most 162 elements, 12 hours) use less than 1 % of each estimate. Raise the limits together with the timeout and the `/tmp` size.
 - Uploads larger than `MAX_INP_BYTES` are refused by the form, and larger than `MAX_REQUEST_BODY` by the proxy. Uploads that refer to other files on the server (for example a `[FILES]` section) are refused.
 - The `web` container has a read-only root file system; only `/tmp` (in memory) and the two volumes are writable.
 

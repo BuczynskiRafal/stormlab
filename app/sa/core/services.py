@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import logging
 import math
+import os
+import re
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Dict, List
 
 import pandas as pd
@@ -15,6 +18,7 @@ if TYPE_CHECKING:
 from pyswmm import Simulation
 from swmmio.utils.functions import trace_from_node
 
+from .errors import SwmmInputError
 from .constants import (
     FILLING_CALCULATION_MAX_ITER,
     FILLING_CALCULATION_STEP,
@@ -106,14 +110,14 @@ class HydraulicCalculationsService:
         """
         radius = diameter / 2.0
 
-        # Obliczenie długości cięciwy
+        # Length of the chord
         chord = 2.0 * math.sqrt(radius**2 - (filling - radius) ** 2)
-        # Obliczenie kąta centralnego w radianach
+        # Central angle in radians
         alpha = math.acos((2.0 * radius**2 - chord**2) / (2.0 * radius**2))
 
         if filling > radius:
             if filling == diameter:
-                perimeter = 2 * math.pi * radius  # Pełne wypełnienie
+                perimeter = 2 * math.pi * radius  # Full pipe
             else:
                 perimeter = 2 * math.pi * radius - alpha * radius
         else:
@@ -188,11 +192,11 @@ class HydraulicCalculationsService:
             ValueError: If slope is too small or exceeds maximum allowed.
         """
         if not validate_max_slope(slope, diameter):
-            # raise ValueError("Slope exceeds maximum allowed value")
             logger.warning("Slope exceeds maximum allowed value")
         if not validate_min_slope(slope, filling, diameter):
-            # raise ValueError("Slope is too small")
-            logger.warning("Slope is too small")
+            # DEBUG, not WARNING: the search for a minimum diameter passes through this
+            # for conduit after conduit, and calc_velocity raises for it a moment later.
+            logger.debug("Slope is too small")
 
         area = HydraulicCalculationsService.calc_area(filling, diameter)
         velocity = HydraulicCalculationsService.calc_velocity(filling, diameter, slope)
@@ -228,7 +232,7 @@ class HydraulicCalculationsService:
         for _ in range(FILLING_CALCULATION_MAX_ITER):
             if filling > diameter:
                 break
-            flow = HydraulicCalculationsService.calc_flow(filling, diameter, slope)  # już [m³/s]
+            flow = HydraulicCalculationsService.calc_flow(filling, diameter, slope)  # already in [m³/s]
             if flow >= q:
                 break
             filling += FILLING_CALCULATION_STEP
@@ -238,6 +242,32 @@ class HydraulicCalculationsService:
         return filling
 
 
+MAX_ENGINE_ERRORS = 5
+"""How many of the engine's error lines a failed run shows; the rest are counted."""
+
+_ENGINE_ERROR = re.compile(r"^\s*(ERROR \d+:.*?)\s*:?\s*$")
+
+
+def engine_errors(report_path: str | os.PathLike[str], *, hide: Iterable[str] = ()) -> list[str]:
+    """The ``ERROR nnn: ...`` lines of a SWMM report, in order, with *hide* (paths) removed.
+
+    The engine names the offending element in each line, which the exception pyswmm
+    raises does not (it carries only the last message, with a literal ``%s``).
+    """
+    try:
+        with open(report_path, encoding="utf-8", errors="replace") as handle:
+            found = [match.group(1) for match in map(_ENGINE_ERROR.match, handle) if match]
+    except OSError:
+        return []
+    cleaned = []
+    for line in found:
+        for secret in hide:
+            if secret:
+                line = line.replace(secret, "")
+        cleaned.append(" ".join(line.split()))
+    return cleaned
+
+
 class SimulationRunnerService:
     """Class responsible for running the simulation using PySWMM."""
 
@@ -245,10 +275,26 @@ class SimulationRunnerService:
         self.inp_path = inp_path
 
     def run_simulation(self) -> None:
-        """Runs the PySWMM simulation in a loop to update model values."""
-        with Simulation(self.inp_path) as sim:
-            for _ in sim:
-                pass
+        """Runs the PySWMM simulation in a loop to update model values.
+
+        Raises:
+            SwmmInputError: when the engine refuses the model; the message carries the
+                engine's own error lines from the report, read before the report is deleted.
+        """
+        try:
+            with Simulation(self.inp_path) as sim:
+                for _ in sim:
+                    pass
+        except Exception as error:
+            report = os.path.splitext(self.inp_path)[0] + ".rpt"
+            hide = (os.path.dirname(os.path.abspath(self.inp_path)) + os.sep, os.path.abspath(self.inp_path))
+            lines = engine_errors(report, hide=hide)
+            if not lines:
+                raise
+            shown = "; ".join(line.rstrip(".") for line in lines[:MAX_ENGINE_ERRORS])
+            more = len(lines) - MAX_ENGINE_ERRORS
+            suffix = f"; and {more} more error{'s' if more > 1 else ''}" if more > 0 else ""
+            raise SwmmInputError(f"SWMM could not run the model: {shown}{suffix}.") from error
 
 
 class TraceAnalysisService:

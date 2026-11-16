@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Log out{% endblock %}
+
+{% block content %}
+    {# Reached by a GET to /accounts/logout/ (a typed or bookmarked address): logging out changes state, so it still takes a POST. #}
+    <div class="auth-shell">
+        <div class="auth-card">
+            <p class="auth-kicker">StormLab</p>
+            <h1 class="auth-title">Log out</h1>
+            <p class="auth-lede">You are logged in as <strong>{{ user.email }}</strong>. Log out on this device?</p>
+
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary auth-submit">Log out</button>
+            </form>
+
+            <p class="auth-alt"><a href="{% url 'sa:index' %}">Stay logged in and go to the home page</a></p>
+        </div>
+    </div>
+{% endblock %}

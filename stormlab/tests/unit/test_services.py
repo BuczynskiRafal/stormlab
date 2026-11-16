@@ -187,15 +187,17 @@ class TestFormulasCalcFlow:
                 calc_flow(0.1, 0.2, 500)
         assert "Slope exceeds maximum allowed value" in caplog.text
 
-    def test_flow_with_slope_too_small_warns_then_raises(self, caplog):
-        """Test that flow calculation logs a warning when slope is too small.
+    def test_flow_with_slope_too_small_logs_at_debug_then_raises(self, caplog):
+        """calc_flow notes a too small slope at DEBUG, then calc_velocity raises for it.
 
-        Note: calc_flow logs the warning but then calls calc_velocity which raises.
+        Not a warning: the minimum-diameter search passes through it for many conduits
+        of an ordinary run, and the production log would fill with it.
         """
-        with caplog.at_level(logging.WARNING, logger="stormlab.hydraulics.formulas"):
+        with caplog.at_level(logging.DEBUG, logger="stormlab.hydraulics.formulas"):
             with pytest.raises(ValueError, match="Slope is too small"):
                 calc_flow(0.2, 0.5, 0.0001)
-        assert "Slope is too small" in caplog.text
+        records = [record for record in caplog.records if record.getMessage() == "Slope is too small"]
+        assert [record.levelname for record in records] == ["DEBUG"]
 
 
 class TestFormulasCalcFilling:

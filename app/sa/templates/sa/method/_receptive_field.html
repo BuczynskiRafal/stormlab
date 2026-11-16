@@ -1,0 +1,41 @@
+{% load sa_static %}{% comment %}
+"What the model reads" figure. Optional include variable ``fig`` prefixes the ids and the
+radio group name, so the figure can appear more than once on a page:
+{% include "sa/method/_receptive_field.html" with fig="rf-second" %}. Default prefix: method-graph.
+{% endcomment %}{% with prefix=fig|default:"method-graph" %}
+<figure class="method-graph" data-method-graph data-src="{% versioned_static 'data/method-graph.json' %}">
+    <div class="method-graph__controls" data-method-graph-controls>
+        <div class="method-graph__field">
+            <label class="method-graph__label" for="{{ prefix }}-conduit">Conduit</label>
+            <select class="method-graph__select" id="{{ prefix }}-conduit" data-method-graph-select></select>
+        </div>
+        <fieldset class="method-graph__steps">
+            <legend class="method-graph__label">Graph steps</legend>
+            <div class="method-graph__toggle">
+                <label class="method-graph__step">
+                    <input type="radio" name="{{ prefix }}-steps" value="1" data-method-graph-steps>
+                    <span>One step</span>
+                </label>
+                <label class="method-graph__step">
+                    <input type="radio" name="{{ prefix }}-steps" value="2" data-method-graph-steps checked>
+                    <span>Two steps</span>
+                </label>
+            </div>
+        </fieldset>
+    </div>
+    <div class="method-graph__body">
+        <div class="method-graph__map" data-method-graph-map>
+            <svg class="method-graph__svg" data-method-graph-svg role="group" aria-label="Map of the Rakowiec network"></svg>
+            <p class="method-graph__fallback" data-method-graph-fallback>
+                The map shows, for each conduit, the conduits upstream of it whose values the model averages, one and
+                two graph steps away; conduits downstream are never read. It needs JavaScript.
+            </p>
+        </div>
+        <div class="method-graph__readout" data-method-graph-readout></div>
+    </div>
+    <figcaption class="method-graph__caption">
+        <strong>Figure 3.</strong> Rakowiec, Wrocław: 62 conduits. Select a conduit to see which conduits the model reads for it. Weights are those
+        of the aggregation the application computes for this network.
+    </figcaption>
+</figure>
+{% endwith %}

@@ -4,14 +4,32 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+INP_EXTENSION_MESSAGE = "Choose a SWMM input file (.inp)."
+
+
+def has_inp_extension(name: str) -> bool:
+    """Whether *name* ends in ``.inp`` in any letter case (``MODEL.INP`` is a SWMM file too)."""
+    return name.lower().endswith(".inp")
+
+
 def validate_file_extension(file):
-    if not file.name.endswith(".inp"):
-        raise ValidationError(_("Invalid file extension. Required extension is .inp"))
+    if not has_inp_extension(file.name):
+        raise ValidationError(_(INP_EXTENSION_MESSAGE), code="extension")
+
+
+ZONE_NUMERALS = {1: "I", 2: "II", 3: "III", 4: "IV"}
+
+
+def zone_label(zone: int, depth: float) -> str:
+    """ "Zone II (1.0 m)": the Roman numeral of the zone and its frost depth, as the site writes them."""
+    return f"Zone {ZONE_NUMERALS.get(zone, zone)} ({depth:.1f} m)"
 
 
 class SWMMModel(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     file = models.FileField(upload_to="user_models/", validators=[validate_file_extension])
+    # The second element is the frost depth the analysis uses (get_frost_zone_value), not a
+    # label; labels come from zone_label().
     ZONE_CHOICES = (
         (1, 0.8),
         (2, 1.0),
@@ -30,8 +48,8 @@ class SWMMModel(models.Model):
         return zone_mapping.get(self.zone, 0.8)  # Default to 0.8 if not found
 
     def get_zone_display_name(self):
-        """Return a user-friendly display name for the zone."""
-        return f"Zone {self.zone} ({self.get_frost_zone_value()}m)"
+        """The zone as the site names it: "Zone I (0.8 m)" ... "Zone IV (1.4 m)"."""
+        return zone_label(self.zone, self.get_frost_zone_value())
 
 
 class CalculationSession(models.Model):
@@ -44,9 +62,17 @@ class CalculationSession(models.Model):
     frost_zone = models.FloatField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="processing")
     error_message = models.TextField(blank=True, null=True)
+    model_metadata = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="The recommendation model that produced the results, as get_model_metadata() described it "
+        "when the analysis completed; empty for sessions completed before it was recorded",
+    )
 
     class Meta:
         ordering = ["-created_at"]
+        # Serves the stale-session sweep the analysis form and history page run (sa.housekeeping).
+        indexes = [models.Index(fields=["status", "updated_at"], name="sa_session_status_updated")]
 
     def __str__(self):
         return f"{self.user.email} - {self.created_at.strftime('%Y-%m-%d %H:%M')} - {self.status}"
@@ -73,17 +99,17 @@ class ConduitData(models.Model):
     val_depth = models.IntegerField(help_text="Valid depth (0/1)")
     val_coverage = models.IntegerField(help_text="Valid coverage (0/1)")
 
-    # Diameter analysis
-    min_diameter = models.FloatField(help_text="Minimum required diameter [m]")
-    is_min_diameter = models.IntegerField(help_text="Is minimum diameter (0/1)")
-    increase_dia = models.IntegerField(help_text="Should increase diameter (0/1)")
-    reduce_dia = models.IntegerField(help_text="Can reduce diameter (0/1)")
+    # Diameter analysis; NULL when the diameter is outside 0.2-2.0 m and was not assessed
+    min_diameter = models.FloatField(help_text="Minimum required diameter [m]", null=True, blank=True)
+    is_min_diameter = models.IntegerField(help_text="Is minimum diameter (0/1)", null=True, blank=True)
+    increase_dia = models.IntegerField(help_text="Should increase diameter (0/1)", null=True, blank=True)
+    reduce_dia = models.IntegerField(help_text="Can reduce diameter (0/1)", null=True, blank=True)
 
-    # Slope analysis
-    min_required_slope = models.FloatField(help_text="Minimum reqiured slope")
-    increase_slope = models.IntegerField(help_text="Should increase slope (0/1)")
-    max_allowable_slope = models.FloatField(help_text="Minimum reqiured slope")
-    reduce_slope = models.IntegerField(help_text="Should reduce slope (0/1)")
+    # Slope analysis; NULL when the diameter is outside 0.2-2.0 m and was not assessed
+    min_required_slope = models.FloatField(help_text="Minimum required slope [‰]", null=True, blank=True)
+    increase_slope = models.IntegerField(help_text="Should increase slope (0/1)", null=True, blank=True)
+    max_allowable_slope = models.FloatField(help_text="Maximum allowable slope [‰]", null=True, blank=True)
+    reduce_slope = models.IntegerField(help_text="Should reduce slope (0/1)", null=True, blank=True)
 
     # Node information
     inlet_node = models.CharField(max_length=100)

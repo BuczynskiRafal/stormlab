@@ -117,6 +117,19 @@ MEDIA_ROOT = str(env_path("MEDIA_ROOT", os.path.join(BASE_DIR, "media")))
 # Largest accepted .inp upload, in bytes.
 MAX_INP_BYTES = env_int("MAX_INP_BYTES", 50 * 1024 * 1024, minimum=1)
 
+# What one analysis may cost, checked by the upload form from the file itself. A run lives
+# inside a request (gunicorn timeout 180 s) and writes its binary output to /tmp (a 512 MB
+# tmpfs in production, shared by the workers).
+# Conduits + nodes + subcatchments; an estate-scale network has a few hundred (Rakowiec 162).
+MAX_MODEL_ELEMENTS = env_int("MAX_MODEL_ELEMENTS", 5000, minimum=1)
+# Simulated time, START to END: a week covers any design storm with its drain-down.
+MAX_SIMULATION_HOURS = env_int("MAX_SIMULATION_HOURS", 168, minimum=1)
+# Estimated binary output: elements x report steps x about 24 bytes, in MB (10^6 bytes).
+MAX_OUTPUT_MB = env_int("MAX_OUTPUT_MB", 200, minimum=1)
+# Estimated routing work in millions of element routing steps: elements (at least 50)
+# x simulated time / ROUTING_STEP. 100 million took about 45 s of engine time when measured.
+MAX_ROUTING_MILLIONS = env_int("MAX_ROUTING_MILLIONS", 100, minimum=1)
+
 # Upload limits (50 MB max .inp model + request overhead; stream files > 5 MB via temporary file)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

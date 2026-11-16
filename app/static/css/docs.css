@@ -1,21 +1,20 @@
 /*
- * docs.css - arkusz strony dokumentacji (/about/).
- * Ładowany przez {% block extra_css %} w about.html, więc TYLKO na tej stronie
- * i zawsze PO app.css. Korzysta wyłącznie z tokenów warstwy "papier + woda"
- * zadeklarowanych w app.css - własnego :root tu nie ma.
+ * docs.css - the stylesheet of the documentation pages (About, Method).
+ * Loaded through {% block extra_css %} of the page, so ONLY on those pages and
+ * always AFTER app.css. It uses only the tokens of the "paper + water" layer
+ * declared in app.css - there is no :root of its own here.
  *
- * Kotwice: offset nagłówka jest zmienną --docs-anchor-offset, którą docs.js
- * ustawia ze zmierzonej wysokości .site-header. Token --header-h opisuje tylko
- * desktop (na 390 px pasek ma ~160 px), a wartość w var() jest fallbackiem dla
- * przeglądarki bez JS.
+ * Anchors: the offset of the header is the variable --docs-anchor-offset, which
+ * docs.js sets from the measured height of .site-header. The value in var() is
+ * the fallback for a browser without JavaScript.
  */
 
 /* ============================================================
-   KOTWICE
+   ANCHORS
    ============================================================
 
-   `scroll-behavior` na <html> jest globalne i mieszka w app.css - tu zostaje
-   tylko to, co dotyczy sekcji tej strony. */
+   `scroll-behavior` on <html> is global and lives in app.css - only what concerns
+   the sections of these pages stays here. */
 
 section.docs-section[id],
 .docs-section [id] {
@@ -23,12 +22,12 @@ section.docs-section[id],
 }
 
 /* ============================================================
-   UKŁAD
+   LAYOUT
    ============================================================ */
 
 .docs-container {
-    /* 220 px spisu treści + 3 rem odstępu + 764 px treści: kolumna tekstu jest
-       dokładnie tak szeroka jak jej pole siatki, więc blok jest wyśrodkowany. */
+    /* 220 px of table of contents + 3 rem of gap + 764 px of content: the text column
+       is exactly as wide as its grid area, so the block is centred. */
     max-width: 1032px;
     margin: 0 auto;
     padding: 0.5rem 0 1rem;
@@ -41,17 +40,16 @@ section.docs-section[id],
     align-items: start;
 }
 
-/* Zapas na dole: bez niego dokument kończy się tuż pod ostatnią sekcją i dwóch
-   ostatnich pozycji spisu treści nie da się przewinąć na linię nagłówka - ani
-   kotwicą, ani kliknięciem. */
+/* No spare space below the last section: the last entries of the table of contents
+   cannot scroll up to the header line, so docs.js moves its activation line down
+   over the last screen of the page and keeps a clicked entry active. */
 .docs-content {
     display: block;
     min-width: 0;
-    padding-bottom: 50vh;
 }
 
 /* ============================================================
-   SPIS TREŚCI
+   TABLE OF CONTENTS
    ============================================================ */
 
 .docs-sidebar {
@@ -76,8 +74,8 @@ section.docs-section[id],
     border-left: 1px solid var(--rule-soft);
 }
 
-/* Ramka 2 px jest w stanie spoczynku przezroczysta, żeby zaznaczenie aktywnej
-   pozycji podczas przewijania nie przesuwało tekstu o 2 px. */
+/* The 2 px border is transparent at rest, so that marking the active entry while
+   scrolling does not move the text by 2 px. */
 .docs-nav-link {
     display: block;
     margin-left: -1px;
@@ -107,7 +105,7 @@ section.docs-section[id],
 }
 
 /* ============================================================
-   NAGŁÓWEK STRONY (zwykły blok, nie sticky - RC-1)
+   PAGE HEADER (a plain block, not sticky)
    ============================================================ */
 
 .docs-header {
@@ -117,7 +115,7 @@ section.docs-section[id],
 }
 
 .docs-header h1 {
-    /* app.css centruje gołe h1 - na stronie dokumentacji tytuł jest do lewej. */
+    /* app.css centres a bare h1 - on a documentation page the title is on the left. */
     text-align: left;
     margin: 0 0 0.75rem;
     font-family: var(--font-display);
@@ -168,7 +166,7 @@ section.docs-section[id],
 }
 
 /* ============================================================
-   SEKCJE I TEKST
+   SECTIONS AND TEXT
    ============================================================ */
 
 .docs-section {
@@ -197,7 +195,7 @@ section.docs-section[id],
     color: var(--ink);
 }
 
-/* Podnagłówki mają ten sam "szyld" co nagłówki tabel w app.css - jeden system. */
+/* Subheadings carry the same "sign" as the table headers in app.css - one system. */
 .docs-section h4 {
     margin: 1.75rem 0 0.6rem;
     font-family: var(--font-body);
@@ -237,7 +235,7 @@ section.docs-section[id],
     font-weight: 600;
 }
 
-/* Panel z wyliczeniem prozą (kategorie zlewni) */
+/* A panel holding a list (the catchment categories) */
 .docs-list-compact {
     margin: 0.75rem 0 1.5rem;
     padding: 0.85rem 1.1rem;
@@ -249,8 +247,23 @@ section.docs-section[id],
     line-height: 1.7;
 }
 
+/* The land-cover categories: label, then the id a [TAGS] entry uses, in two columns
+   where they fit.  The section prefix outweighs `.docs-section ul`. */
+.docs-section .docs-category-list {
+    max-width: none;
+    padding-left: 1.1rem;
+    list-style: none;
+    columns: 2 20rem;
+    column-gap: 2rem;
+}
+
+.docs-section .docs-category-list li {
+    margin-bottom: 0.2rem;
+    break-inside: avoid;
+}
+
 /* ============================================================
-   LISTA DEFINICJI (parametry, architektura sieci)
+   DEFINITION LIST (parameters, network architecture)
    ============================================================ */
 
 .docs-dl {
@@ -274,8 +287,8 @@ section.docs-section[id],
     color: var(--text);
 }
 
-/* Bez podkładki i paddingu: wartość bywa dopełniona przecinkiem ("32 neurons,
-   ReLU activation"), a boczny padding chipa odsuwałby go od liczby. */
+/* No background and no padding: a value may be followed by a comma ("32 neurons,
+   ReLU activation"), and the side padding of a chip would push it away from the number. */
 .docs-value {
     display: inline;
     color: var(--ink);
@@ -283,22 +296,32 @@ section.docs-section[id],
     font-size: 0.86em;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
-    /* Wartości bywają długie ("0.7 - 5.0 m/s (PN-EN 752:2008)") - muszą się łamać. */
+    /* Values can be long ("0.7 - 5.0 m/s (PN-EN 752:2008)") - they have to wrap. */
     white-space: normal;
     overflow-wrap: anywhere;
 }
 
 /* ============================================================
-   LICZBY WYNIKÓW JAKO CHIPY Z ETYKIETĄ
+   RESULT FIGURES AS LABELLED CHIPS
    ============================================================ */
 
+/* `.docs-section ul` (0,1,1) outweighs a bare `.docs-stats` (0,1,0): it indented
+   the chips by its list padding, capped the row at 72ch so two chips no longer fit
+   side by side, and gave every chip a list item's bottom margin. Hence the section
+   prefix here and on .docs-stat. */
+.docs-section .docs-stats,
 .docs-stats {
     display: flex;
     flex-wrap: wrap;
     gap: 0.6rem;
     list-style: none;
+    max-width: none;
     margin: 0.9rem 0 1.75rem;
     padding: 0;
+}
+
+.docs-section .docs-stat {
+    margin-bottom: 0;
 }
 
 .docs-stat {
@@ -331,7 +354,7 @@ section.docs-section[id],
 }
 
 /* ============================================================
-   TABELE
+   TABLES
    ============================================================ */
 
 .docs-table-wrapper {
@@ -350,8 +373,8 @@ section.docs-section[id],
     font-variant-numeric: tabular-nums;
 }
 
-/* Komórki: app.css ma gołe `table td, table th { white-space: nowrap }`, przez co
-   opisy w tabelach uciekały w poziomy scroll. Tu tekst ma się zawijać. */
+/* Cells: app.css has a bare `table td, table th { white-space: nowrap }`, which sent
+   the descriptions in these tables into a horizontal scroll. Here the text wraps. */
 .docs-table th,
 .docs-table td {
     padding: 0.7rem 1rem;
@@ -362,9 +385,9 @@ section.docs-section[id],
     text-overflow: clip;
 }
 
-/* Tło i kolor nagłówka narzuca w app.css reguła `thead th` (z flagą ważności, żeby
-   nagłówek tabeli wyglądał tak samo w całej aplikacji) - dlatego nie deklarujemy ich
-   tutaj; ustawiamy tylko krój i rytm. */
+/* The background and the colour of the header are set in app.css by the `thead th`
+   rule (with the importance flag, so that a table header looks the same across the
+   application) - so they are not declared here; only the typeface and the rhythm are. */
 .docs-table th {
     font-family: var(--font-body);
     font-size: 0.78rem;
@@ -374,7 +397,7 @@ section.docs-section[id],
     border-bottom: 1px solid var(--slate-300);
 }
 
-/* Ta sama włosowa kreska między komórkami nagłówka co w tabelach aplikacji. */
+/* The same hairline between header cells as in the tables of the application. */
 .docs-table th:not(:last-child) {
     border-right: 1px solid rgba(148, 163, 184, 0.3);
 }
@@ -388,7 +411,7 @@ section.docs-section[id],
     border-bottom: none;
 }
 
-/* Zebra nieparzystych wierszy przychodzi z app.css (`tbody tr:nth-child(odd)`). */
+/* The striping of odd rows comes from app.css (`tbody tr:nth-child(odd)`). */
 .docs-table tbody tr:hover {
     background-color: var(--water-050);
 }
@@ -397,8 +420,25 @@ section.docs-section[id],
     color: var(--ink);
 }
 
+/* Inline code (file names, section names): Bootstrap's pink (#d63384) reads at
+   4.31:1 on the page paper; ink on a neutral chip is well above 4.5:1. */
+.docs-section code {
+    padding: 0.1em 0.35em;
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-2);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+}
+
+/* A two-column lookup table (frost zones) does not need the full measure. */
+.docs-table--compact {
+    width: auto;
+    min-width: 16rem;
+}
+
 /* ============================================================
-   MOBILE: SPIS TREŚCI JAKO POZIOMY PASEK CHIPÓW
+   PHONES: THE TABLE OF CONTENTS AS A HORIZONTAL BAR OF CHIPS
    ============================================================ */
 
 @media (max-width: 768px) {
@@ -420,7 +460,7 @@ section.docs-section[id],
         margin-bottom: 0.5rem;
     }
 
-    /* Przewijanie w poziomie należy do listy, nigdy do <body>. */
+    /* Scrolling sideways belongs to the list, never to <body>. */
     .docs-nav-list {
         display: flex;
         gap: 0.5rem;
@@ -485,17 +525,12 @@ section.docs-section[id],
 }
 
 /* ============================================================
-   DRUK
+   PRINT
    ============================================================ */
 
 @media print {
     .docs-sidebar {
         display: none;
-    }
-
-    /* Zapas na kotwice liczy się w vh - na wydruku dałby pół pustej strony. */
-    .docs-content {
-        padding-bottom: 0;
     }
 
     .docs-grid {
@@ -509,5 +544,61 @@ section.docs-section[id],
 
     .docs-table {
         box-shadow: none;
+    }
+
+    /* The page is the document: no site chrome on paper. Without this the header
+       with the navigation and buttons filled the top of page 1 and the footer
+       printed alone on the last page. */
+    .site-header,
+    .site-footer,
+    .site-messages,
+    .skip-link,
+    #backToTop {
+        display: none !important;
+    }
+
+    body {
+        display: block;
+        min-height: 0;
+        background: #ffffff;
+    }
+
+    .content-wrapper {
+        padding: 0;
+    }
+
+    /* A heading stays with the text it introduces; figures, tables and the chip rows
+       are never cut in two. */
+    .docs-section h2,
+    .docs-section h3,
+    .docs-section h4 {
+        break-after: avoid;
+        page-break-after: avoid;
+    }
+
+    .docs-section p,
+    .docs-section li {
+        orphans: 3;
+        widows: 3;
+    }
+
+    .docs-table-wrapper {
+        overflow: visible;
+    }
+
+    .docs-table,
+    .docs-table tr,
+    figure,
+    .docs-stats,
+    .docs-dl,
+    .docs-list-compact {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    /* Links read as text on paper: no colour that prints grey, no underline. */
+    .docs-content a {
+        color: inherit;
+        text-decoration: none;
     }
 }

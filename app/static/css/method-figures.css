@@ -1,0 +1,414 @@
+/*
+ * method-figures.css - static figures of the method section on /about/.
+ * Loaded after app.css and docs.css; uses only the "paper + water" tokens.
+ * Every colour of the inline SVG partials (sa/method/_fig_*.html) is set here
+ * through classes, so the markup carries no colour literals.
+ */
+
+/* ============================================================
+   FIGURE CHROME
+   ============================================================ */
+
+figure.method-fig {
+    margin: 2rem 0 2.25rem;
+    padding: 1.25rem 1.25rem 1rem;
+    border: 1px solid var(--rule-soft);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-0);
+}
+
+/* A wide figure keeps a readable size on phones and scrolls sideways instead: at
+   660 px the smallest (12 px) labels of a 720-unit drawing are still 11 px. docs.js marks a
+   scroller that overflows (.is-scrollable) and where it stands (.is-at-start,
+   .is-at-end); the edge fades show that more of the drawing lies that way, and the
+   hint under the figure goes once the reader has scrolled. */
+.method-fig-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.method-fig-scroll > svg {
+    display: block;
+    width: 100%;
+    min-width: 660px;
+    height: auto;
+    overflow: visible;
+}
+
+.method-fig-scroll.is-scrollable {
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 2.5rem, #000 calc(100% - 2.5rem), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 2.5rem, #000 calc(100% - 2.5rem), transparent 100%);
+}
+
+.method-fig-scroll.is-scrollable.is-at-start {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent 100%);
+}
+
+.method-fig-scroll.is-scrollable.is-at-end {
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 2.5rem);
+    mask-image: linear-gradient(to right, transparent 0, #000 2.5rem);
+}
+
+.method-fig-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--water-700);
+    text-align: right;
+}
+
+/* Figure 2 is two drawings: side by side on a wide screen, stacked on a phone, so the
+   graph panel and its legend are never off-screen. Each SVG grows in proportion to
+   the width of its viewBox, which keeps one scale across the row. */
+.method-fig-panels {
+    display: flex;
+    align-items: center;
+}
+
+.method-fig-panels > svg {
+    display: block;
+    min-width: 0;
+    height: auto;
+    overflow: visible;
+}
+
+.method-fig-panel--network {
+    flex: 266 1 0;
+}
+
+.method-fig-panel--becomes {
+    flex: 110 1 0;
+}
+
+.method-fig-panel--graph {
+    flex: 328 1 0;
+}
+
+/* The arrow between the stacked panels, shown only in the narrow layout. */
+.method-fig-becomes {
+    display: none;
+}
+
+.method-fig-scroll:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 4px;
+    border-radius: var(--radius-sm);
+}
+
+.method-fig figcaption {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--rule-soft);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--muted);
+}
+
+.method-fig figcaption strong {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+/* ============================================================
+   SVG TYPOGRAPHY
+   ============================================================ */
+
+.method-fig svg text {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    fill: var(--muted);
+}
+
+.method-fig .mf-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    fill: var(--ink);
+}
+
+.method-fig .mf-title--primary {
+    fill: var(--water-700);
+}
+
+.method-fig .mf-head {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    fill: var(--ink);
+}
+
+.method-fig .mf-body {
+    font-size: 12.5px;
+    fill: var(--muted);
+}
+
+.method-fig .mf-meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    fill: var(--slate-600);
+}
+
+.method-fig .mf-meta--primary {
+    fill: var(--water-700);
+}
+
+.method-fig .mf-note {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14px;
+    fill: var(--muted);
+}
+
+.method-fig .mf-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--ink);
+}
+
+/* Formula: serif, variables in italics, operators upright. */
+.method-fig .mf-math {
+    font-family: var(--font-display);
+    font-size: 16px;
+    fill: var(--ink);
+}
+
+.method-fig .mf-math .mf-var {
+    font-style: italic;
+}
+
+.method-fig .mf-math .mf-sub {
+    font-size: 12px;
+    font-style: normal;
+}
+
+.method-fig .mf-math-big {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 26px;
+    fill: var(--water-700);
+}
+
+/* ============================================================
+   SVG SHAPES
+   ============================================================ */
+
+.method-fig .mf-box {
+    fill: var(--surface-0);
+    stroke: var(--slate-300);
+    stroke-width: 1;
+}
+
+.method-fig .mf-box--primary {
+    fill: var(--water-050);
+    stroke: var(--water-600);
+}
+
+.method-fig .mf-divider {
+    fill: none;
+    stroke: var(--water-300);
+    stroke-width: 1;
+}
+
+.method-fig .mf-rule {
+    fill: none;
+    stroke: var(--rule-soft);
+    stroke-width: 1;
+}
+
+.method-fig .mf-line {
+    fill: none;
+    stroke: var(--slate-500);
+    stroke-width: 1.25;
+}
+
+.method-fig .mf-line--primary {
+    stroke: var(--water-600);
+    stroke-width: 1.5;
+}
+
+.method-fig .mf-bracket {
+    fill: none;
+    stroke: var(--slate-500);
+    stroke-width: 1.25;
+}
+
+.method-fig .mf-dot {
+    fill: var(--water-600);
+}
+
+.method-fig .mf-head-fill {
+    fill: var(--slate-500);
+}
+
+.method-fig .mf-head-fill--primary {
+    fill: var(--water-600);
+}
+
+/* Sewer network (figure 2, left) */
+.method-fig .mf-pipe {
+    fill: none;
+    stroke: var(--slate-600);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.method-fig .mf-pipe-head {
+    fill: var(--slate-600);
+}
+
+.method-fig .mf-manhole {
+    fill: var(--surface-0);
+    stroke: var(--slate-600);
+    stroke-width: 1.5;
+}
+
+.method-fig .mf-outfall {
+    fill: var(--slate-600);
+    stroke: none;
+}
+
+/* Conduit graph (figure 2, right): distance from the conduit being assessed */
+.method-fig .mf-node {
+    stroke-width: 1.25;
+}
+
+.method-fig .mf-node--self {
+    fill: var(--ink);
+    stroke: var(--ink);
+}
+
+.method-fig .mf-node--hop1 {
+    fill: var(--water-700);
+    stroke: var(--water-700);
+}
+
+.method-fig .mf-node--hop2 {
+    fill: var(--water-300);
+    stroke: var(--water-300);
+}
+
+.method-fig .mf-node--far {
+    fill: var(--surface-2);
+    stroke: var(--slate-300);
+}
+
+.method-fig .mf-node-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--ink);
+}
+
+.method-fig .mf-node-label--inverse {
+    fill: var(--surface-0);
+}
+
+.method-fig .mf-node-label--far {
+    fill: var(--muted);
+}
+
+.method-fig .mf-edge {
+    fill: none;
+    stroke-width: 1.5;
+}
+
+.method-fig .mf-edge--hop1 {
+    stroke: var(--water-700);
+}
+
+.method-fig .mf-edge--hop2 {
+    stroke: var(--water-300);
+}
+
+.method-fig .mf-edge--far {
+    stroke: var(--slate-300);
+}
+
+.method-fig .mf-edge-head--hop1 {
+    fill: var(--water-700);
+}
+
+.method-fig .mf-edge-head--hop2 {
+    fill: var(--water-300);
+}
+
+.method-fig .mf-edge-head--far {
+    fill: var(--slate-300);
+}
+
+/* ============================================================
+   NARROW SCREENS AND PRINT
+   ============================================================ */
+
+@media (max-width: 639.98px) {
+    .method-fig-panels {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .method-fig-panels > svg {
+        flex: none;
+        width: 100%;
+    }
+
+    .method-fig-panel--network {
+        max-width: 22rem;
+    }
+
+    .method-fig-panel--becomes {
+        display: none !important;
+    }
+
+    .method-fig-becomes {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.75rem 0;
+        font-family: var(--font-display);
+        font-style: italic;
+        color: var(--muted);
+    }
+
+    .method-fig-becomes::before {
+        content: "\2193";
+        font-style: normal;
+        font-size: 1.1rem;
+        color: var(--slate-500);
+    }
+}
+
+@media (max-width: 575.98px) {
+    figure.method-fig {
+        margin: 1.5rem 0 1.75rem;
+        padding: 0.9rem 0.9rem 0.8rem;
+    }
+}
+
+@media print {
+    figure.method-fig {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        padding: 0.75rem 0 0.5rem;
+        border: 0;
+    }
+
+    .method-fig-scroll {
+        overflow: visible;
+    }
+
+    .method-fig-scroll > svg {
+        min-width: 0;
+    }
+
+    .method-fig-scroll.is-scrollable {
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+
+    .method-fig-hint {
+        display: none;
+    }
+}

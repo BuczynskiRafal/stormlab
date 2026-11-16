@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 import pandas as pd
 from unittest.mock import patch
@@ -13,8 +14,11 @@ def create_test_df(diameter, slope):
 
 
 def test_slope_reduction_none_df():
+    """Without a conduit frame the step is a no-op, not an error."""
     service = ConduitFeatureEngineeringService(None, None, 1.0)
     service.slope_reduction()
+
+    assert service.dfc is None
 
 
 def test_slope_reduction_existing_column():
@@ -29,98 +33,90 @@ def test_slope_reduction_existing_column():
 
 @pytest.mark.parametrize("diameter", common_diameters)
 def test_slope_reduction_standard_diameters(diameter):
-    try:
-        max_allowable_slope = max_slope(diameter)
+    """Every standard diameter has a slope envelope, so none of these inputs may raise."""
+    max_allowable_slope = max_slope(diameter)
 
-        test_cases = [(max_allowable_slope * 0.9, 0), (max_allowable_slope, 0), (max_allowable_slope * 1.1, 1)]
+    test_cases = [(max_allowable_slope * 0.9, 0), (max_allowable_slope, 0), (max_allowable_slope * 1.1, 1)]
 
-        for slope, expected in test_cases:
-            df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [slope], "Filling": [diameter * 0.5]})
+    for slope, expected in test_cases:
+        df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [slope], "Filling": [diameter * 0.5]})
 
-            service = ConduitFeatureEngineeringService(df, None, 1.0)
-            service.slope_reduction()
+        service = ConduitFeatureEngineeringService(df, None, 1.0)
+        service.slope_reduction()
 
-            assert "MaxAllowableSlope" in service.dfc.columns
-            assert service.dfc["MaxAllowableSlope"].iloc[0] == pytest.approx(max_allowable_slope, rel=1e-3)
+        assert "MaxAllowableSlope" in service.dfc.columns
+        assert service.dfc["MaxAllowableSlope"].iloc[0] == pytest.approx(max_allowable_slope, rel=1e-3)
 
-            assert "ReduceSlope" in service.dfc.columns
-            assert service.dfc["ReduceSlope"].iloc[0] == expected, (
-                f"Failed for diameter={diameter}, slope={slope}, max_slope={max_allowable_slope}"
-            )
-    except ValueError as e:
-        pytest.skip(f"Skipping test due to error: {str(e)}")
+        assert "ReduceSlope" in service.dfc.columns
+        assert service.dfc["ReduceSlope"].iloc[0] == expected, (
+            f"Failed for diameter={diameter}, slope={slope}, max_slope={max_allowable_slope}"
+        )
 
 
 @pytest.mark.parametrize("diameter", [0.5, 1.0])
 def test_slope_reduction_boundary_values(diameter):
-    try:
-        max_allowable_slope = max_slope(diameter)
+    max_allowable_slope = max_slope(diameter)
 
-        test_cases = [
-            (0.0, 0),
-            (max_allowable_slope - 0.001, 0),
-            (max_allowable_slope + 0.001, 1),
-            (max_allowable_slope * 10, 1),
-            (float("inf"), 1),
-        ]
+    test_cases = [
+        (0.0, 0),
+        (max_allowable_slope - 0.001, 0),
+        (max_allowable_slope + 0.001, 1),
+        (max_allowable_slope * 10, 1),
+        (float("inf"), 1),
+    ]
 
-        for slope, expected in test_cases:
-            df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [slope], "Filling": [diameter * 0.5]})
+    for slope, expected in test_cases:
+        df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [slope], "Filling": [diameter * 0.5]})
 
-            service = ConduitFeatureEngineeringService(df, None, 1.0)
-            service.slope_reduction()
+        service = ConduitFeatureEngineeringService(df, None, 1.0)
+        service.slope_reduction()
 
-            assert service.dfc["ReduceSlope"].iloc[0] == expected, (
-                f"Failed for diameter={diameter}, slope={slope}, max_slope={max_allowable_slope}"
-            )
-    except ValueError as e:
-        pytest.skip(f"Skipping test due to error: {str(e)}")
+        assert service.dfc["ReduceSlope"].iloc[0] == expected, (
+            f"Failed for diameter={diameter}, slope={slope}, max_slope={max_allowable_slope}"
+        )
 
 
 @pytest.mark.parametrize("diameter", [0.5, 1.0])
 def test_slope_reduction_negative_slopes(diameter):
-    try:
-        max_allowable_slope = max_slope(diameter)
+    max_allowable_slope = max_slope(diameter)
 
-        test_cases = [(-0.001, 0), (-max_allowable_slope, 0), (-1000, 0)]
+    test_cases = [(-0.001, 0), (-max_allowable_slope, 0), (-1000, 0)]
 
-        for slope, expected in test_cases:
-            df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [slope], "Filling": [diameter * 0.5]})
+    for slope, expected in test_cases:
+        df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [slope], "Filling": [diameter * 0.5]})
 
-            service = ConduitFeatureEngineeringService(df, None, 1.0)
-            service.slope_reduction()
+        service = ConduitFeatureEngineeringService(df, None, 1.0)
+        service.slope_reduction()
 
-            assert service.dfc["ReduceSlope"].iloc[0] == expected, (
-                f"Failed for diameter={diameter}, slope={slope}, max_slope={max_allowable_slope}"
-            )
-    except ValueError as e:
-        pytest.skip(f"Skipping test due to error: {str(e)}")
+        assert service.dfc["ReduceSlope"].iloc[0] == expected, (
+            f"Failed for diameter={diameter}, slope={slope}, max_slope={max_allowable_slope}"
+        )
 
 
 @pytest.mark.parametrize("diameter", [0.25, 0.35, 1.1, 1.8])
 def test_slope_reduction_nonstandard_diameters(diameter):
-    try:
-        max_allowable_slope = max_slope(diameter)
+    """``max_slope`` accepts the whole 0.2-2.0 m range, not only the standard diameters."""
+    max_allowable_slope = max_slope(diameter)
 
-        df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [max_allowable_slope * 1.5], "Filling": [diameter * 0.5]})
-        service = ConduitFeatureEngineeringService(df, None, 1.0)
-        service.slope_reduction()
+    df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [max_allowable_slope * 1.5], "Filling": [diameter * 0.5]})
+    service = ConduitFeatureEngineeringService(df, None, 1.0)
+    service.slope_reduction()
 
-        assert service.dfc["ReduceSlope"].iloc[0] == 1
-    except ValueError:
-        df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [100.0], "Filling": [diameter * 0.5]})
-        service = ConduitFeatureEngineeringService(df, None, 1.0)
-
-        service.slope_reduction()
+    assert service.dfc["MaxAllowableSlope"].iloc[0] == pytest.approx(max_allowable_slope, rel=1e-3)
+    assert service.dfc["ReduceSlope"].iloc[0] == 1
 
 
-@pytest.mark.parametrize("diameter", [0.0, -0.5, 2.5, float("nan")])
-def test_slope_reduction_invalid_diameters(diameter):
-    df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [50.0], "Filling": [0.5]})
-    with pytest.raises(ValueError):
-        service = ConduitFeatureEngineeringService(df, None, 1.0)
-        service.slope_reduction()
-        "ReduceSlope" in service.dfc.columns
+@pytest.mark.parametrize("diameter", [0.0, -0.5, 0.15, 2.5, float("nan")])
+def test_slope_reduction_invalid_diameters_are_not_assessed(diameter):
+    """One conduit outside 0.2-2.0 m must not fail the run: it gets no limit and no suggestion."""
+    df = pd.DataFrame({"Geom1": [diameter, 0.5], "SlopePerMile": [50.0, 50.0], "Filling": [0.5, 0.25]})
+    service = ConduitFeatureEngineeringService(df, None, 1.0)
+
+    service.slope_reduction()
+
+    assert np.isnan(service.dfc["MaxAllowableSlope"].iloc[0])
+    assert np.isnan(service.dfc["ReduceSlope"].iloc[0])
+    assert service.dfc["ReduceSlope"].iloc[1] in (0, 1)
 
 
 def test_slope_reduction_multiple_pipes():

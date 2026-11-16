@@ -56,23 +56,26 @@
       'Coverage'
     ];
 
-    const ACTIONS = {
-      valid: 'No changes',
-      diameter_increase: 'Increase diameter',
-      diameter_reduction: 'Reduce diameter',
-      slope_increase: 'Increase slope',
-      slope_reduction: 'Reduce slope',
-      depth_increase: 'Increase depth',
-      pump: 'Pump station',
-      tank: 'Retention tank',
-      seepage_boxes: 'Seepage boxes'
-    };
+    // The display labels come with the payload (sa/labels.py); the page holds no copy.
+    // A code without a label is spelled out as words, as the server does.
+    const LABELS = rawData.labels && typeof rawData.labels === 'object' ? rawData.labels : {};
+    const ACTIONS = LABELS.actions && typeof LABELS.actions === 'object' ? LABELS.actions : {};
+    const CATEGORIES = LABELS.categories && typeof LABELS.categories === 'object' ? LABELS.categories : {};
 
-    function getActionLabel(code) {
-      if (!code || code === '-') return '-';
-      const key = String(code).trim().toLowerCase();
-      return ACTIONS[key] || String(code);
+    function spellOut(code) {
+      const words = String(code).trim().toLowerCase().replace(/_/g, ' ');
+      return words.charAt(0).toUpperCase() + words.slice(1);
     }
+
+    function lookupLabel(table, code) {
+      if (code === null || code === undefined) return '—';
+      const key = String(code).trim().toLowerCase();
+      if (!key || key === '-' || key === '—') return '—';
+      return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : spellOut(key);
+    }
+
+    const getActionLabel = code => lookupLabel(ACTIONS, code);
+    const getCategoryLabel = code => lookupLabel(CATEGORIES, code);
 
     const numberFormats = new Map();
     const numberFormat = digits => {
@@ -113,14 +116,18 @@
       ? rawData.catchments
       : (Array.isArray(rawData.subcatchments) ? rawData.subcatchments : []);
 
-    // Column definition helper
-    const C = (key, label, unit, group, kind = 'number', digits = 2) => ({
+    // Column definition helper.  ``csv`` is the header the CSV export writes for the
+    // column; it defaults to "label [unit]" and is spelled out where the label on screen
+    // has changed since: the exported files keep their headers, because downstream
+    // comparisons read them by name.
+    const C = (key, label, unit, group, kind = 'number', digits = 2, csv = null) => ({
       key,
       label,
       unit,
       group,
       kind,
-      digits
+      digits,
+      csv: csv || label + (unit ? ` [${unit}]` : '')
     });
 
     const schemas = {
@@ -137,16 +144,16 @@
           C('slope', 'Slope', '‰', 'Geometry', 'number', 2),
           C('coverIn', 'Inlet cover', 'm', 'Geometry', 'number', 2),
           C('coverOut', 'Outlet cover', 'm', 'Geometry', 'number', 2),
-          C('minDiameter', 'Min. diameter', 'm', 'Geometry', 'number', 3),
-          C('minSlope', 'Min. slope', '‰', 'Geometry', 'number', 2),
-          C('flow', 'Max. flow', 'm³/s', 'Hydraulics', 'number', 3),
-          C('velocity', 'Max. velocity', 'm/s', 'Hydraulics', 'number', 2),
-          C('filling', 'Water depth', 'm', 'Hydraulics', 'number', 3),
+          C('minDiameter', 'Min diameter', 'm', 'Geometry', 'number', 3, 'Min. diameter [m]'),
+          C('minSlope', 'Min slope', '‰', 'Geometry', 'number', 2, 'Min. slope [‰]'),
+          C('flow', 'Max flow', 'm³/s', 'Hydraulics', 'number', 3, 'Max. flow [m³/s]'),
+          C('velocity', 'Max velocity', 'm/s', 'Hydraulics', 'number', 2, 'Max. velocity [m/s]'),
+          C('filling', 'Max water depth', 'm', 'Hydraulics', 'number', 3, 'Water depth [m]'),
           C('fillPercent', 'Filling', '% of diameter', 'Hydraulics', 'fill', 0),
           C('category', 'Catchment category', '', 'Assessment', 'category'),
-          C('validation', 'Validation', 'passed / 7', 'Assessment', 'checks'),
+          C('validation', 'Checks passed', '/ 7', 'Assessment', 'checks', 2, 'Validation [passed / 7]'),
           C('action', 'Recommendation', '', 'Assessment', 'action'),
-          C('confidence', 'Model confidence', '%', 'Assessment', 'number', 1)
+          C('confidence', 'Model score', '%', 'Assessment', 'number', 1, 'Model confidence [%]')
         ],
         overview: ['id', 'diameter', 'flow', 'velocity', 'fillPercent', 'category', 'validation', 'action'],
         technical: ['id', 'diameter', 'slope', 'flow', 'velocity', 'filling', 'fillPercent', 'validation', 'minDiameter', 'minSlope']
@@ -158,10 +165,10 @@
           C('id', 'Node', '', 'Identity', 'id'),
           C('invert', 'Node invert', 'm', 'Geometry', 'number', 2),
           C('ground', 'Ground elevation', 'm', 'Geometry', 'number', 2),
-          C('depth', 'Node depth', 'm', 'Geometry', 'number', 2),
-          C('waterDepth', 'Max. water depth', 'm', 'Simulation', 'number', 2),
-          C('floodHours', 'Flooding duration', 'h', 'Flooding', 'number', 2),
-          C('floodVolume', 'Flooding volume', '10⁶ l', 'Flooding', 'number', 3)
+          C('depth', 'Manhole depth', 'm', 'Geometry', 'number', 2, 'Node depth [m]'),
+          C('waterDepth', 'Max water depth', 'm', 'Simulation', 'number', 2, 'Max. water depth [m]'),
+          C('floodHours', 'Flood duration', 'h', 'Flooding', 'number', 2, 'Flooding duration [h]'),
+          C('floodVolume', 'Flood volume', '10⁶ L', 'Flooding', 'number', 3, 'Flooding volume [10⁶ l]')
         ],
         overview: ['id', 'invert', 'depth', 'waterDepth', 'floodHours', 'floodVolume'],
         technical: ['id', 'ground', 'invert', 'depth', 'waterDepth']
@@ -200,6 +207,34 @@
       }
     })();
     let currentTab = mapAvailable ? 'map' : 'conduits';
+    // A tab named in the URL fragment (Back to Results of the conduit panel sends the
+    // one the reader left) opens instead of the default; the map tab only with a map.
+    const tabStoreKey = 'stormlab-results-tab-' + (rawData.session?.id ?? '');
+    const wantedTab = (function () {
+      try {
+        const hash = typeof window !== 'undefined' && window.location ? String(window.location.hash || '') : '';
+        const name = hash.replace(/^#/, '');
+        return TABS.includes(name) && (name !== 'map' || mapAvailable) ? name : null;
+      } catch (_) {
+        return null;
+      }
+    })();
+    if (wantedTab) {
+      currentTab = wantedTab;
+      if (TYPES.includes(wantedTab)) active = wantedTab;
+    }
+
+    /** Remember the tab for this session, and keep it in the URL for a reload. */
+    function rememberTab(k) {
+      try {
+        window.sessionStorage.setItem(tabStoreKey, k);
+      } catch (_) {}
+      try {
+        if (window.history && typeof window.history.replaceState === 'function' && window.location) {
+          window.history.replaceState(null, '', '#' + k);
+        }
+      } catch (_) {}
+    }
     // The element the map asked the table to show, as ``{kind, name}`` — ``kind`` is a
     // tab key, because a name is unique inside one collection and nowhere else.  The
     // state lives here and the class .r-row-hl is derived from it on every render:
@@ -265,6 +300,11 @@
       if (key === 'action' || key === 'recommendation') {
         return getActionLabel(row[key]);
       }
+      if (key === 'category') {
+        // Sorted by what the reader sees, not by the internal code.
+        const cat = row.category ?? row.sbc_category;
+        return cat === null || cat === undefined || cat === '' || cat === '-' ? null : getCategoryLabel(cat);
+      }
       let v = row[key];
       if (v === undefined) {
         // Safe property alias resolution
@@ -301,6 +341,8 @@
         }
         if (c.kind === 'action') {
           val = getActionLabel(val);
+        } else if (c.kind === 'category') {
+          val = getCategoryLabel(r.category ?? r.sbc_category);
         } else if (c.kind === 'checks') {
           val = (r.validation ?? '') + '/7';
         } else if (c.kind === 'fill') {
@@ -312,12 +354,16 @@
       }
 
       // 2. Also search core identifiers regardless of column visibility
-      const extraKeys = ['id', 'name', 'inlet', 'inlet_node', 'outlet', 'outlet_node', 'catchment', 'subcatchment', 'category', 'sbc_category'];
+      const extraKeys = ['id', 'name', 'inlet', 'inlet_node', 'outlet', 'outlet_node', 'catchment', 'subcatchment'];
       for (const k of extraKeys) {
         const val = r[k];
         if (val !== null && val !== undefined && String(val).toLowerCase().includes(q)) {
           return true;
         }
+      }
+      const cat = r.category ?? r.sbc_category;
+      if (cat && getCategoryLabel(cat).toLowerCase().includes(q)) {
+        return true;
       }
 
       return false;
@@ -436,7 +482,11 @@
           ).sort();
 
           let opts = '<option value="all">All categories</option>';
-          opts += uniqueCats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+          opts += uniqueCats
+            .map(c => [c, getCategoryLabel(c)])
+            .sort((a, b) => collator.compare(a[1], b[1]))
+            .map(([c, label]) => `<option value="${esc(c)}">${esc(label)}</option>`)
+            .join('');
           filterSelect.innerHTML = opts;
         }
 
@@ -518,12 +568,16 @@
         ? 'no feasible slope (min ' + fmt(minSlope, 2) + ' > max ' + fmt(maxSlope, 2) + ' ‰)'
         : '≥ ' + fmt(minSlope, 2) + ' ‰';
 
+      // The criteria cover diameters of 0.2-2.0 m only; outside it no limit exists.
+      const assessed = r.limits_assessed !== false;
+      const notAssessed = 'not assessed: Ø outside 0.2–2.0 m';
+
       return [
-        [fmt(filling, 3) + ' m', '≤ ' + fmt(0.827 * diameter, 3) + ' m'],
+        [fmt(filling, 3) + ' m', assessed ? '≤ ' + fmt(0.827 * diameter, 3) + ' m' : notAssessed],
         [fmt(velocity, 2) + ' m/s', '≤ 5.00 m/s'],
         [fmt(velocity, 2) + ' m/s', '≥ 0.70 m/s'],
-        [fmt(slope, 2) + ' ‰', '≤ ' + fmt(maxSlope, 2) + ' ‰'],
-        [fmt(slope, 2) + ' ‰', minSlopeThreshold],
+        [fmt(slope, 2) + ' ‰', assessed ? '≤ ' + fmt(maxSlope, 2) + ' ‰' : notAssessed],
+        [fmt(slope, 2) + ' ‰', assessed ? minSlopeThreshold : notAssessed],
         [fmt(depth, 2) + ' m', '≤ 8.00 m'],
         [fmt(minCover, 2) + ' m', '≥ ' + fmt(frostZone, 2) + ' m']
       ];
@@ -567,8 +621,8 @@
         const panelUrl = r.panel_url || r.panelUrl || r.detail_url || r.link;
         if (active === 'conduits') {
           return panelUrl
-            ? `<a class="r-id" href="${esc(panelUrl)}" title="Open conduit ${esc(r.id)} panel">${esc(r.id)}</a>`
-            : `<span class="r-id">${esc(r.id)}</span>`;
+            ? `<a class="r-id" href="${esc(panelUrl)}" title="Open the panel of conduit ${esc(r.id)}">${esc(r.id)}</a>`
+            : `<span class="r-id" title="${esc(r.id)}">${esc(r.id)}</span>`;
         }
 
         if (active === 'nodes') {
@@ -602,7 +656,7 @@
         const isExp = expanded === r.id;
         const failed = valCount < 7;
         return `
-          <button type="button" class="r-checkbutton ${failed ? 'r-failed' : ''}" data-validation="${esc(r.id)}" aria-expanded="${String(isExp)}" aria-controls="r-checks-${esc(r.id)}" aria-label="Validation ${esc(r.id)}: ${valCount} of 7 checks passed. ${isExp ? 'Hide' : 'Show'} checks">
+          <button type="button" class="r-checkbutton ${failed ? 'r-failed' : ''}" data-validation="${esc(r.id)}" aria-expanded="${String(isExp)}" aria-controls="r-checks-${esc(r.id)}" aria-label="Design checks of ${esc(r.id)}: ${valCount} of 7 passed. ${isExp ? 'Hide' : 'Show'} the checks">
             <i class="fas ${failed ? 'fa-exclamation-circle' : 'fa-check-circle'} me-1" aria-hidden="true"></i>${valCount}/7
             <span aria-hidden="true">${isExp ? '−' : '+'}</span>
           </button>
@@ -616,7 +670,7 @@
         const isBad = r.flags ? !r.flags[0] : (fillingM > 0.827 * diaM);
         const clamped = Math.max(0, Math.min(fillPct, 100));
         return `
-          <span class="r-fillcell ${isBad ? 'r-fillbad' : ''}" title="${fmt(fillingM, 3)} m / ${fmt(diaM, 3)} m · ${isBad ? 'Filling limit exceeded (>82.7%)' : 'Filling check passed'}">
+          <span class="r-fillcell ${isBad ? 'r-fillbad' : ''}" title="${fmt(fillingM, 3)} m / ${fmt(diaM, 3)} m · ${isBad ? 'Filling limit exceeded (> 82.7%)' : 'Filling check passed'}">
             <span class="r-meter" aria-hidden="true"><span style="width:${clamped}%"></span></span>
             <b>${isBad ? '! ' : ''}${fmt(fillPct, 0)}%</b>
           </span>
@@ -631,11 +685,14 @@
 
       if (c.kind === 'category') {
         const cat = v ?? r.category ?? r.sbc_category;
-        return `<span class="r-category">${esc(cat || '—')}</span>`;
+        return `<span class="r-category">${esc(getCategoryLabel(cat))}</span>`;
       }
 
       if (c.kind === 'number') {
         const numVal = sortValue(r, c.key);
+        if (active === 'conduits' && r.limits_assessed === false && ['minDiameter', 'minSlope'].includes(c.key)) {
+          return '<span title="Not assessed: diameter outside 0.2–2.0 m">n/a</span>';
+        }
         if (active === 'conduits' && c.key === 'minDiameter' && Number(numVal) === 0) {
           return '<span>—</span>';
         }
@@ -662,7 +719,7 @@
 
       const scrollBtn = $('#r-scroll-columns');
       if (scrollBtn) {
-        scrollBtn.textContent = canScrollRight ? 'More columns to the right' : 'Back to first columns';
+        scrollBtn.textContent = canScrollRight ? 'More Columns to the Right' : 'Back to First Columns';
       }
     }
 
@@ -734,7 +791,7 @@
                 <strong>No matching ${schemas[active].name.toLowerCase()}</strong>
                 <p>Try refining your search or clear active filters.</p>
                 <button type="button" class="r-button" data-clear>
-                  <i class="fas fa-filter-circle-xmark me-1" aria-hidden="true"></i>Clear filters
+                  <i class="fas fa-filter-circle-xmark me-1" aria-hidden="true"></i>Clear Filters
                 </button>
               </td>
             </tr>
@@ -761,9 +818,9 @@
                     <div class="r-checkpanelhead">
                       <h3>
                         <i class="fas fa-clipboard-check me-2" aria-hidden="true"></i>
-                        ${esc(r.id)} · Technical validation · ${valCount}/7 passed
+                        ${esc(r.id)} · Design checks · ${valCount}/7 passed
                       </h3>
-                      <button type="button" class="r-close" data-close-checks aria-label="Close validation details">×</button>
+                      <button type="button" class="r-close" data-close-checks aria-label="Close the design checks">×</button>
                     </div>
                     ${checkGrid(r)}
                   </div>
@@ -798,7 +855,7 @@
       const summaryEl = $('#r-filter-summary');
       if (summaryEl) {
         summaryEl.textContent = activeFilters()
-          ? `Filtered results · ${filtered.length} matches`
+          ? `Filtered results · ${filtered.length} ${filtered.length === 1 ? 'match' : 'matches'}`
           : '';
       }
 
@@ -855,7 +912,10 @@
       if (mapPanel) mapPanel.hidden = (k !== 'map');
       TABS.forEach(t => {
         const tab = $(`#r-tab-${t}`);
-        if (tab) tab.setAttribute('aria-selected', String(t === k));
+        if (!tab) return;
+        tab.setAttribute('aria-selected', String(t === k));
+        // Roving tab index: Tab enters the tab list on the selected tab, the arrows move.
+        tab.tabIndex = t === k ? 0 : -1;
       });
       if (tablePanel) tablePanel.setAttribute('aria-labelledby', `r-tab-${active}`);
     }
@@ -868,6 +928,12 @@
       // panel is derived from it, and nothing else fixes it afterwards.
       if (TYPES.includes(k)) active = k;
       applyTabState(k);
+      rememberTab(k);
+      // On a phone the tab row scrolls sideways; keep the chosen tab on screen.
+      const chosen = $(`#r-tab-${k}`);
+      if (chosen && typeof chosen.scrollIntoView === 'function') {
+        chosen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
 
       // 'info' and 'map' own no table state, so they touch neither prefs nor schemas.
       if (TYPES.includes(k)) {
@@ -911,12 +977,19 @@
       };
       const quote = v => '"' + sanitizeFormula(String(v ?? '')).replace(/"/g, '""') + '"';
 
+      // The exported data keeps its machine identifiers and its wording: downstream
+      // comparisons read these files, so the CSV is not a display layer.  The action
+      // column has always carried the label (or "-" / the raw code), the category column
+      // the raw code.
       function csvValue(c, r) {
         if (c.kind === 'id') {
           return r.id || r.name;
         }
         if (c.kind === 'action') {
-          return getActionLabel(sortValue(r, c.key));
+          const code = r[c.key] ?? r.recommendation;
+          if (!code || code === '-') return '-';
+          const key = String(code).trim().toLowerCase();
+          return Object.prototype.hasOwnProperty.call(ACTIONS, key) ? ACTIONS[key] : String(code);
         }
         if (c.kind === 'checks') {
           const valCount = r.validation ?? (r.flags ? r.flags.filter(Boolean).length : 7);
@@ -942,7 +1015,7 @@
         return v !== null && v !== undefined ? String(v) : '';
       }
 
-      const header = cols.map(c => quote(c.label + (c.unit ? ` [${c.unit}]` : ''))).join(',');
+      const header = cols.map(c => quote(c.csv)).join(',');
       const bodyLines = data.map(r => cols.map(c => quote(csvValue(c, r))).join(','));
       const csvContent = '\uFEFF' + [header, ...bodyLines].join('\r\n');
 
@@ -1110,7 +1183,7 @@
           renderTable();
           const targetBtn = $(`#r-table [data-validation="${conduitId}"]`);
           if (targetBtn) targetBtn.focus();
-          announce(expanded ? `Validation details for ${expanded}` : 'Validation details closed');
+          announce(expanded ? `Design checks of ${expanded}` : 'Design checks closed');
         } else if (closeChecksBtn) {
           const prior = expanded;
           expanded = null;
@@ -1126,7 +1199,7 @@
     }
 
     /**
-     * The map asked for an element to be shown in the table (stage 7, D10 variant a).
+     * The map asked for an element to be shown in the table.
      *
      * The only direction there is: under the tabbed layout the map and the table are
      * never on screen together, so nothing sends the table's selection back to a map
@@ -1183,11 +1256,29 @@
 
     renderAll();
     applyTabState(currentTab);
+    // Stored at once, so a panel opened before any tab change returns to this tab and
+    // not to one remembered from an earlier visit.
+    rememberTab(currentTab);
 
     if (overflowArea && window.ResizeObserver) {
       new ResizeObserver(updateOverflow).observe(overflowArea);
     }
     window.addEventListener('resize', updateOverflow);
+
+    // On a narrow screen the tab row scrolls sideways; a fade at the edge that hides
+    // more tabs says so (data-more-left / data-more-right on .r-tabs, see results-v2.css).
+    const tabRow = $('.r-tabs');
+    const tabList = $('.r-tabs-list');
+    if (tabRow && tabList) {
+      const updateTabEdges = () => {
+        const end = tabList.scrollWidth - tabList.clientWidth;
+        tabRow.dataset.moreLeft = String(tabList.scrollLeft > 1);
+        tabRow.dataset.moreRight = String(end > 1 && tabList.scrollLeft < end - 1);
+      };
+      tabList.addEventListener('scroll', updateTabEdges, { passive: true });
+      window.addEventListener('resize', updateTabEdges);
+      updateTabEdges();
+    }
   }
 
   if (document.readyState === 'loading') {

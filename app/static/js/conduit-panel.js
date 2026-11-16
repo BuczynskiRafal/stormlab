@@ -20,7 +20,8 @@
  * in the caption under the drawing.
  *
  * The two water levels are different SWMM results and are drawn as they are: in a manhole
- * the node's maximum water depth, in the pipe the conduit's maximum filling. The maxima
+ * the node's maximum water depth, in the pipe the conduit's maximum water depth (the
+ * panel's "Max water depth", the same words the titles and the caption use). The maxima
  * fall at different times, so the levels may not meet at the wall; the <title> of each
  * water element and the caption under the drawing say which is which.
  */
@@ -96,6 +97,8 @@
     function showMessage(svg, text, label) {
         svg.innerHTML = '<text x="290" y="128" text-anchor="middle">' + esc(text) + '</text>';
         svg.setAttribute('aria-label', label);
+        // app.css lets a message fit a narrow card instead of scrolling with the drawing.
+        svg.setAttribute('data-state', 'message');
     }
 
     /**
@@ -132,6 +135,7 @@
             showMessage(svg, NO_DATA_TEXT, 'Longitudinal profile of conduit ' + d.name + ': no data.');
             return 0;
         }
+        svg.setAttribute('data-state', 'drawing');
 
         const eMax = Math.max(d.inletElevation, d.outletElevation);
         const eMin = Math.min(inv1, inv2);
@@ -309,7 +313,7 @@
             if (!flooded) {
                 return '';
             }
-            const parts = [hoursText(hours), Number.isFinite(volume) ? nf(volume, 3) + ' × 10⁶ l' : ''];
+            const parts = [hoursText(hours), Number.isFinite(volume) ? nf(volume, 3) + ' × 10⁶ L' : ''];
             const detail = parts.filter(Boolean).join(', ');
             return '<path data-role="flood" d="M' + r(x - 5) + ' ' + r(y - 8) + 'L' + x + ' '
                 + r(y - 2) + 'L' + r(x + 5) + ' ' + r(y - 8) + 'Z"><title>Flooding'
@@ -353,8 +357,8 @@
 
         const slope = Number.isFinite(d.slope) ? d.slope : 1000 * (inv1 - inv2) / d.length;
         const fillingPercent = 100 * Math.min(Math.max(d.filling, 0), d.diameter) / d.diameter;
-        const waterTitle = 'Max conduit depth ' + nf(Math.min(Math.max(d.filling, 0), d.diameter), 2)
-            + ' m (' + nf(fillingPercent, 0) + ' %)';
+        const waterTitle = 'Max water depth in the conduit: ' + nf(Math.min(Math.max(d.filling, 0), d.diameter), 2)
+            + ' m (' + nf(fillingPercent, 0) + '%)';
         const diameterMm = Math.round(d.diameter * 1000);
         const lengthText = nf(d.length, 1);
         const inletFlooded = d.inletFlooded === true;
@@ -430,7 +434,7 @@
             'Longitudinal profile of conduit ' + d.name + ' between nodes ' + d.inletNode
             + ' and ' + d.outletNode + ', length ' + lengthText + ' m, diameter '
             + diameterMm + ' mm, filling ' + nf(fillingPercent, 0)
-            + ' %. Vertical exaggeration \u00d7' + exaggeration + '.'
+            + '%. Vertical exaggeration \u00d7' + exaggeration + '.'
             + (nodeStates.length ? ' ' + nodeStates.join('. ') + '.' : '')
         );
         return exaggeration;
@@ -444,7 +448,7 @@
         if (!exaggeration) {
             return '';
         }
-        return 'Water: manhole = max node depth · pipe = max conduit depth'
+        return 'Max water depth: of each node in its manhole, of the conduit in the pipe'
             + (exaggeration > 1 ? ' · vertical exaggeration ×' + exaggeration : '');
     }
 
@@ -616,5 +620,42 @@
 
     if (typeof document !== 'undefined') {  // absent under the Node harness
         document.addEventListener('DOMContentLoaded', init);
+    }
+})();
+
+/*
+ * Back to Results returns to the tab the reader came from. The results page remembers
+ * its tab per session in sessionStorage (results-v2.js); the link gets it as the URL
+ * fragment, which the results page reads on load. Without a remembered tab, or where
+ * storage is blocked, the link stays the plain results URL and opens the default tab.
+ */
+(function () {
+    'use strict';
+
+    const TABS = ['map', 'conduits', 'nodes', 'catchments', 'info'];
+
+    function restoreBackLink() {
+        const link = document.querySelector('a.panel-back[data-results-session]');
+        if (!link) {
+            return;
+        }
+        let tab = null;
+        try {
+            tab = window.sessionStorage.getItem('stormlab-results-tab-' + link.getAttribute('data-results-session'));
+        } catch (err) {
+            return;
+        }
+        if (TABS.indexOf(tab) !== -1) {
+            link.setAttribute('href', link.getAttribute('href').split('#')[0] + '#' + tab);
+        }
+    }
+
+    if (typeof document === 'undefined') {
+        return;  // required by the Node harness: nothing to wire
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', restoreBackLink);
+    } else {
+        restoreBackLink();
     }
 })();
