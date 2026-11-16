@@ -186,17 +186,18 @@ The self-loops sit inside the power, so the weights are not the 1, 0.5, 0.25 tha
 - `load_gnn_model_weights` (`app/sa/core/graph_constructor.py`) does this for each member and returns a `GnnEnsemble`, which requires all members to share one spec digest and one feature contract. Its `__call__` returns the mean of the members' softmax outputs. Serving calls it directly with `[features, adjacency]`, never `predict`, which would batch the list and drop the adjacency.
 - `RecommendationService._assign_aligned_probabilities` (`app/sa/core/conduits.py`) aligns the probabilities to the rows of `dfc` by `Name`, takes the arg-max as `recommendation` and stores the nine scores, rounded to three decimals, as `confidence_pump`, `confidence_tank`, `confidence_seepage_boxes`, `confidence_diameter_increase`, `confidence_diameter_reduction`, `confidence_slope_increase`, `confidence_slope_reduction`, `confidence_depth_increase` and `confidence_valid`. The class order is `RecommendationCategory` (`stormlab/contracts/enums.py`), which is the softmax layout.
 
-**Switches.** `app/sa/core/predictor.py` reads these environment variables; they are not listed in `app/.env.example`.
+**Switches.** `app/sa/core/predictor.py` reads these environment variables; `app/.env.example` lists them with the other application variables. Unset or blank means the default.
 
 | Variable | Default | Effect |
 |---|---|---|
-| `GNN_ENABLED` | unset | `1`, `true`, `yes` or `on` (any case) enable the GNN and any other value disables it. Unset means enabled when at least one configured weight file exists. Read on every call. |
+| `GNN_ENABLED` | unset | `1`, `true`, `yes` or `on` (any case) enable the GNN and any other value disables it. Unset or blank means enabled when at least one configured weight file exists. Read on every call. |
 | `GNN_WEIGHTS` | `gnn_recommender.run1.weights.h5` to `run5` | Comma-separated file names inside `app/sa/core/recommendations/`. Blank means the default. |
 | `GNN_SPEC` | `gnn_recommender.spec.json` | Spec file in the same directory. |
 | `GNN_IMPUTATION` | `gnn_recommender.imputation.json` | Imputation plan in the same directory. |
 | `GNN_MODEL_ID` | `gnn_recommender_v1` | Identifier recorded in the model metadata; it does not affect loading. |
+| `GNN_MAX_HOPS` | `2` | Hops of the older adjacency path under `app/sa/core/gnn/`, the only code that reads it. |
 
-All but `GNN_ENABLED` are read once, when `predictor.py` is imported. `GNN_MAX_HOPS` (default 2) exists too; only the older adjacency path under `app/sa/core/gnn/` reads it.
+All but `GNN_ENABLED` are read once, when `predictor.py` is imported (`_gnn_config`).
 
 **Never a partial ensemble.** `load_gnn_model_weights` first checks that every member file, the spec and the imputation plan exist, and otherwise refuses with a `GNNModelLoadError` that lists what is missing; the error is logged and the loader returns `None`. A missing member therefore means no GNN, not a smaller ensemble. `DataManager` then falls back to the optional MLP service, whose model file (`recommendations_classifier_path` in `predictor.py`) the repository does not ship. With the GNN enabled and no model, the analysis fails with `RecommendationModelUnavailable` and stores nothing. With `GNN_ENABLED=false` it completes with `recommendation` set to `-` and all confidences 0.0. The Django system check `sa.E001` (`app/sa/checks.py`) also reports missing model files when the project starts, unless `GNN_ENABLED` switches the GNN off.
 
@@ -278,7 +279,7 @@ The pages are server-rendered Django templates: `app/sa/templates/sa/` holds one
 |---|---|---|
 | every page | `main.js` | back-to-top button (lifted above the footer, shown only while scrolling up on phones); the file drop zones (analysis form, avatar); on the analysis form the inline errors for an empty submit and for a file whose name does not end in `.inp` (the server's message, before any upload), the progress state and the double-submit guard; on the account page focus on the first rejected field; on the history page the filter form, the error disclosure and single and bulk delete (`fetch` to `/session/<id>/delete/` and `/sessions/bulk-delete/` with the CSRF token, then the last page that still exists) |
 | results | `results-v2.js` | tabs (Map, Conduits, Nodes, Subcatchments, Info) with a roving tab index, the chosen tab remembered per session in `sessionStorage` (`stormlab-results-tab-<id>`) and kept in the URL fragment, which also opens a tab directly; on a narrow screen the tab row scrolls sideways and fades at the edge that hides more tabs; search, filters, sorting, column chooser, inline check details, CSV export of the visible rows |
-| results | `network-map.js` | the network drawn as SVG in the browser: subcatchment outlines, outlet lines, links, nodes, names; three colourings with a legend of every entry and a key for a flooded node; the selection card |
+| results | `network-map.js` | the network drawn as SVG in the browser: subcatchment outlines, outlet lines, links, nodes, names; the first view fits the whole network with room for the names at its edges, again after a resize or a change of the names setting unless the reader zoomed or panned; three colourings with a legend of every entry and a key for a flooded node; the selection card |
 | conduit panel | `conduit-panel.js` | longitudinal profile (SVG, or a message when the conduit cannot be drawn) and the detail tabs; Back to Results gets the tab the results page remembered for the session as its URL fragment |
 | About, Method | `docs.js` | table of contents: anchor offset below the header and the active entry while scrolling (a clicked entry stays active; near the end of the page the activation line moves down); the edge fade and the scroll hint of the wide figures |
 | Method | `method-graph.js` | the figure that shows, on the Rakowiec network, which conduits the model reads for a selected conduit |
@@ -310,6 +311,7 @@ The pages are server-rendered Django templates: `app/sa/templates/sa/` holds one
 - `test_gnn_model_parity.py` with `gnn_demo_parity.npz` and `gnn_rakowiec_golden.npz`: each of the five runs reproduces its reference probabilities (absolute tolerance 1e-5), the served model equals their mean, a missing run makes the loader return `None`, all model files exist, and the metadata digest covers all five. The `slow` tests run SWMM and the whole pipeline and compare recommended classes only, because a simulation is not bit-reproducible across platforms.
 - `test_gnn_serving.py`: serving without an adjacency raises before the model is called; the model is called directly, not through `predict`; a stray `.keras` file cannot bypass `GNN_CONFIG`; the default paths derive from the configuration.
 - `test_gnn_killswitch.py`: model selection falls back to the MLP service when the GNN is disabled, unavailable or its graph cannot be built, and never serves a GNN without a graph.
+- `test_predictor.py`: lazy loading of the models, the optional MLP file, a missing TensorFlow (simulated, so the test runs wherever TensorFlow is installed), and the model switches: unset or blank means the shipped model.
 - `test_catchment_classifier_model.py` with `catchment_classifier_rakowiec.npz`: the classifier file exists, reproduces its reference probabilities, and an untagged copy of the Rakowiec network gets its categories from it.
 - `test_feature_contract.py` keeps a golden copy of the legacy 33 columns.
 
@@ -321,12 +323,12 @@ The pages are server-rendered Django templates: `app/sa/templates/sa/` holds one
 
 **Deployment checks.** `app/sa/tests/test_deployment.py` covers the environment parsing helpers, the `SECRET_KEY` rules and `/healthz/`. The `deploy-check` job in `.github/workflows/main.yaml` runs `manage.py check --deploy --fail-level WARNING` and `collectstatic`, builds the image, starts it read-only and waits until it is healthy, then validates the Compose file and the Caddyfile. The other two jobs run the pre-commit hooks (ruff, pyright and file checks) and the test suites: `pytest app/sa/core/tests stormlab/tests`, then the Django tests with `DJANGO_ENV=testing`.
 
-**Make targets.** `install`, `migrate`, `run`; `test` (which runs `test-core`, `test-stormlab` and `test-django`); `lint` (ruff), `typecheck` (pyright); `check-deploy`, `collectstatic`; `docker-build`, `docker-up`.
+**Make targets.** `install`, `migrate`, `run`; `test` (which runs `test-core`, `test-stormlab` and `test-django`); `lint` (ruff check and format check of the whole tree, run from the project's environment as `$(PYTHON) -m ruff`), `typecheck` (pyright); `check-deploy`, `collectstatic`; `docker-build`, `docker-up`.
 
 ## Configuration
 
 Django settings live in `app/storm_analysis/settings/`. `DJANGO_ENV` selects the module: `development` (the default), `production` or `testing`; any other value raises `ImproperlyConfigured`. `base.py` holds what the three share, including the SQLite path, the media and static locations, `MAX_INP_BYTES`, the cost limits `MAX_MODEL_ELEMENTS`, `MAX_SIMULATION_HOURS`, `MAX_OUTPUT_MB` and `MAX_ROUTING_MILLIONS`, and `REGISTRATION_OPEN`, and loads `app/.env` with python-dotenv. `production.py` adds the secret key and host checks, the HTTPS redirect behind the proxy header, HSTS, SQLite write-ahead logging and WhiteNoise; `testing.py` uses an in-memory database. `envvars.py` parses and validates the variables (`env_bool`, `env_int`, `env_path`, `env_list`, `required_list`, `secret_key`), treating a blank value as unset. `app/.env.example` lists every application variable with its default.
 
-The model switches in [The recommendation path in detail](#the-recommendation-path-in-detail) are read from the environment by `predictor.py`, and the design constants of the physical features from `stormlab/config.yaml`, which `stormlab/config.py` validates when it loads.
+The model switches in [The recommendation path in detail](#the-recommendation-path-in-detail) are read from the environment by `predictor.py`, which treats a blank value as unset as well; `app/.env.example` lists them with the rest. The design constants of the physical features come from `stormlab/config.yaml`, which `stormlab/config.py` validates when it loads.
 
 For production variables, volumes, health checks and backups, see [deployment.md](deployment.md).

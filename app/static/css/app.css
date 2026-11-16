@@ -1,29 +1,29 @@
 /*
- * app.css - jeden arkusz stylów aplikacji.
- * Powstał ze scalenia style.css (warstwa bazowa) i academic-theme.css (motyw);
- * kolejność sekcji odtwarza dawną kolejność ładowania, więc kaskada jest
- * identyczna jak przed scaleniem. Ładowany po Bootstrapie 5.1.3.
+ * app.css - the one stylesheet of the application.
+ * It was made by merging style.css (the base layer) and academic-theme.css (the
+ * theme); the order of the sections repeats the former loading order, so the
+ * cascade is the same as before the merge. Loaded after Bootstrap 5.1.3.
  *
- * Typografia: Source Serif 4 (nagłówki) + Source Sans 3 (treść) + JetBrains Mono
- * (liczby); rodziny wczytuje jeden <link> w base.html, nie reguła importu CSS.
+ * Typography: Source Serif 4 (headings) + Source Sans 3 (text) + JetBrains Mono
+ * (numbers); one <link> in base.html loads the families, not a CSS import rule.
  */
 
 /* ============================================================
-   TOKENY
+   TOKENS
    ============================================================ */
 
 :root {
-    /* Pozostałości warstwy bazowej (dawny style.css): tylko te nazwy, które nadal
-       czyta któraś reguła w tym pliku - konsument jest wypisany przy każdej grupie.
-       Dawna skala odstępów jest teraz literałami w regułach, a dawne barwy widgetu
-       wgrywania pliku i skala promieni pochodzą z warstwy tokenów poniżej; to
-       jedyny słownik barw, powierzchni i promieni w aplikacji. */
+    /* What is left of the base layer (the former style.css): only the names some
+       rule in this file still reads - the consumer is named at every group. The
+       former spacing scale is now literals in the rules, and the former colours of
+       the file upload widget and the radius scale come from the token layer below;
+       that is the only vocabulary of colours, surfaces and radii in the application. */
 
-    /* Cienie: .alert */
+    /* Shadows: .alert */
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
 
-    /* Typografia i przejścia: html/body, nagłówki, .hero-subtitle, .feature-*, .upload-card */
+    /* Typography and transitions: html/body, headings, .hero-subtitle, .feature-*, .upload-card */
     --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --line-height-tight: 1.25;
     --line-height-normal: 1.5;
@@ -31,50 +31,50 @@
     --transition-normal: 200ms ease;
 
     /* ============================================================
-       Warstwa tokenów: papier inżynierski + woda.
-       Jedyne źródło skali --radius-*, powierzchni, barw i wysokości nagłówka.
+       The token layer: engineering paper + water.
+       The only source of the --radius-* scale, the surfaces, the colours and the header height.
        ============================================================ */
 
-    /* Powierzchnie - neutralny papier (bez ciepłego, kremowego tła strony i wierszy tabel). */
-    --surface-0: #FFFFFF;   /* karty, panele, pasek nagłówka, komórki tabel */
-    --surface-1: #FAFAF8;   /* tło strony (neutralny papier) */
-    --surface-2: #F5F4F0;   /* stopka, hover, chipy neutralne */
-    --tint-row:  #F8FAFC;   /* zebra - ledwie widoczna, chłodna, nie kremowa */
-    --rule-soft:   #E8E6DF; /* separatory wewnątrz kart i tabel, linia stopki */
-    --rule-strong: #CBD5E1; /* neutralne akcenty: strefa upuszczania pliku, kciuk paska
-                               przewijania, obramowanie akordeonu w fokusie */
+    /* Surfaces - neutral paper (no warm, cream background for the page and the table rows). */
+    --surface-0: #FFFFFF;   /* cards, panels, the header bar, table cells */
+    --surface-1: #FAFAF8;   /* page background (neutral paper) */
+    --surface-2: #F5F4F0;   /* footer, hover, neutral chips */
+    --tint-row:  #F8FAFC;   /* row striping - barely visible, cool, not cream */
+    --rule-soft:   #E8E6DF; /* separators inside cards and tables, the footer line */
+    --rule-strong: #CBD5E1; /* neutral accents: the file drop zone, the scroll bar
+                               thumb, the border of a focused accordion */
 
-    /* Struktura, nigdy tekst: krawędzie i pasma nagłówków. Ciepły papier bez
-       zimnych krawędzi zlewał się w jedną plamę - te wartości dają wyraźne
-       granice. Tekst zostaje na --ink/--text/--muted. */
-    --slate-100: #F1F5F9;   /* kolumna etykiet, tło hover przycisku konturowego */
-    --slate-200: #E2E8F0;   /* pasmo nagłówka tabeli */
-    --slate-300: #CBD5E1;   /* krawędzie kart, paneli, akordeonu, pól formularzy */
-    --slate-500: #64748B;   /* obramowanie tabel i przycisków konturowych */
-    --slate-600: #475569;   /* etykieta przycisku konturowego */
-    --slate-band-top: #E8ECF1;    /* pasmo nagłówków kart/akordeonów: góra gradientu */
-    --slate-band-bottom: #DFE5ED; /* ...dół gradientu i stan rozwinięty */
+    /* Structure, never text: edges and header bands. Warm paper without cool
+       edges ran together into one patch - these values give clear boundaries.
+       Text stays on --ink/--text/--muted. */
+    --slate-100: #F1F5F9;   /* the label column, the hover background of an outline button */
+    --slate-200: #E2E8F0;   /* the table header band */
+    --slate-300: #CBD5E1;   /* edges of cards, panels, the accordion, form fields */
+    --slate-500: #64748B;   /* the border of tables and outline buttons */
+    --slate-600: #475569;   /* the label of an outline button */
+    --slate-band-top: #E8ECF1;    /* the header band of cards/accordions: top of the gradient */
+    --slate-band-bottom: #DFE5ED; /* ...bottom of the gradient and the expanded state */
 
-    /* Tekst */
+    /* Text */
     --ink: #1E2229;
     --text: #2B2F36;
     --muted: #6E6A62;
-    --subtle: #9A948A;      /* wyłącznie dekoracja - za jasny na tekst */
+    --subtle: #9A948A;      /* decoration only - too light for text */
 
-    /* Akcent: woda (barwa kropli z logo) */
+    /* Accent: water (the colour of the drop in the logo) */
     --water-700: #1F6A94;
     --water-600: #2A7DAB;
     --water-300: #9CCBE3;
     --water-100: #E3F1F8;
     --water-050: #F1F8FC;
 
-    /* Statusy: odcień tekstu/ikony + podkładka */
+    /* Statuses: the shade of the text/icon + the wash behind it */
     --ok:   #397453;  --ok-wash:   #EAF5EE;
     --warn: #8F5E20;  --warn-wash: #FBF1E3;
     --bad:  #B2453F;  --bad-wash:  #FBECEA;
     --info: #3E6C96;  --info-wash: #EAF1F8;
 
-    /* Kształt, cień, warstwy */
+    /* Shape, shadow, layers */
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 14px;
@@ -84,21 +84,21 @@
     --header-h: 72px;
     --z-header: 100;
     --z-sticky-bar: 90;
-    --z-fab: 80;   /* modale Bootstrapa (1050+) zostają ponad */
+    --z-fab: 80;   /* Bootstrap's modals (1050+) stay above */
 
-    /* Typografia */
+    /* Typography */
     --font-display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
     --font-body: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 }
 
 /* ============================================================
-   WARSTWA BAZOWA (dawny style.css)
+   BASE LAYER (the former style.css)
    ============================================================ */
 
 html {
-    /* Globalne, nie tylko na /about/: kotwice i przycisk "do góry" przewijają
-       płynnie na każdej stronie. Wyłączane w bloku prefers-reduced-motion. */
+    /* Global, not only on /about/: anchors and the back-to-top button scroll
+       smoothly on every page. Switched off in the prefers-reduced-motion block. */
     scroll-behavior: smooth;
 }
 
@@ -438,8 +438,8 @@ a {
     justify-content: center;
 }
 
-/* Nagłówki kart na /analysis/ i widoku szczegółów (karta "Latest Analysis
-   Session" zniknęła razem z kafelkami historii). */
+/* Card headers on /analysis/ and in the detail view (the "Latest Analysis
+   Session" card went away together with the history tiles). */
 .card-header h5 {
     text-align: center;
 }
@@ -501,8 +501,8 @@ a {
     box-shadow: none;
 }
 
-/* Widoczny pierścień zamiast `outline: none` + bladej poświaty: --water-100 na
-   --surface-0 daje 1,1:1, czyli fokus niewidoczny dla klawiatury. */
+/* A visible ring instead of `outline: none` + a pale glow: --water-100 on
+   --surface-0 gives 1.1:1, that is a focus a keyboard user cannot see. */
 .form-control:focus-visible,
 .form-select:focus-visible,
 .page-link:focus-visible {
@@ -599,8 +599,8 @@ a {
     box-shadow: var(--shadow-2);
 }
 
-/* Przeciąganie pliku nad polem: mocniejsza ramka i pełna podkładka - stan musi być
-   odróżnialny od zwykłego hoveru, który jest gradientem od --water-050. */
+/* A file dragged over the field: a stronger border and a full wash - the state has to
+   be told apart from the plain hover, which is a gradient from --water-050. */
 .file-input-display.drag-over {
     border-color: var(--water-600);
     background: var(--water-100);
@@ -874,7 +874,7 @@ footer {
 }
 
 /* ============================================================
-   MOTYW AKADEMICKI (dawny academic-theme.css)
+   ACADEMIC THEME (the former academic-theme.css)
    ============================================================ */
 
 /* ============================================================
@@ -883,8 +883,8 @@ footer {
 
 body {
     font-family: var(--font-body);
-    /* Papier (neutralny) zostaje na stronie, karty są białe:
-       dopiero ta różnica daje im brzeg. */
+    /* The (neutral) paper stays on the page, the cards are white:
+       only that difference gives them an edge. */
     background: var(--surface-1);
     color: var(--text);
     font-size: 15px;
@@ -926,9 +926,9 @@ a.card:hover {
 }
 
 .card-header {
-    /* Pasmo nagłówka: chłodny gradient odcina nagłówek od białej karty.
-       background-color stoi obok gradientu jako wartość realna (starsze
-       przeglądarki czytają samo tło). */
+    /* The header band: a cool gradient sets the header off from the white card.
+       background-color stands beside the gradient as a real value (older
+       browsers read the background alone). */
     background-color: var(--slate-band-top);
     background-image: linear-gradient(to bottom, var(--slate-band-top) 0%, var(--slate-band-bottom) 100%);
     border-bottom: 1px solid var(--slate-300);
@@ -1010,7 +1010,7 @@ table thead {
 }
 
 .table thead th {
-    /* Pasmo slate, ale PŁASKIE, nie gradientowe. */
+    /* A slate band, but FLAT, not a gradient. */
     background-color: var(--slate-200);
     background-image: none;
     color: var(--ink);
@@ -1026,15 +1026,15 @@ table thead {
     position: relative;
 }
 
-/* Wykluczenie panelu przewodu: ta strona ma własną, płaską skórkę, a podniesionej
-   wagi poniżej nie da się przebić bez dokładania kolejnej pozycji do budżetu wag. */
+/* The conduit panel is excluded: that page has its own flat skin, and the raised
+   weight below cannot be beaten without adding another entry to the weight budget. */
 thead th:not(:where(.conduit-page *)) {
-    /* `thead th` (0,0,2) przegrywa z Bootstrapowym `.table > :not(caption) > * > *`
-       (0,1,3), które maluje komórki na var(--bs-table-bg), oraz z `.table-dark`
-       (0,1,0), które ustawia color: #fff - stąd !important na obu własnościach. */
+    /* `thead th` (0,0,2) loses to Bootstrap's `.table > :not(caption) > * > *`
+       (0,1,3), which paints the cells with var(--bs-table-bg), and to `.table-dark`
+       (0,1,0), which sets color: #fff - hence !important on both properties. */
     background-color: var(--slate-200) !important;
-    /* Bootstrap nie ustawia background-image; ta deklaracja gasi gradienty warstwy
-       bazowej, żeby nagłówek tabeli miał jednolite, nieprzezroczyste tło. */
+    /* Bootstrap sets no background-image; this declaration switches off the gradients
+       of the base layer, so that the table header has a plain, opaque background. */
     background-image: none !important;
     color: var(--ink) !important;
 }
@@ -1152,26 +1152,26 @@ thead th:not(:where(.conduit-page *)) {
 
 .badge.bg-success,
 .bg-success {
-    background-color: var(--ok-wash) !important;  /* bije .bg-success Bootstrapa (utility ma !important) */
+    background-color: var(--ok-wash) !important;  /* beats Bootstrap's .bg-success (the utility has !important) */
     color: var(--ok);
 }
 
 .badge.bg-warning,
 .bg-warning {
-    background-color: var(--warn-wash) !important;  /* bije .bg-warning Bootstrapa (utility ma !important) */
+    background-color: var(--warn-wash) !important;  /* beats Bootstrap's .bg-warning (the utility has !important) */
     color: var(--warn);
 }
 
 .badge.bg-danger,
 .bg-danger {
-    background-color: var(--bad-wash) !important;  /* bije .bg-danger Bootstrapa (utility ma !important) */
+    background-color: var(--bad-wash) !important;  /* beats Bootstrap's .bg-danger (the utility has !important) */
     color: var(--bad);
 }
 
 /* bg-primary is informational, so it takes the accent wash rather than a status colour. */
 .badge.bg-primary,
 .bg-primary {
-    background-color: var(--water-100) !important;  /* bije .bg-primary Bootstrapa (utility ma !important) */
+    background-color: var(--water-100) !important;  /* beats Bootstrap's .bg-primary (the utility has !important) */
     color: var(--water-700);
 }
 
@@ -1208,8 +1208,8 @@ thead th:not(:where(.conduit-page *)) {
     color: #ffffff;
 }
 
-/* Kontur: 2 px slate. Blada ciepła krawędź ginęła na papierze,
-   a to jest przycisk powrotu, nie ozdoba. Wypełniony .btn-primary zostaje wodny. */
+/* Outline: 2 px of slate. A pale warm edge was lost on the paper, and this is a
+   back button, not an ornament. The filled .btn-primary stays water-coloured. */
 .btn-outline-primary {
     color: var(--slate-600);
     background-color: transparent;
@@ -1503,15 +1503,15 @@ small {
    ============================================================ */
 
 .text-primary {
-    color: var(--water-700) !important;  /* bije .text-primary Bootstrapa (utility ma !important) */
+    color: var(--water-700) !important;  /* beats Bootstrap's .text-primary (the utility has !important) */
 }
 
 .text-danger {
-    color: var(--bad) !important;  /* bije .text-danger Bootstrapa (utility ma !important) */
+    color: var(--bad) !important;  /* beats Bootstrap's .text-danger (the utility has !important) */
 }
 
 .text-muted {
-    color: var(--muted) !important;  /* bije .text-muted Bootstrapa (utility ma !important) */
+    color: var(--muted) !important;  /* beats Bootstrap's .text-muted (the utility has !important) */
 }
 
 /* ============================================================
@@ -1546,7 +1546,7 @@ small {
 }
 
 .page-item.disabled .page-link {
-    color: var(--muted);  /* --subtle (2,97:1 na --surface-0) jest tylko do dekoracji */
+    color: var(--muted);  /* --subtle (2.97:1 on --surface-0) is for decoration only */
     background-color: transparent;
     border-color: transparent;
 }
@@ -1557,7 +1557,7 @@ small {
 }
 
 .gap-3 {
-    gap: 0.75rem !important;  /* bije .gap-3 Bootstrapa (1rem, utility ma !important) */
+    gap: 0.75rem !important;  /* beats Bootstrap's .gap-3 (1rem, the utility has !important) */
 }
 
 /* ============================================================
@@ -1565,8 +1565,8 @@ small {
    ============================================================ */
 
 footer {
-    /* Stopka: --surface-2 nad kreską --rule-soft, tekst --muted. Kreska to
-       --rule-soft, bo slate byłby zbyt twardy pod stopką. */
+    /* Footer: --surface-2 over a --rule-soft line, text in --muted. The line is
+       --rule-soft because slate would be too hard under the footer. */
     background-color: var(--surface-2);
     border-top: 1px solid var(--rule-soft);
     color: var(--muted);
@@ -1887,12 +1887,12 @@ footer {
 
 tr.selected td,
 tr.selected td:first-child {
-    background-color: var(--water-100) !important;  /* bije tła komórek .table tbody td */
+    background-color: var(--water-100) !important;  /* beats the cell backgrounds of .table tbody td */
 }
 
 tr.selected:hover td,
 tr.selected:hover td:first-child {
-    background-color: var(--water-300) !important;  /* bije podświetlenie hover i zaznaczenie wiersza */
+    background-color: var(--water-300) !important;  /* beats the hover highlight and the selection of a row */
 }
 
 .checkbox-cell {
@@ -2143,8 +2143,8 @@ tr.selected:hover td:first-child {
 
 /* Mobile ------------------------------------------------------------------ */
 
-/* 767.98, nie 768 - patrz komentarz przy nagłówku: przy dokładnie 768 CSS px
-   pasowałby i ten blok, i Bootstrapowy `min-width: 768px`. */
+/* 767.98, not 768 - see the comment at the header: at exactly 768 CSS px both
+   this block and Bootstrap's `min-width: 768px` would match. */
 @media (max-width: 767.98px) {
     /* Only the table scrolls sideways; the document itself must not. */
     .history-table-wrapper {
@@ -4019,9 +4019,9 @@ tr.selected:hover td:first-child {
    PREFERS-REDUCED-MOTION
    ============================================================
 
-   Jeden blok na końcu arkusza, nie przy każdym komponencie: media query nie
-   dodaje specyficzności, więc `animation: none` postawione PRZED regułą, która
-   animację włącza, przegrywa na kolejności źródła i cicho nic nie robi. */
+   One block at the end of the sheet, not one per component: a media query adds
+   no specificity, so an `animation: none` placed BEFORE the rule that switches
+   the animation on loses on source order and quietly does nothing. */
 
 @media (prefers-reduced-motion: reduce) {
     html {

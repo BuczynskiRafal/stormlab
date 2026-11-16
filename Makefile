@@ -29,8 +29,8 @@ test-django:
 test: test-core test-stormlab test-django
 
 lint:
-	ruff check .
-	ruff format --check app/sa/core/ stormlab/ conftest.py
+	$(PYTHON) -m ruff check .
+	$(PYTHON) -m ruff format --check .
 
 typecheck:
 	$(PYTHON) -m pyright

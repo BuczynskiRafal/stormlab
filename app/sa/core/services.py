@@ -110,14 +110,14 @@ class HydraulicCalculationsService:
         """
         radius = diameter / 2.0
 
-        # Obliczenie długości cięciwy
+        # Length of the chord
         chord = 2.0 * math.sqrt(radius**2 - (filling - radius) ** 2)
-        # Obliczenie kąta centralnego w radianach
+        # Central angle in radians
         alpha = math.acos((2.0 * radius**2 - chord**2) / (2.0 * radius**2))
 
         if filling > radius:
             if filling == diameter:
-                perimeter = 2 * math.pi * radius  # Pełne wypełnienie
+                perimeter = 2 * math.pi * radius  # Full pipe
             else:
                 perimeter = 2 * math.pi * radius - alpha * radius
         else:
@@ -192,11 +192,11 @@ class HydraulicCalculationsService:
             ValueError: If slope is too small or exceeds maximum allowed.
         """
         if not validate_max_slope(slope, diameter):
-            # raise ValueError("Slope exceeds maximum allowed value")
             logger.warning("Slope exceeds maximum allowed value")
         if not validate_min_slope(slope, filling, diameter):
-            # raise ValueError("Slope is too small")
-            logger.warning("Slope is too small")
+            # DEBUG, not WARNING: the search for a minimum diameter passes through this
+            # for conduit after conduit, and calc_velocity raises for it a moment later.
+            logger.debug("Slope is too small")
 
         area = HydraulicCalculationsService.calc_area(filling, diameter)
         velocity = HydraulicCalculationsService.calc_velocity(filling, diameter, slope)
@@ -232,7 +232,7 @@ class HydraulicCalculationsService:
         for _ in range(FILLING_CALCULATION_MAX_ITER):
             if filling > diameter:
                 break
-            flow = HydraulicCalculationsService.calc_flow(filling, diameter, slope)  # już [m³/s]
+            flow = HydraulicCalculationsService.calc_flow(filling, diameter, slope)  # already in [m³/s]
             if flow >= q:
                 break
             filling += FILLING_CALCULATION_STEP

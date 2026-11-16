@@ -70,8 +70,8 @@ def assign_categories(
 
     Returns:
         ``dfs`` plus ``category``. Subcatchments without a tag get ``NaN``, and a
-        model with no subcatchment tags at all (the Wroclaw network) gets an
-        all-``NaN`` column and a warning rather than a missing column.
+        model with no subcatchment tags at all gets an all-``NaN`` column and a
+        warning rather than a missing column.
     """
     frame = dfs.copy()
     if len(frame) == 0:

@@ -1,7 +1,3 @@
-[tool.black]
-line-length = 130
-target-version = ['py312']
-
 [tool.pytest.ini_options]
 testpaths = ["app/sa/core/tests", "stormlab/tests"]
 addopts = [
@@ -22,17 +18,10 @@ filterwarnings = [
     "ignore::FutureWarning",
 ]
 
-[tool.isort]
-profile = "black"
-line_length = 130
-
 [tool.ruff]
 line-length = 130
 target-version = 'py312'
 extend-exclude = ["app/migrations", "app/*/migrations"]
-
-[tool.flake8]
-ignore = ["E501", "W291"]
 
 [tool.pyright]
 pythonVersion = "3.12"

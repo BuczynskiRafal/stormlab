@@ -68,7 +68,7 @@
 
   const LABEL_FONT_PX = 11;
   const LABEL_LINE_PX = 1.2;
-  /** Type of a name on the map: 11 px on a 1.2 line — the size E4b measures with. */
+  /** Type of a name on the map: 11 px on a 1.2 line — the size the placement measures with. */
 
   const LABEL_HALO_PX = 1.5;
   /** Half of the 3 px halo a name is stroked with, so it counts on both sides. */
@@ -77,7 +77,7 @@
   /**
    * Breathing space between a name and whatever it stands next to.
    *
-   * Owned by the caller, never by the solver: E4b adds it once, into the r of the
+   * Owned by the caller, never by the solver: the placement adds it once, into the r of the
    * disks and the hw of the segments, and leaves opts.margin at 0.  Added in both
    * places the margin would simply count twice.
    */
@@ -154,7 +154,7 @@
    */
 
   const DEFAULT_MODE = 'recommendation';
-  /** D7 - the map opens on the recommendation of the model, not on a hydraulic number. */
+  /** The map opens on the recommendation of the model, not on a hydraulic number. */
 
   const LABELS_MAX_ELEMENTS = 2000;
   /**
@@ -1182,7 +1182,7 @@
     if (!envelope || envelope.available !== true || !envelope.data) return;
     const data = envelope.data;
 
-    // D3 - a drawing whose positions were computed from the topology is not the
+    // A drawing whose positions were computed from the topology is not the
     // geometry of the model, and the panel has to say so.  The mark is built here,
     // before the first draw and regardless of whether the panel is visible yet, so
     // that it is permanent: nothing removes it, nothing hides it after a while and it
@@ -1267,7 +1267,7 @@
     const labelAnchors = { link: [], node: [], poly: [] };
 
     /**
-     * The one writer of the preferences (N02).
+     * The one writer of the preferences.
      *
      * Every gesture worth remembering calls this and never ``writeMapPrefs`` directly:
      * with a single write there is nowhere to lose a field.  The failure it closes is
@@ -1282,7 +1282,7 @@
       writeMapPrefs(mapStorage(), { mode: mode, card: cardPos, labels: labelsChoice });
     }
 
-    // Colouring (stage 6).  ``mode`` is the only thing that is remembered between
+    // Colouring.  ``mode`` is the only thing that is remembered between
     // visits; the dimmed categories are a reading gesture, not a setting, and start
     // empty every time the page opens.
     const prefs = readMapPrefs(mapStorage());
@@ -1308,7 +1308,7 @@
     let dimmed = [];
     const linkClass = [];  // index of a drawn link -> the colour class it carries now
 
-    // Filtering (stage 7).  The second, independent reason an element may be faded:
+    // Filtering.  The second, independent reason an element may be faded:
     // the table it belongs to is showing a filtered set and everything outside that
     // set steps back.  One set per collection, because one filtered table speaks for
     // its own collection only; ``null`` means "this collection was never filtered".
@@ -1472,7 +1472,7 @@
     /**
      * The box one name takes on screen, measured once per (font, text) and kept.
      *
-     * The key carries the font as well as the text (N01): the collections have separate
+     * The key carries the font as well as the text: the collections have separate
      * name spaces, so the same SWMM name is regularly a node *and* a subcatchment, and
      * the italic of a subcatchment is a different set of widths.  The box is the **ink**
      * box plus the halo on every side - ``measureText().width`` is an advance, and the
@@ -1486,7 +1486,7 @@
       if (cached) return cached;
       labelCtx.font = font;
       const m = labelCtx.measureText(text);
-      // [Z]6 - a browser whose TextMetrics has no ink box gets an explicitly approximate
+      // A browser whose TextMetrics has no ink box gets an explicitly approximate
       // one.  It is an assumption and not a contract: for an italic it may well miss the
       // overhang on the left.
       const left = Number.isFinite(m.actualBoundingBoxLeft) ? m.actualBoundingBoxLeft : 0;
@@ -1598,8 +1598,8 @@
         const kind = pair[0];
         (Array.isArray(data[pair[1]]) ? data[pair[1]] : []).forEach(element => {
           // A node stands on its own point; a subcatchment on ``element.c``, the centroid
-          // E3a put in the payload - never on one computed here, which would be a
-          // second definition of the same point.  A payload written before E3a carries no
+          // the extraction put in the payload - never on one computed here, which would be a
+          // second definition of the same point.  A payload written before that carries no
           // ``c``, and such an outline gets no <text> at all.
           let anchor = null;
           if (kind === 'node') anchor = finitePoint(element.p);
@@ -1661,7 +1661,7 @@
      */
     function setDim(kind, index, on) {
       if (!drawing) return;
-      // ``drawing.outletEls`` (E3b) stands beside labelEls: an outlet line fades with the
+      // ``drawing.outletEls`` stands beside labelEls: an outlet line fades with the
       // subcatchment it belongs to, exactly as the name of it does.
       const lists = [drawing.els, drawing.hitEls, drawing.outletEls, drawing.labelEls];
       lists.forEach(group => {
@@ -1676,7 +1676,7 @@
     /**
      * Re-apply both reasons an element may be faded, over the whole drawing.
      *
-     * A legend entry switched off (stage 6) and a table filter (stage 7) are separate
+     * A legend entry switched off and a table filter are separate
      * gestures that write the same class, so they are resolved together in one place:
      * an element fades when *either* says so and comes back only when both let go.
      * Two independent writers of .nm-dim would take turns undoing each other — the
@@ -1746,7 +1746,7 @@
       // The frame, written once, for the deferred placement to read.  Computing
       // pxPerUnit, radiusPx or crowded a second time there would be two truths about one
       // frame, and the labels would be laid out against a view nobody is looking at.
-      // The rectangle itself is **not** cached with them (F1): ``left``/``top`` of
+      // The rectangle itself is **not** cached with them: ``left``/``top`` of
       // getBoundingClientRect are the position of the container in the viewport, which
       // is not a property of the frame at all - a page that scrolls between this call
       // and the deferred placement changes them without changing anything the three
@@ -1785,7 +1785,7 @@
      *
      * Four callers: rescale(), toggleLabels() and the two ends of a selection.  Neither
      * selectElement nor clearSelection calls rescale(), so without them a name that lost
-     * a collision would not get the priority D27 promises it until the next pan, zoom or
+     * a collision would not get the priority it is promised until the next pan, zoom or
      * resize; and .nm-sel changes the geometry of the obstacles themselves - a conduit
      * goes from stroke-width 2.5 to 4, a node from 1 to 3 - so the layout computed for
      * the previous selection is out of date, which no rule inside the solver can repair.
@@ -1847,7 +1847,7 @@
       // One layout read per frame, and it has to be this one: the corners below are
       // mapped through the *live* CTM, so a rectangle snapshotted in rescale() would mix
       // a stale page position with a current transform and displace the whole culling
-      // frame by however far the page scrolled in between (F1).
+      // frame by however far the page scrolled in between.
       const rect = host.getBoundingClientRect();
       if (!isPositive(pxPerUnit) || !isPositive(rect.width) || !isPositive(rect.height)) return;
 
@@ -1962,7 +1962,7 @@
         if (!target) continue;
         // The solver answers with the top-left corner of the rectangle; ``y`` of a <text>
         // is a baseline.  The insertion point is that corner plus the halo and plus how
-        // far the glyphs reach outside the advance - measured (N01), never estimated, or
+        // far the glyphs reach outside the advance - measured, never estimated, or
         // the ink would leave the rectangle the solver reserved, in both directions for a
         // name with a 'j' and for every italic.
         target.el.setAttribute('x', String(entry.dx + LABEL_HALO_PX + target.box.left));
@@ -1975,7 +1975,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // Mode switch and legend (stage 6)
+    // Mode switch and legend
     //
     // Both are built here and not in the template: the map is drawn in the browser,
     // the legend of a mode is a property of the code that paints it, and a template
@@ -2242,12 +2242,12 @@
     addControl('Zoom in', '+', () => zoomByStep(ZOOM_STEP));
     addControl('Zoom out', '\u2212', () => zoomByStep(1 / ZOOM_STEP));
     addControl('Fit network to view', 'Fit', fitToView);
-    // D19 - the fourth control, and the only one carrying a state.  addControl builds a
+    // The fourth control, and the only one carrying a state.  addControl builds a
     // button and knows nothing about pressed, so updateLabelButton owns aria-pressed and
     // .nm-ctrl-on here, the way updateModeButtons owns them for the mode row.  Four
     // buttons of 32 px with three 6 px gaps are 146 px: a column of that height does NOT
     // fit the 114.4 px canvas the auto session draws on 390x844, so below 520 px the
-    // stylesheet folds the same four into two columns of two, 70x70 px (F7).
+    // stylesheet folds the same four into two columns of two, 70x70 px.
     labelButton = addControl('Show element names', 'Aa', toggleLabels);
     updateLabelButton();
     host.appendChild(controls);
@@ -2272,7 +2272,7 @@
      *
      * A browser that hands back no 2D context measures no text and so builds no name at
      * all (ensureLabels walks out, ``labelsBuilt`` stays false).  Telling that reader to
-     * zoom in would be advice no zoom can follow, so the gesture is refused (F4): the
+     * zoom in would be advice no zoom can follow, so the gesture is refused: the
      * button goes back off, the hint says why, and no choice is recorded or written - a
      * stored ``labels: true`` would bring the same dead state back on the next visit.
      * ``labelCanvas && !labelCtx`` is the precise question: ``!labelsBuilt`` is also
@@ -2388,7 +2388,7 @@
      *    again, and ``left: 10px; bottom: 10px`` of the stylesheet takes over.
      * 3. Otherwise clamp against the canvas *now* - **into the style and into nothing
      *    else**.  ``cardPos`` is the corner the reader chose and this function never
-     *    writes it (F3): the ResizeObserver calls this on every size change, so a write
+     *    writes it: the ResizeObserver calls this on every size change, so a write
      *    back would let a narrow window quietly replace a position chosen in a wide one,
      *    and the next savePrefs - the mode row, the names button - would persist the
      *    replacement.  Widening the window back could then restore nothing.  ``null``
@@ -2435,7 +2435,7 @@
      * Bring ``cardPos`` inside the canvas the gesture ended in, and only then.
      *
      * ``moveCardDrag`` writes the raw pointer arithmetic, which may well be outside the
-     * canvas, and ``applyCardPos`` no longer normalises it (F3).  This is the one moment
+     * canvas, and ``applyCardPos`` no longer normalises it.  This is the one moment
      * at which the clamped number *is* what the reader meant, because it is where the
      * card came to rest under their finger; a clamp at any other moment is the viewport
      * speaking, not the reader.  It therefore runs at both ends of the gesture - the
@@ -2492,7 +2492,7 @@
      *
      * The arithmetic is raw - the pointer may well have left the canvas - and it stays
      * raw in ``cardPos``: applyCardPos clamps what it draws, settleCardPos clamps what
-     * the end of the gesture remembers (F3).
+     * the end of the gesture remembers.
      */
     function moveCardDrag(event) {
       if (!cardDrag || event.pointerId !== cardDrag.pointerId) return;
@@ -2541,7 +2541,7 @@
       // point of this stage and survives every selection, on purpose.
       //
       // And it ends the gesture as surely as a pointerup does, so it saves like one
-      // (F2).  Escape does not reach endCardDrag - the heading that holds the capture
+      //.  Escape does not reach endCardDrag - the heading that holds the capture
       // is removed a few lines below, and the browser answers that with
       // lostpointercapture, which nothing listens to - so without these lines the card
       // would stay where the last move left it for the rest of the visit while
@@ -2814,7 +2814,7 @@
     });
 
     /**
-     * The table filtered itself; everything it no longer lists steps back (stage 7).
+     * The table filtered itself; everything it no longer lists steps back.
      *
      * The only message the map listens for, and the only reason the two scripts talk
      * at all in this direction.  The set is kept even while nothing is drawn yet — the
@@ -3173,7 +3173,7 @@
    * legally carry the same SWMM name, so a name alone would give two elements one
    * key and the order would stop being decidable; ``kind`` and ``i`` travel beside it
    * so nothing has to parse the string.  ``w``/``h`` are the **measured** glyph box
-   * with the halo on every side, handed in by E4b: this function never derives a text
+   * with the halo on every side, handed in by the caller: this function never derives a text
    * width from a string length, because ``text.length * 0.6 * fontPx`` understates the
    * proportional face the map inherits by a third ('WWWWWWWW' at 11 px is 52.8
    * guessed against 85.7 measured) and the name would then be parked on top of the
@@ -3181,7 +3181,7 @@
    * a synchronous layout and does not exist in Node.
    *
    * ``dx``/``dy`` locate the **corner of the rectangle**, not the ``y`` attribute of a
-   * ``<text>``: that element writes a baseline, and E4b turns the corner into
+   * ``<text>``: that element writes a baseline, and the caller turns the corner into
    * ``x = dx + LABEL_HALO_PX + actualBoundingBoxLeft``,
    * ``y = dy + LABEL_HALO_PX + actualBoundingBoxAscent``.  This is the only place the
    * collision rectangle is defined, so it has to be said here.
