@@ -9,7 +9,7 @@ plain Series. The commented-out ML branch of the original is not carried over.
 from __future__ import annotations
 
 import logging
-from typing import Sequence
+from typing import Iterable, Sequence
 
 import pandas as pd
 
@@ -32,7 +32,27 @@ class SubcatchmentFeatureError(ValueError):
     """Raised when subcatchment categories cannot be encoded."""
 
 
-def assign_categories(dfs: pd.DataFrame, tags: pd.Series, *, category_column: str = CATEGORY_COLUMN) -> pd.DataFrame:
+def category_from_tag(tag: object, categories: Iterable[str]) -> str | None:
+    """The land cover class a ``[TAGS]`` value names, in its canonical spelling, or ``None``.
+
+    SWMM users put any label in ``[TAGS]`` (a district, a design phase, a material),
+    so a tag names a class only when, trimmed and compared without regard to case,
+    it equals one of ``categories``: ``" Rural"`` names ``rural``, ``"Osiedle_A"``
+    names nothing.
+    """
+    if not isinstance(tag, str):
+        return None
+    wanted = str(tag).strip().casefold()
+    return next((category for category in categories if category.casefold() == wanted), None)
+
+
+def assign_categories(
+    dfs: pd.DataFrame,
+    tags: pd.Series,
+    *,
+    category_column: str = CATEGORY_COLUMN,
+    categories: Sequence[str] | None = None,
+) -> pd.DataFrame:
     """Return a copy of ``dfs`` with the land cover class of each subcatchment.
 
     Args:
@@ -42,6 +62,11 @@ def assign_categories(dfs: pd.DataFrame, tags: pd.Series, *, category_column: st
             ``(ElementType, Name)``, or by name alone if the element type has
             already been filtered out.
         category_column: name of the column to write.
+        categories: the land cover classes a tag may name. When given, a tag is
+            read with :func:`category_from_tag` and one that names none of them
+            leaves its subcatchment untagged (``NaN``), with a warning. When
+            ``None``, the tag text is copied as written, and a label outside the
+            classes is left for :func:`encode_categories` to refuse.
 
     Returns:
         ``dfs`` plus ``category``. Subcatchments without a tag get ``NaN``, and a
@@ -54,6 +79,15 @@ def assign_categories(dfs: pd.DataFrame, tags: pd.Series, *, category_column: st
         return frame
 
     category_map = _subcatchment_tag_map(tags)
+    if categories is not None:
+        named = {name: category_from_tag(tag, categories) for name, tag in category_map.items()}
+        foreign = [(name, category_map[name]) for name, category in named.items() if category is None]
+        if foreign:
+            listed = ", ".join(f"{name}={tag!r}" for name, tag in foreign[:10])
+            logger.warning(
+                "%d subcatchment tag(s) name no land cover class and are treated as untagged: %s", len(foreign), listed
+            )
+        category_map = {name: category for name, category in named.items() if category is not None}
     if not category_map:
         logger.warning(
             "No subcatchment tags found: %d subcatchments keep category=NaN; "
@@ -176,6 +210,7 @@ __all__ = [
     "SUBCATCHMENT_TAG_PREFIX",
     "SubcatchmentFeatureError",
     "assign_categories",
+    "category_from_tag",
     "encode_categories",
     "one_hot_categories",
 ]

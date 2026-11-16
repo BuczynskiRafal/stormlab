@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import logging
 import math
+import os
+import re
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Dict, List
 
 import pandas as pd
@@ -15,6 +18,7 @@ if TYPE_CHECKING:
 from pyswmm import Simulation
 from swmmio.utils.functions import trace_from_node
 
+from .errors import SwmmInputError
 from .constants import (
     FILLING_CALCULATION_MAX_ITER,
     FILLING_CALCULATION_STEP,
@@ -238,6 +242,32 @@ class HydraulicCalculationsService:
         return filling
 
 
+MAX_ENGINE_ERRORS = 5
+"""How many of the engine's error lines a failed run shows; the rest are counted."""
+
+_ENGINE_ERROR = re.compile(r"^\s*(ERROR \d+:.*?)\s*:?\s*$")
+
+
+def engine_errors(report_path: str | os.PathLike[str], *, hide: Iterable[str] = ()) -> list[str]:
+    """The ``ERROR nnn: ...`` lines of a SWMM report, in order, with *hide* (paths) removed.
+
+    The engine names the offending element in each line, which the exception pyswmm
+    raises does not (it carries only the last message, with a literal ``%s``).
+    """
+    try:
+        with open(report_path, encoding="utf-8", errors="replace") as handle:
+            found = [match.group(1) for match in map(_ENGINE_ERROR.match, handle) if match]
+    except OSError:
+        return []
+    cleaned = []
+    for line in found:
+        for secret in hide:
+            if secret:
+                line = line.replace(secret, "")
+        cleaned.append(" ".join(line.split()))
+    return cleaned
+
+
 class SimulationRunnerService:
     """Class responsible for running the simulation using PySWMM."""
 
@@ -245,10 +275,26 @@ class SimulationRunnerService:
         self.inp_path = inp_path
 
     def run_simulation(self) -> None:
-        """Runs the PySWMM simulation in a loop to update model values."""
-        with Simulation(self.inp_path) as sim:
-            for _ in sim:
-                pass
+        """Runs the PySWMM simulation in a loop to update model values.
+
+        Raises:
+            SwmmInputError: when the engine refuses the model; the message carries the
+                engine's own error lines from the report, read before the report is deleted.
+        """
+        try:
+            with Simulation(self.inp_path) as sim:
+                for _ in sim:
+                    pass
+        except Exception as error:
+            report = os.path.splitext(self.inp_path)[0] + ".rpt"
+            hide = (os.path.dirname(os.path.abspath(self.inp_path)) + os.sep, os.path.abspath(self.inp_path))
+            lines = engine_errors(report, hide=hide)
+            if not lines:
+                raise
+            shown = "; ".join(line.rstrip(".") for line in lines[:MAX_ENGINE_ERRORS])
+            more = len(lines) - MAX_ENGINE_ERRORS
+            suffix = f"; and {more} more error{'s' if more > 1 else ''}" if more > 0 else ""
+            raise SwmmInputError(f"SWMM could not run the model: {shown}{suffix}.") from error
 
 
 class TraceAnalysisService:

@@ -92,7 +92,9 @@
                         seven design criteria.</li>
                     <li><strong>Catchment categories.</strong> Land-cover categories are read
                         from the <code>[TAGS]</code> section; subcatchments without a tag are
-                        classified by a neural network.</li>
+                        classified by a neural network. A tag counts only when it names one of
+                        the twelve categories, in any letter case; any other label is treated
+                        as no tag.</li>
                     <li><strong>Recommendations.</strong> The graph neural network returns a
                         probability distribution over nine actions for every conduit.</li>
                 </ol>
@@ -268,8 +270,25 @@
                         change with the zone.</li>
                     <li>The recommendation model reads land cover from the tags of the model
                         file. Categories assigned by the classifier are shown in the results
-                        but are not passed to it; for an untagged subcatchment it assumes the
-                        average of its training data.</li>
+                        but are not passed to it; for an untagged subcatchment, or one whose tag
+                        names none of the twelve categories, it assumes the average of its
+                        training data.</li>
+                    <li>An analysis runs while the page waits, so a model may have at most 5,000
+                        conduits, nodes and subcatchments and simulate at most a week. Very short
+                        report or routing steps over a long period are refused too, with a
+                        message saying which step to lengthen. These are the defaults; an
+                        installation may set other limits.</li>
+                    <li>A model file that is not UTF-8 is read as Windows-1250, the code page of
+                        SWMM on Polish Windows. Names and comments written in another code page
+                        may show different letters in the results.</li>
+                    <li>The design criteria are written for pipe diameters, so only circular
+                        conduits are assessed (SWMM shapes <code>CIRCULAR</code> and
+                        <code>FORCE_MAIN</code>). A model with a conduit of any other shape, such
+                        as a rectangular or egg-shaped section, is refused at upload. Weirs,
+                        orifices and other regulators may have any shape.</li>
+                    <li>The design criteria cover diameters of 0.2 to 2.0 m. For a conduit outside
+                        that range the slope limits and the diameter and slope suggestions are
+                        not assessed, and its filling and slope checks are counted as failed.</li>
                     <li>The model was trained on dynamic wave results. Files that declare another
                         routing method are analysed as declared, and recommendations for them are
                         less reliable.</li>

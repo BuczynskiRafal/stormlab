@@ -12,6 +12,7 @@ import swmmio as sw
 
 from .conduits import ConduitFeatureEngineeringService, RecommendationService
 from .enums import RecommendationCategory
+from .inp_structure import check_file_structure
 from .nodes import NodeFeatureEngineeringService
 from .predictor import GNN_CONFIG, _LazyModelProxy, get_gnn_recommendation, get_recommendation, gnn_enabled, recommendation
 from .round import max_slope, min_slope  # Re-export for backwards compatibility
@@ -39,6 +40,14 @@ class RecommendationModelUnavailable(RuntimeError):
     """The GNN is enabled, but neither it nor a fallback model could produce recommendations."""
 
 
+class SimulationReportError(RuntimeError):
+    """The model could not be read back together with the report of its simulation.
+
+    Every later step needs the simulated values (``MaxDPerc``, ``MaxV``, ...), so the
+    analysis stops here instead of carrying on with the frames read before the run.
+    """
+
+
 class DataManager(sw.Model):
     """
     Main class that combines various services/classes responsible for different areas
@@ -47,6 +56,9 @@ class DataManager(sw.Model):
     """
 
     def __init__(self, inp_file_path: str, crs: Optional[str] = None, include_rpt: bool = True, zone: float = 1.2):
+        # A model without conduits or subcatchments, or with a link to an undefined node,
+        # would otherwise fail inside swmmio with a bare KeyError or a pandas message.
+        check_file_structure(inp_file_path)
         super().__init__(inp_file_path, crs=crs, include_rpt=include_rpt)
         self._frost_zone: float = zone
         self.frost_zone = zone
@@ -231,8 +243,7 @@ class DataManager(sw.Model):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None:
-            logger.error(f"Exception occurred: {exc_val}")
+        # The caller handles and logs the exception; logging it here too would print it twice.
         return False
 
     ############################################################################
@@ -290,7 +301,6 @@ class DataManager(sw.Model):
         self.simulation_service.run_simulation()
 
         # Reinitialize parent sw.Model to include newly generated .rpt file
-        reinitialized = False
         try:
             super().__init__(self.inp.path, crs=self.crs, include_rpt=True)
 
@@ -313,15 +323,11 @@ class DataManager(sw.Model):
             self.subcatchment_service = SubcatchmentFeatureEngineeringService(self.dfs, self)
             self.node_service = NodeFeatureEngineeringService(self.dfn, self.dfs)
             self.conduit_service = ConduitFeatureEngineeringService(dfc=self.dfc, dfn=self.dfn, frost_zone=self.frost_zone)
+        except Exception as error:
+            raise SimulationReportError(f"Could not read the model back with the report of {self.inp.path}") from error
 
-            reinitialized = True
-
-        except Exception as e:
-            logger.warning(f"Could not reinitialize with report file: {e}")
-
-        self.reinitialized_with_rpt = reinitialized
-        if reinitialized:
-            self._select_recommendation_service()
+        self.reinitialized_with_rpt = True
+        self._select_recommendation_service()
 
     def feature_engineering(self) -> None:
         """

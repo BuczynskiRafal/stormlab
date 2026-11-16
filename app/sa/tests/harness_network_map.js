@@ -1396,6 +1396,13 @@ group('cardRows lists the card values in order, in table units and digits', () =
   ], 'the total runoff is converted like the flooding volume');
 });
 
+group('cardRows says a diameter outside 0.2-2.0 m was not assessed', () => {
+  const found = row => cardRows('link', row).find(pair => pair[0] === 'Diameter');
+  assert.deepStrictEqual(found({ diameter: 2.5, limits_assessed: false }), ['Diameter', '2.500 m (outside 0.2–2.0 m, not assessed)']);
+  assert.deepStrictEqual(found({ diameter: 0.6, limits_assessed: true }), ['Diameter', '0.600 m']);
+  assert.strictEqual(found({ limits_assessed: false }), undefined, 'no diameter, no row');
+});
+
 group('cardRows leaves a missing value out and composes the filling from what is there', () => {
   const labels = rows => rows.map(pair => pair[0]);
   const filling = row => {
@@ -1433,6 +1440,6 @@ group('cardRows leaves a missing value out and composes the filling from what is
 });
 
 console.log('------------------------------------------------------------');
-console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 27 PASSED)`);
+console.log(`ALL NETWORK MAP PURE-LAYER CASES VERIFIED (${passed} / 28 PASSED)`);
 console.log('------------------------------------------------------------');
-assert.strictEqual(passed, 27, 'every group must have run');
+assert.strictEqual(passed, 28, 'every group must have run');

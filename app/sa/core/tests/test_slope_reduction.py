@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 import pandas as pd
 from unittest.mock import patch
@@ -114,13 +115,17 @@ def test_slope_reduction_nonstandard_diameters(diameter):
         service.slope_reduction()
 
 
-@pytest.mark.parametrize("diameter", [0.0, -0.5, 2.5, float("nan")])
-def test_slope_reduction_invalid_diameters(diameter):
-    df = pd.DataFrame({"Geom1": [diameter], "SlopePerMile": [50.0], "Filling": [0.5]})
-    with pytest.raises(ValueError):
-        service = ConduitFeatureEngineeringService(df, None, 1.0)
-        service.slope_reduction()
-        "ReduceSlope" in service.dfc.columns
+@pytest.mark.parametrize("diameter", [0.0, -0.5, 0.15, 2.5, float("nan")])
+def test_slope_reduction_invalid_diameters_are_not_assessed(diameter):
+    """One conduit outside 0.2-2.0 m must not fail the run: it gets no limit and no suggestion."""
+    df = pd.DataFrame({"Geom1": [diameter, 0.5], "SlopePerMile": [50.0, 50.0], "Filling": [0.5, 0.25]})
+    service = ConduitFeatureEngineeringService(df, None, 1.0)
+
+    service.slope_reduction()
+
+    assert np.isnan(service.dfc["MaxAllowableSlope"].iloc[0])
+    assert np.isnan(service.dfc["ReduceSlope"].iloc[0])
+    assert service.dfc["ReduceSlope"].iloc[1] in (0, 1)
 
 
 def test_slope_reduction_multiple_pipes():

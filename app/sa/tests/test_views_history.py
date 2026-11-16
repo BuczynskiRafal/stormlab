@@ -427,3 +427,36 @@ class HistorySortStabilityTests(TestCase):
 
         self.assertEqual(len(seen), 12)
         self.assertEqual(sorted(seen), sorted(CalculationSession.objects.filter(user=self.user).values_list("id", flat=True)))
+
+
+class HistoryPageClampTests(TestCase):
+    """A page number past the end or not a number shows a real page instead of 404."""
+
+    def setUp(self) -> None:
+        self.user = make_user(email="pages@example.com")
+        self.client.force_login(self.user)
+        self.sessions = [make_session(self.user) for _ in range(12)]  # two pages of 10
+
+    def page_number(self, query: dict) -> int:
+        response = self.client.get(reverse("sa:history"), query)
+        self.assertEqual(response.status_code, 200)
+        return response.context["page_obj"].number
+
+    def test_a_page_past_the_end_shows_the_last_page(self):
+        self.assertEqual(self.page_number({"page": 99}), 2)
+
+    def test_junk_or_an_empty_page_shows_the_first_page(self):
+        for value in ("abc", "", "-3", "0", "1.5"):
+            with self.subTest(page=value):
+                self.assertEqual(self.page_number({"page": value}), 1)
+
+    def test_the_page_left_empty_by_a_delete_falls_back_to_the_last_one(self):
+        on_page_two = CalculationSession.objects.filter(user=self.user).order_by("-created_at", "-pk")[10:]
+        for session in list(on_page_two):
+            self.client.post(reverse("sa:delete_session", args=[session.id]))
+
+        self.assertEqual(self.page_number({"page": 2}), 1)
+
+    def test_an_account_without_sessions_still_shows_page_one(self):
+        CalculationSession.objects.filter(user=self.user).delete()
+        self.assertEqual(self.page_number({"page": 5}), 1)

@@ -70,6 +70,37 @@ def _without_subcatchment_tags(source: Path, target: Path) -> dict[str, str]:
     return tags
 
 
+def _without_tags_section(source: Path, target: Path) -> None:
+    """Write ``source`` to ``target`` with no ``[TAGS]`` section at all, header included."""
+    kept: list[str] = []
+    section = ""
+    for line in source.read_bytes().decode("utf-8").split("\r\n"):
+        stripped = line.strip()
+        if stripped.startswith("["):
+            section = stripped.upper()
+        if section != "[TAGS]":
+            kept.append(line)
+    target.write_bytes("\r\n".join(kept).encode("utf-8"))
+
+
+@requires_tf
+@pytest.mark.slow
+def test_network_without_a_tags_section_gets_its_categories_from_the_classifier(
+    reference: dict[str, np.ndarray], tmp_path: Path
+) -> None:
+    """Most real models have no [TAGS] section; the classifier then names every category."""
+    from sa.core.data import DataManager
+
+    inp = tmp_path / EXAMPLE.name
+    _without_tags_section(EXAMPLE, inp)
+    assert "[TAGS]" not in inp.read_text()
+
+    with DataManager(str(inp), zone=0.8) as dm:
+        assigned = {str(name): str(category) for name, category in dm.dfs["category"].items()}
+
+    assert assigned == dict(zip(reference["names"].tolist(), reference["category"].tolist()))
+
+
 @requires_tf
 @pytest.mark.slow
 def test_untagged_network_gets_its_categories_from_the_classifier(reference: dict[str, np.ndarray], tmp_path: Path) -> None:

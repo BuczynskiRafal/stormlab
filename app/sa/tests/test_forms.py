@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile, TemporaryUploadedFile
@@ -105,6 +106,197 @@ class FormFlowUnitsGateTests(SimpleTestCase):
     def test_temporary_upload_file_readable_after_validation(self):
         uploaded = _make_temporary("flow_units_cms.inp")
         self._assert_full_content_via_chunks(uploaded, "flow_units_cms.inp")
+
+
+class FormFileNameTests(SimpleTestCase):
+    """The file name is checked before anything is read from the file."""
+
+    def _errors(self, name: str) -> list:
+        uploaded = SimpleUploadedFile(name, _read_fixture("flow_units_cms.inp"), content_type="application/octet-stream")
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        return [] if form.is_valid() else form.errors.as_data().get("file", [])
+
+    def test_a_file_that_is_not_inp_is_asked_for_an_inp_file(self):
+        for name in ("notes.txt", "model.inp.txt", "model", "model.rpt"):
+            with self.subTest(name=name):
+                errors = self._errors(name)
+                self.assertEqual([e.code for e in errors], ["extension"])
+                self.assertEqual(errors[0].messages, ["Choose a SWMM input file (.inp)."])
+
+    def test_the_suffix_is_checked_in_any_letter_case(self):
+        for name in ("MODEL.INP", "Model.Inp", "model.inp"):
+            with self.subTest(name=name):
+                self.assertEqual(self._errors(name), [])
+
+    def test_a_wrong_name_wins_over_the_size_limit(self):
+        uploaded = SimpleUploadedFile("notes.txt", b"x", content_type="text/plain")
+        uploaded.size = settings.MAX_INP_BYTES + 1
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+
+        self.assertEqual([e.code for e in form.errors.as_data()["file"]], ["extension"])
+
+
+class FormConduitShapeTests(SimpleTestCase):
+    """The checks treat Geom1 as a diameter, so other cross-sections are refused at upload."""
+
+    DEMO = (Path(settings.BASE_DIR).parent / "examples" / "demo_network_coordinates.inp").read_text(encoding="utf-8")
+
+    def _errors(self, text: str) -> list:
+        uploaded = SimpleUploadedFile("x.inp", text.encode("utf-8"), content_type="application/octet-stream")
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        return [] if form.is_valid() else form.errors.as_data().get("file", [])
+
+    def _with_shapes(self, shapes: dict[str, str]) -> str:
+        text = self.DEMO
+        for name, shape in shapes.items():
+            text = text.replace(f"{name:<17}CIRCULAR    ", f"{name:<17}{shape:<12}", 1)
+            self.assertIn(f"{name:<17}{shape}", text)
+        return text
+
+    def test_conduits_of_another_shape_are_named_with_their_shape(self):
+        errors = self._errors(self._with_shapes({"K5": "RECT_CLOSED", "K6": "EGG", "K7": "RECT_OPEN", "K8": "EGG", "K9": "ARCH"}))
+
+        self.assertEqual([e.code for e in errors], ["conduit_shape"])
+        self.assertEqual(
+            errors[0].messages,
+            [
+                "StormLab assesses circular conduits only; these conduits have another shape: "
+                "K5 (RECT_CLOSED), K6 (EGG), K7 (RECT_OPEN) and 2 more. "
+                "To analyse the network here, give them a CIRCULAR cross-section in [XSECTIONS]."
+            ],
+        )
+
+    def test_force_main_and_lower_case_circular_conduits_are_accepted(self):
+        self.assertEqual(self._errors(self._with_shapes({"K5": "FORCE_MAIN", "K6": "circular"})), [])
+
+    def test_a_weir_with_a_rectangular_opening_is_not_a_conduit(self):
+        weir = "[WEIRS]\nW1  J3  O1  TRANSVERSE  0.5  3.33  NO  0  0\n\n[XSECTIONS]\nW1  RECT_OPEN  1  1  0  0\n"
+        self.assertEqual(self._errors(self.DEMO.replace("[XSECTIONS]\n", weir, 1)), [])
+
+    def test_crlf_files_are_read_too(self):
+        text = self._with_shapes({"K5": "TRAPEZOIDAL"}).replace("\n", "\r\n")
+        self.assertEqual([e.code for e in self._errors(text)], ["conduit_shape"])
+
+
+class FormEncodingTests(SimpleTestCase):
+    """A Windows-1250 file is scanned as the UTF-8 copy the engine will read."""
+
+    def _errors(self, payload: bytes) -> list:
+        uploaded = SimpleUploadedFile("x.inp", payload, content_type="application/octet-stream")
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        return [] if form.is_valid() else form.errors.as_data().get("file", [])
+
+    def test_a_windows_1250_model_with_polish_letters_is_accepted(self):
+        self.assertEqual(self._errors(_read_fixture("polish_cp1250.inp")), [])
+
+    def test_the_line_limit_applies_to_the_transcoded_line(self):
+        # 600 letters "ż" are 601 bytes in Windows-1250 but 1201 in the UTF-8 copy the
+        # engine reads, which it would split into two lines.
+        comment = (";" + "ż" * 600 + "\n").encode("cp1250")
+        self.assertLessEqual(len(comment), 1023)
+
+        errors = self._errors(_read_fixture("flow_units_cms.inp") + comment)
+
+        self.assertEqual([e.code for e in errors], ["unsafe_input"])
+
+
+class FormCostLimitTests(SimpleTestCase):
+    """A run is bounded by the request timeout and the temporary disk, so the form bounds what drives them."""
+
+    DEMO = (Path(settings.BASE_DIR).parent / "examples" / "demo_network_coordinates.inp").read_text(encoding="utf-8")
+
+    def _errors(self, text: str) -> list:
+        uploaded = SimpleUploadedFile("x.inp", text.encode("utf-8"), content_type="application/octet-stream")
+        form = SWMMModelForm(data={"zone": 1}, files={"file": uploaded})
+        return [] if form.is_valid() else form.errors.as_data().get("file", [])
+
+    def _option(self, name: str, value: str, text: str | None = None) -> str:
+        text = self.DEMO if text is None else text
+        lines = [f"{name:<21}{value}" if line.startswith(name + " ") else line for line in text.split("\n")]
+        return "\n".join(lines)
+
+    def test_the_audited_eight_day_one_second_run_is_refused_for_its_output(self):
+        # Six and a half days are within the week; 561,600 one-second report steps of 51 elements are not.
+        text = self._option("REPORT_STEP", "00:00:01", self._option("END_DATE", "06/23/2022"))
+
+        errors = self._errors(text)
+
+        self.assertEqual([e.code for e in errors], ["output_too_large"])
+        self.assertEqual(
+            errors[0].messages,
+            [
+                "SWMM file would write an estimated 688 MB of results (elements × report steps × about 24 bytes); "
+                "the limit is 200 MB. Lengthen REPORT_STEP or shorten the simulation."
+            ],
+        )
+
+    def test_a_day_reported_every_minute_is_accepted(self):
+        text = self._option("REPORT_STEP", "00:01:00", self._option("END_DATE", "06/18/2022"))
+        self.assertEqual(self._errors(text), [])
+
+    def test_more_than_a_week_is_refused(self):
+        errors = self._errors(self._option("END_DATE", "06/25/2022"))
+
+        self.assertEqual([e.code for e in errors], ["simulation_too_long"])
+        self.assertEqual(
+            errors[0].messages, ["SWMM file simulates 204 hours (START to END in [OPTIONS]); the limit is 168 hours."]
+        )
+
+    def test_an_end_date_hidden_in_a_second_options_section_counts(self):
+        errors = self._errors(self.DEMO + "\n[OPTIONS]\nEND_DATE 06/30/2022\n")
+        self.assertEqual([e.code for e in errors], ["simulation_too_long"])
+
+    def test_a_file_without_start_date_runs_from_2004_and_is_refused(self):
+        text = "\n".join(line for line in self.DEMO.split("\n") if not line.startswith(("START_DATE", "REPORT_START")))
+        self.assertEqual([e.code for e in self._errors(text)], ["simulation_too_long"])
+
+    def test_a_tiny_routing_step_is_refused_with_the_estimate_and_the_limit(self):
+        # 12 hours at 0.01 s are 4.32 million steps, counted as 51 elements each.
+        errors = self._errors(self._option("ROUTING_STEP", "0.01"))
+
+        self.assertEqual([e.code for e in errors], ["too_much_routing"])
+        self.assertEqual(
+            errors[0].messages,
+            [
+                "SWMM file asks for an estimated 221 million element routing steps (elements × simulated time "
+                "÷ ROUTING_STEP); the limit is 100 million. Lengthen ROUTING_STEP or shorten the simulation."
+            ],
+        )
+
+    def test_a_tiny_model_counts_as_fifty_elements_per_routing_step(self):
+        from sa.forms import routing_work
+
+        period = mock.Mock(routing_steps=1_000_000)
+        self.assertEqual(routing_work(4, period), 50_000_000)
+        self.assertEqual(routing_work(5000, period), 5_000_000_000)
+
+    def test_an_unreadable_period_option_is_named(self):
+        errors = self._errors(self._option("END_DATE", "2022-06-18"))
+
+        self.assertEqual([e.code for e in errors], ["option_value"])
+        self.assertIn("END_DATE 2022-06-18", errors[0].messages[0])
+
+    @override_settings(MAX_MODEL_ELEMENTS=50)
+    def test_too_many_elements_are_refused_with_the_count_and_the_limit(self):
+        errors = self._errors(self.DEMO)
+
+        self.assertEqual([e.code for e in errors], ["too_many_elements"])
+        self.assertEqual(
+            errors[0].messages,
+            ["SWMM file has 51 elements (conduits, nodes and subcatchments); the limit is 50."],
+        )
+
+    @override_settings(MAX_SIMULATION_HOURS=12, MAX_MODEL_ELEMENTS=51, MAX_OUTPUT_MB=1, MAX_ROUTING_MILLIONS=1)
+    def test_limits_follow_the_settings_and_a_file_within_them_passes(self):
+        # The demo: 12 hours, 51 x 48 x 24 B = 0.06 MB, 51 x 720 = 0.04 million routing steps.
+        self.assertEqual(self._errors(self.DEMO), [])
+        with self.settings(MAX_SIMULATION_HOURS=11):
+            self.assertEqual([e.code for e in self._errors(self.DEMO)], ["simulation_too_long"])
+
+    def test_the_shipped_examples_pass(self):
+        for path in (Path(settings.BASE_DIR).parent / "examples").glob("*.inp"):
+            with self.subTest(path=path.name):
+                self.assertEqual(self._errors(path.read_text(encoding="utf-8")), [])
 
 
 class FormSizeLimitTests(SimpleTestCase):

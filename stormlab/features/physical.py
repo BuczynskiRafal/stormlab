@@ -179,7 +179,14 @@ class PhysicalFeatureError(ValueError):
     """Raised when a case cannot be turned into physical features."""
 
 
-def extract_physical_features(inp_path: Path | str, rpt_path: Path | str, *, config: Config, file_id: str) -> pd.DataFrame:
+def extract_physical_features(
+    inp_path: Path | str,
+    rpt_path: Path | str,
+    *,
+    config: Config,
+    file_id: str,
+    foreign_tags_untagged: bool = False,
+) -> pd.DataFrame:
     """One row per conduit: identity, the F2 measurements, the F3 margins and the masks.
 
     Args:
@@ -190,6 +197,13 @@ def extract_physical_features(inp_path: Path | str, rpt_path: Path | str, *, con
             maximum depth, filling ratio, self-cleansing velocity, the slope
             constants) is read from it rather than from a literal here.
         file_id: the identifier the caller knows this file by.
+        foreign_tags_untagged: how to read a subcatchment tag that names no land
+            cover class. ``False`` (the default) refuses the case, so a typo in a
+            curated dataset cannot pass for a missing class. ``True`` reads such a
+            tag as no tag, matched without regard to case and surrounding blanks
+            (see :func:`stormlab.features.subcatchments.category_from_tag`), which
+            is what serving an arbitrary user model needs: ``sbc_missing`` is set
+            exactly as for an untagged subcatchment.
 
     Returns:
         A frame indexed 0..n-1 carrying :data:`PHYSICAL_IDENTITY_COLUMNS`
@@ -203,7 +217,7 @@ def extract_physical_features(inp_path: Path | str, rpt_path: Path | str, *, con
         PhysicalFeatureError: if the case is not extractable -- a conduit absent
             from the report, a zero-length conduit, a rainfall description this
             module does not convert, a land cover class outside the canonical
-            order.
+            order (unless ``foreign_tags_untagged``).
         InpReadError, RptParseError: propagated from the readers.
     """
     inp = Path(inp_path)
@@ -234,7 +248,15 @@ def extract_physical_features(inp_path: Path | str, rpt_path: Path | str, *, con
     _add_freeboard(frame)
     _add_capacity(frame)
     _add_slope_requirements(frame, config=config)
-    _add_context(frame, geometry=geometry, nodes=nodes, subcatchments=subcatchments, model=model, config=config)
+    _add_context(
+        frame,
+        geometry=geometry,
+        nodes=nodes,
+        subcatchments=subcatchments,
+        model=model,
+        config=config,
+        foreign_tags_untagged=foreign_tags_untagged,
+    )
     frame["rain_total_mm"] = scenario.total_mm
     frame["rain_duration_h"] = scenario.duration_h
     frame["rain_peak_intensity_mmph"] = scenario.peak_intensity_mmph
@@ -569,9 +591,12 @@ def _add_context(
     subcatchments: pd.DataFrame,
     model: sw.Model,
     config: Config,
+    foreign_tags_untagged: bool = False,
 ) -> None:
     """Land cover class of the conduit and the whole catchment draining into it from above."""
-    tagged = assign_categories(subcatchments, read_tags(model))
+    tagged = assign_categories(
+        subcatchments, read_tags(model), categories=FEATURE_ONEHOT_ORDER if foreign_tags_untagged else None
+    )
     with_subcatchments = assign_subcatchment_info(nodes, tagged)
 
     # The class a conduit inherits has to be the *same* class the legacy view

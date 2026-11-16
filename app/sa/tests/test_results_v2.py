@@ -14,7 +14,6 @@ from __future__ import annotations
 import decimal
 import json
 import math
-import os
 import uuid
 from unittest import mock
 
@@ -23,6 +22,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from sa.models import CalculationSession
 from sa.services import CalculationRetrievalService, ConduitPanelService, fill_percent
 from sa.core.geometry import NETMAP_MAX_ELEMENTS, NETMAP_MAX_POINTS
 from .factories import (
@@ -1122,27 +1122,36 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertIn("simple_rule_passed", c)
         self.assertIsInstance(c["simple_rule_passed"], bool)
 
-    def test_pages_name_the_running_model_when_the_gnn_is_enabled(self):
-        meta = {
-            "model_kind": "gnn",
-            "model_id": "gnn_recommender_v1",
-            "feature_contract": "v4_physical",
-            "target_contract": "primary_action_v3",
-        }
-        with mock.patch("sa.services.get_model_metadata", return_value=meta):
+    GNN_METADATA = {
+        "model_kind": "gnn",
+        "model_id": "gnn_recommender_v1",
+        "weights_sha256": "ab" * 32,
+        "feature_contract": "v4_physical",
+        "target_contract": "primary_action_v3",
+        "gnn_enabled": True,
+    }
+
+    def _with_metadata(self, metadata):
+        CalculationSession.objects.filter(pk=self.session.pk).update(model_metadata=metadata)
+        self.session.refresh_from_db()
+
+    def test_pages_name_the_model_the_session_recorded(self):
+        self._with_metadata(self.GNN_METADATA)
+        other_model = {**self.GNN_METADATA, "model_id": "a_later_model"}
+        with mock.patch("sa.core.predictor.get_model_metadata", return_value=other_model):
             results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
             panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
         self.assertContains(results, "gnn_recommender_v1 (v4_physical, primary_action_v3)")
         self.assertContains(panel, "gnn_recommender_v1 (v4_physical)")
+        for response in (results, panel):
+            self.assertNotContains(response, "a_later_model")
+        self.assertEqual(results.context["results_v2_data"]["session"]["model_metadata"], {**self.GNN_METADATA, "recorded": True})
 
     def test_pages_name_no_model_when_none_ran(self):
-        with (
-            mock.patch.dict(os.environ, {"GNN_ENABLED": "false"}),
-            mock.patch("sa.core.predictor._sha256_file_safe", return_value=None),
-        ):
-            results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
-            panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
-            payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
+        self._with_metadata({**dict.fromkeys(self.GNN_METADATA), "model_kind": "none", "gnn_enabled": False})
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+        panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
+        payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
         for response in (results, panel):
             self.assertEqual(response.status_code, 200)
             self.assertNotContains(response, "mlp_historical")
@@ -1153,6 +1162,18 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         csv = self.client.get(reverse("sa:export_session_csv", args=[self.session.id, "conduits"]))
         self.assertEqual(csv.status_code, 200)
 
+    def test_a_session_from_before_the_metadata_was_stored_names_no_current_model(self):
+        self._with_metadata(None)
+        with mock.patch("sa.core.predictor.get_model_metadata", return_value=self.GNN_METADATA):
+            results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+            panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
+        meta = results.context["results_v2_data"]["session"]["model_metadata"]
+        self.assertIs(meta["recorded"], False)
+        self.assertEqual({key: value for key, value in meta.items() if key != "recorded"}, dict.fromkeys(self.GNN_METADATA))
+        self.assertEqual(panel.context["panel"].model_metadata, meta)
+        for response in (results, panel):
+            self.assertNotContains(response, "gnn_recommender_v1")
+
     def test_server_csv_export_for_all_kinds(self):
         for kind in ("conduits", "nodes", "catchments"):
             url = reverse("sa:export_session_csv", args=[self.session.id, kind])
@@ -1162,6 +1183,39 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
             content = response.content.decode("utf-8")
             self.assertTrue(content.startswith("\ufeff"))
             self.assertGreaterEqual(len(content.strip().splitlines()), 2)
+
+    # The columns of the server CSV before any key was added (results of record): new
+    # keys may only be appended after them.
+    SERVER_CSV_COLUMNS = {
+        "conduits": (
+            "id,name,conduit_name,inlet,inlet_node,outlet,outlet_node,catchment,subcatchment,category,"
+            "sbc_category,diameter,geom1,length,slope,slope_per_mile,coverIn,inlet_ground_cover,coverOut,"
+            "outlet_ground_cover,inlet_max_depth,outlet_max_depth,depth,inlet_ground_elevation,"
+            "outlet_ground_elevation,flow,max_q,velocity,max_v,filling,fillPercent,fill_percent,minDiameter,"
+            "min_diameter,is_min_diameter,isMinDiameter,increase_dia,increaseDia,reduce_dia,reduceDia,minSlope,"
+            "min_required_slope,maxSlope,maxAllowableSlope,max_allowable_slope,increase_slope,increaseSlope,"
+            "reduce_slope,reduceSlope,val_max_fill,val_max_v,val_min_v,val_max_slope,val_min_slope,val_depth,"
+            "val_coverage,validation,passed_checks_count,failed_checks_count,simple_rule_passed,action,"
+            "recommendation,recommendation_label,detail_url,panel_url,link,confidence,confidence_margin"
+        ),
+        "nodes": (
+            "id,name,node_name,conduit,subcatchment,category,sbc_category,invert,invert_elevation,depth,"
+            "max_depth,ground,ground_elevation,waterDepth,max_water_depth,floodHours,hours_flooded,floodVolume,"
+            "flood_volume,is_flooded,detail_url,panel_url,link"
+        ),
+        "catchments": (
+            "id,name,subcatchment_name,outlet,conduit,category,area,impervious,perc_imperv,slope,perc_slope,"
+            "total_runoff_mg,runoff,peak_runoff,peak,runoff_coeff,coefficient,detail_url,panel_url,link"
+        ),
+    }
+
+    def test_server_csv_keeps_every_column_in_place_and_only_appends(self):
+        appended = {"conduits": ["limits_assessed"], "nodes": [], "catchments": []}
+        for kind, columns in self.SERVER_CSV_COLUMNS.items():
+            with self.subTest(kind=kind):
+                response = self.client.get(reverse("sa:export_session_csv", args=[self.session.id, kind]))
+                header = response.content.decode("utf-8").lstrip("\ufeff").splitlines()[0].split(",")
+                self.assertEqual(header, columns.split(",") + appended[kind])
 
     def test_server_csv_export_rejects_invalid_kind_and_foreign_user(self):
         bad_url = reverse("sa:export_session_csv", args=[self.session.id, "invalid"])
