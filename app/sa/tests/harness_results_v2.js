@@ -460,8 +460,33 @@ class MockDocument {
 // 2. Realistic session data payload
 // -----------------------------------------------------------------------------
 
+/**
+ * The ``labels`` block of the payload, as ``serialize_session_for_results_v2`` writes it
+ * from sa/labels.py.  The engine holds no labels of its own, so everything the reader
+ * sees for a code comes from here; the categories are the three the fixture uses.
+ */
+const PAYLOAD_LABELS = {
+  actions: {
+    valid: 'No changes',
+    diameter_increase: 'Increase diameter',
+    diameter_reduction: 'Reduce diameter',
+    slope_increase: 'Increase slope',
+    slope_reduction: 'Reduce slope',
+    depth_increase: 'Increase depth',
+    pump: 'Pump station',
+    tank: 'Retention tank',
+    seepage_boxes: 'Seepage boxes'
+  },
+  categories: {
+    urban_weakly_impervious: 'Urban, weakly impervious',
+    urban_highly_impervious: 'Urban, highly impervious',
+    suburban_weakly_impervious: 'Suburban, weakly impervious'
+  }
+};
+
 function generateMockSessionData() {
   return {
+    labels: PAYLOAD_LABELS,
     session: {
       id: 42,
       model_file: 'wroclaw_test_model.inp',
@@ -484,7 +509,7 @@ function generateMockSessionData() {
         inlet: 'N1',
         outlet: 'N2',
         catchment: 'S1',
-        category: 'residential',
+        category: 'urban_weakly_impervious',
         diameter: 0.4,
         geom1: 0.4,
         length: 50.0,
@@ -516,7 +541,7 @@ function generateMockSessionData() {
         inlet: 'N2',
         outlet: 'N3',
         catchment: 'S1',
-        category: 'residential',
+        category: 'urban_weakly_impervious',
         diameter: 0.3,
         geom1: 0.3,
         length: 40.0,
@@ -548,7 +573,7 @@ function generateMockSessionData() {
         inlet: 'N3',
         outlet: 'N4',
         catchment: 'S2',
-        category: 'industrial',
+        category: 'urban_highly_impervious',
         diameter: 0.6,
         geom1: 0.6,
         length: 80.0,
@@ -580,7 +605,7 @@ function generateMockSessionData() {
         inlet: 'N4',
         outlet: 'N1',
         catchment: 'S3',
-        category: 'commercial',
+        category: 'suburban_weakly_impervious',
         diameter: 0.5,
         geom1: 0.5,
         length: 60.0,
@@ -612,7 +637,7 @@ function generateMockSessionData() {
         inlet: 'N1',
         outlet: 'N3',
         catchment: 'S2',
-        category: 'industrial',
+        category: 'urban_highly_impervious',
         diameter: 0.4,
         geom1: 0.4,
         length: 45.0,
@@ -727,7 +752,7 @@ function generateMockSessionData() {
         perc_imperv: 55.0,
         slope: 2.2,
         perc_slope: 2.2,
-        category: 'residential',
+        category: 'urban_weakly_impervious',
         peak: 0.35,
         peak_runoff: 0.35,
         runoff: 14.2,
@@ -746,7 +771,7 @@ function generateMockSessionData() {
         perc_imperv: 75.0,
         slope: 1.8,
         perc_slope: 1.8,
-        category: 'industrial',
+        category: 'urban_highly_impervious',
         peak: 0.88,
         peak_runoff: 0.88,
         runoff: 32.5,
@@ -765,7 +790,7 @@ function generateMockSessionData() {
         perc_imperv: 60.0,
         slope: 2.5,
         perc_slope: 2.5,
-        category: 'commercial',
+        category: 'suburban_weakly_impervious',
         peak: 0.52,
         peak_runoff: 0.52,
         runoff: 20.1,
@@ -1210,10 +1235,13 @@ function runEmpiricalTests() {
   searchInput.dispatchEvent({ type: 'input', target: searchInput });
   assert.strictEqual($('#r-row-count').textContent.trim(), '2 of 5 conduits', 'Search "s2" must match conduits C3 and C5');
 
-  // Text search on Category
-  searchInput.value = 'industrial';
+  // Text search on Category: the words the reader sees, not the internal code
+  searchInput.value = 'highly';
   searchInput.dispatchEvent({ type: 'input', target: searchInput });
-  assert.strictEqual($('#r-row-count').textContent.trim(), '2 of 5 conduits', 'Search "industrial" must match 2 conduits');
+  assert.strictEqual($('#r-row-count').textContent.trim(), '2 of 5 conduits', 'Search "highly" must match 2 conduits');
+  searchInput.value = 'urban, highly';
+  searchInput.dispatchEvent({ type: 'input', target: searchInput });
+  assert.strictEqual($('#r-row-count').textContent.trim(), '2 of 5 conduits', 'Search by the category label must match 2 conduits');
 
   // Clear search
   searchInput.value = '';
@@ -1236,6 +1264,29 @@ function runEmpiricalTests() {
   // Clear all filters
   $('#r-clear-filters').click();
   assert.strictEqual($('#r-row-count').textContent.trim(), '5 of 5 conduits', 'Filters reset successfully');
+  // Display labels: the category and the recommendation read as words, never as codes
+  const c1Cells = $('#r-table [data-row="C1"]').textContent;
+  assert.ok(c1Cells.includes('Urban, weakly impervious'), 'The category cell must show its label, got: ' + c1Cells);
+  assert.ok(!c1Cells.includes('urban_weakly_impervious'), 'The category code must not reach the table');
+  assert.ok(c1Cells.includes('No changes'), 'The recommendation cell must show its label');
+  assert.ok(!/No changes needed/.test(c1Cells), 'The recommendation label is "No changes"');
+  const recOptions = $$('#r-filter-select option').map(o => [o.getAttribute('value'), o.textContent.trim()]);
+  assert.deepStrictEqual(recOptions.slice(0, 3), [['all', 'All recommendations'], ['changes', 'Changes recommended'], ['valid', 'No changes']]);
+  assert.ok(recOptions.every(([, text]) => !text.includes('_')), 'No filter option may show a code');
+
+  catchmentsTab.click();
+  const catOptions = $$('#r-filter-select option').map(o => [o.getAttribute('value'), o.textContent.trim()]);
+  assert.deepStrictEqual(catOptions, [
+    ['all', 'All categories'],
+    ['suburban_weakly_impervious', 'Suburban, weakly impervious'],
+    ['urban_highly_impervious', 'Urban, highly impervious'],
+    ['urban_weakly_impervious', 'Urban, weakly impervious']
+  ], 'Category options must carry the code as value and the label as text, sorted by label');
+  filterSelect.value = 'urban_highly_impervious';
+  filterSelect.dispatchEvent({ type: 'change', target: filterSelect });
+  assert.strictEqual($('#r-row-count').textContent.trim(), '1 of 3 subcatchments', 'Filtering by a category code must still work');
+  $('#r-clear-filters').click();
+  conduitsTab.click();
   console.log('✓ Criteria 3 Passed: Multi-field search, dropdown, and checkbox filters operate correctly.');
 
   // ---------------------------------------------------------------------------
@@ -1419,6 +1470,16 @@ function runEmpiricalTests() {
 
   const headerCols = lines[0].split(',');
   assert.ok(headerCols[0].includes('Conduit'), 'Header must contain Conduit');
+  // The table speaks the shared vocabulary; the exported headers keep their wording.
+  const shownHeaders = $$('#r-table th button').map(b => b.getAttribute('aria-label'));
+  assert.ok(shownHeaders.includes('Sort by Checks passed'), 'The table header reads "Checks passed"');
+  assert.ok(!shownHeaders.includes('Sort by Validation'), 'No "Validation" header on screen');
+  assert.ok(headerCols.includes('"Validation [passed / 7]"'), 'The CSV header is unchanged: ' + lines[0]);
+  // The CSV is exported data, not a display layer: the category stays the raw code and
+  // the action column keeps the wording it has always had.
+  assert.ok(lines[1].includes('"urban_weakly_impervious"'), 'The CSV must keep the category code, got: ' + lines[1]);
+  assert.ok(!lines[1].includes('Urban, weakly impervious'), 'The CSV must not carry the category label');
+  assert.ok(lines[1].includes('"No changes"'), 'The CSV action column keeps its label');
   assert.ok(headerCols[1].includes('Diameter [m]'), 'Header must include unit in brackets');
 
   console.log('✓ Criteria 7 Passed: CSV export produces valid UTF-8 BOM data with accurate columns and filename.');
@@ -1696,8 +1757,64 @@ function runMapFixtureTests() {
   console.log('✓ Stage 7 passed: nm:select highlights and scrolls, the highlight survives every render, rv2:filterchange lists what is on screen.');
 }
 
+/**
+ * Third fixture: the tab survives a visit to the conduit panel.
+ *
+ * The page stores its tab per session in sessionStorage and in the URL fragment; Back to
+ * Results of the panel comes back with that fragment, and the page opens on it.  A
+ * fragment naming the map on a page without one, or naming nothing, is ignored.
+ */
+function runTabMemoryTests() {
+  console.log('------------------------------------------------------------');
+  console.log('Third fixture: the tab named in the URL fragment');
+  console.log('------------------------------------------------------------');
+
+  function boot(hash) {
+    const doc = new MockDocument();
+    const root = new MockElement('DIV', 'storm-results-v2');
+    doc.body.appendChild(root);
+    root.innerHTML = workspaceMarkup({});
+    const dataScript = new MockElement('SCRIPT', 'results-v2-data');
+    dataScript.textContent = JSON.stringify(generateMockSessionData());
+    doc.body.appendChild(dataScript);
+    const stored = new Map();
+    const replaced = [];
+    global.document = doc;
+    global.window = {
+      addEventListener: () => {},
+      matchMedia: () => ({ matches: false }),
+      ResizeObserver: class { observe() {} },
+      location: { hash: hash },
+      sessionStorage: { getItem: k => stored.get(k) || null, setItem: (k, v) => stored.set(k, String(v)) },
+      history: { replaceState: (state, title, url) => replaced.push(url) }
+    };
+    global.ResizeObserver = global.window.ResizeObserver;
+    global.localStorage = { getItem: () => null, setItem: () => {} };
+    eval(fs.readFileSync(path.resolve(__dirname, '../../static/js/results-v2.js'), 'utf8'));
+    const selected = () => root.querySelectorAll('[data-tab]').filter(t => t.getAttribute('aria-selected') === 'true').map(t => t.id);
+    return { root, stored, replaced, selected };
+  }
+
+  const nodes = boot('#nodes');
+  assert.deepStrictEqual(nodes.selected(), ['r-tab-nodes'], 'the fragment must open its tab');
+  assert.strictEqual(nodes.root.querySelector('#r-row-count').textContent.trim(), '4 of 4 nodes', 'and render its table');
+  assert.strictEqual(nodes.stored.get('stormlab-results-tab-42'), 'nodes', 'the open tab is remembered at once');
+  nodes.root.querySelector('#r-tab-catchments').click();
+  assert.strictEqual(nodes.stored.get('stormlab-results-tab-42'), 'catchments', 'a change of tab is remembered');
+  assert.strictEqual(nodes.replaced[nodes.replaced.length - 1], '#catchments', 'and written to the URL fragment');
+  assert.strictEqual(nodes.root.querySelector('#r-tab-catchments').tabIndex, 0, 'the selected tab is the tab stop');
+  assert.strictEqual(nodes.root.querySelector('#r-tab-nodes').tabIndex, -1, 'the others are reached with the arrows');
+
+  ['#map', '#nothing', '', '#toString'].forEach(hash => {
+    const page = boot(hash);
+    assert.deepStrictEqual(page.selected(), ['r-tab-conduits'], `fragment ${JSON.stringify(hash)} must leave the default tab`);
+  });
+  console.log('✓ Tab memory passed: the fragment opens its tab, every change is remembered.');
+}
+
 runEmpiricalTests();
 runMapFixtureTests();
+runTabMemoryTests();
 
 console.log('------------------------------------------------------------');
 console.log('ALL EMPIRICAL ACCEPTANCE CRITERIA VERIFIED (8 / 8 PASSED)');

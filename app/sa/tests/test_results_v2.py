@@ -1098,6 +1098,49 @@ class ResultsV2NetworkMapEnvelopeTests(TestCase):
         self.assertLessEqual(with_geometry, 6)
 
 
+class ResultsV2DisplayLabelTests(TestCase):
+    """The payload carries the display labels of sa.labels and a label beside every code."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_user(email="labels_tester@example.com")
+        cls.session = make_session(cls.user, n_conduits=1, n_nodes=1, n_subcatchments=1)
+        make_conduit(cls.session, conduit_name="C_TANK", recommendation="tank", sbc_category="urban_weakly_impervious")
+
+    def setUp(self):
+        self.payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
+
+    def test_payload_carries_both_label_maps(self):
+        from sa.labels import ACTION_LABELS, CATEGORY_LABELS
+
+        self.assertEqual(self.payload["labels"], {"actions": ACTION_LABELS, "categories": CATEGORY_LABELS})
+
+    def test_every_row_carries_the_label_of_its_category(self):
+        conduit = next(c for c in self.payload["conduits"] if c["id"] == "C_TANK")
+        self.assertEqual(conduit["recommendation_label"], "Retention tank")
+        self.assertEqual(conduit["action_label"], "Retention tank")
+        self.assertEqual(conduit["category"], "urban_weakly_impervious")
+        self.assertEqual(conduit["category_label"], "Urban, weakly impervious")
+        for kind in ("conduits", "nodes", "catchments"):
+            for row in self.payload[kind]:
+                self.assertIn("category_label", row)
+                self.assertNotIn("_", row["category_label"])
+
+    def test_labels_are_added_after_every_existing_key(self):
+        # The server CSV writes the keys of the first row in order: the label columns
+        # must come last so that every existing column keeps its position.
+        conduit_keys = list(self.payload["conduits"][0])
+        self.assertEqual(conduit_keys[-2:], ["action_label", "category_label"])
+        self.assertEqual(list(self.payload["nodes"][0])[-1], "category_label")
+        self.assertEqual(list(self.payload["catchments"][0])[-1], "category_label")
+
+    def test_a_missing_category_reads_as_a_dash(self):
+        make_conduit(self.session, conduit_name="C_NONE", sbc_category="-")
+        payload = CalculationRetrievalService.serialize_session_for_results_v2(self.session)
+        conduit = next(c for c in payload["conduits"] if c["id"] == "C_NONE")
+        self.assertEqual(conduit["category_label"], "—")
+
+
 class ResultsV2ProvenanceAndExportTests(TestCase):
     """Tests for model provenance metadata, top-2 confidence margin, simple band rule, and server-side CSV export."""
 
@@ -1116,7 +1159,10 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         self.assertIn("model_id", payload["session"]["model_metadata"])
         c = payload["conduits"][0]
         self.assertIn("recommendation_label", c)
+        # The exported wording of ``recommendation_label`` is frozen; the pages read
+        # ``action_label``, the label of sa.labels.
         self.assertEqual(c["recommendation_label"], "No changes needed")
+        self.assertEqual(c["action_label"], "No changes")
         self.assertIn("confidence_margin", c)
         self.assertIsNotNone(c["confidence_margin"])
         self.assertIn("simple_rule_passed", c)
@@ -1141,11 +1187,38 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
         with mock.patch("sa.core.predictor.get_model_metadata", return_value=other_model):
             results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
             panel = self.client.get(reverse("sa:conduit_detail", args=[self.session.id, "C1"]))
-        self.assertContains(results, "gnn_recommender_v1 (v4_physical, primary_action_v3)")
-        self.assertContains(panel, "gnn_recommender_v1 (v4_physical)")
+        # The Info tab says it in words first and keeps the identifiers as labelled detail.
+        self.assertContains(results, "<dd>Graph model, five runs averaged")
+        self.assertContains(results, "<dt>Model id</dt><dd><code>gnn_recommender_v1</code></dd>")
+        self.assertContains(results, "<dt>Feature contract</dt><dd><code>v4_physical</code></dd>")
+        self.assertContains(results, "<dt>Target contract</dt><dd><code>primary_action_v3</code></dd>")
+        digest = self.GNN_METADATA["weights_sha256"]
+        self.assertContains(results, f'<dt>Weights digest</dt><dd><code title="{digest}">{digest[:12]}</code></dd>')
+        # The panel says it in one quiet line; the identifiers stay in its title.
+        self.assertContains(
+            panel, '<span>Model</span><b title="gnn_recommender_v1 · v4_physical">Graph model, five runs averaged</b>'
+        )
+        self.assertNotContains(panel, "Model Artifact")
         for response in (results, panel):
             self.assertNotContains(response, "a_later_model")
         self.assertEqual(results.context["results_v2_data"]["session"]["model_metadata"], {**self.GNN_METADATA, "recorded": True})
+
+    def test_info_tab_shortens_the_weights_digest_and_keeps_it_whole_in_the_title(self):
+        digest = "0123456789abcdef" * 4
+        self._with_metadata({"model_kind": "gnn", "model_id": "gnn_recommender_v1", "weights_sha256": digest})
+        results = self.client.get(reverse("sa:analysis_results", args=[self.session.id]))
+        self.assertContains(results, f'<dt>Weights digest</dt><dd><code title="{digest}">0123456789ab</code></dd>')
+
+    def test_describe_model_reads_every_kind(self):
+        from sa.services import describe_model
+
+        self.assertEqual(describe_model({"model_kind": "gnn"})["summary"], "Graph model, five runs averaged")
+        self.assertEqual(describe_model({"model_kind": "mlp"})["summary"], "Plain neural network (MLP), one conduit at a time")
+        for meta in (None, {}, {"model_kind": "none"}):
+            described = describe_model(meta)
+            self.assertEqual(described["summary"], "None (recommendations are switched off)")
+            self.assertIsNone(described["model_id"])
+            self.assertIsNone(described["weights_digest_short"])
 
     def test_pages_name_no_model_when_none_ran(self):
         self._with_metadata({**dict.fromkeys(self.GNN_METADATA), "model_kind": "none", "gnn_enabled": False})
@@ -1210,7 +1283,11 @@ class ResultsV2ProvenanceAndExportTests(TestCase):
     }
 
     def test_server_csv_keeps_every_column_in_place_and_only_appends(self):
-        appended = {"conduits": ["limits_assessed"], "nodes": [], "catchments": []}
+        appended = {
+            "conduits": ["limits_assessed", "action_label", "category_label"],
+            "nodes": ["category_label"],
+            "catchments": ["category_label"],
+        }
         for kind, columns in self.SERVER_CSV_COLUMNS.items():
             with self.subTest(kind=kind):
                 response = self.client.get(reverse("sa:export_session_csv", args=[self.session.id, kind]))

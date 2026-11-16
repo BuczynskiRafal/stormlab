@@ -586,7 +586,7 @@ class ValidationCheckRowTests(TestCase):
             "slow-and-flat": (
                 {"geom1": 0.6, "filling": 0.23, "max_v": 0.35, "slope_per_mile": 0.32},
                 {
-                    "val_max_fill": ("0.23 m (38 %)", "≤ 0.50 m (82.7 %)"),
+                    "val_max_fill": ("0.23 m (38%)", "≤ 0.50 m (82.7%)"),
                     "val_max_v": ("0.35 m/s", "≤ 5.00 m/s"),
                     "val_min_v": ("0.35 m/s", "≥ 0.70 m/s"),
                     "val_max_slope": ("0.32 ‰", "≤ 54.03 ‰"),
@@ -596,7 +596,7 @@ class ValidationCheckRowTests(TestCase):
             "full-and-fast": (
                 {"geom1": 0.3, "filling": 0.3, "max_v": 5.4, "slope_per_mile": 180.0},
                 {
-                    "val_max_fill": ("0.30 m (100 %)", "≤ 0.25 m (82.7 %)"),
+                    "val_max_fill": ("0.30 m (100%)", "≤ 0.25 m (82.7%)"),
                     "val_max_v": ("5.40 m/s", "≤ 5.00 m/s"),
                     "val_min_v": ("5.40 m/s", "≥ 0.70 m/s"),
                     "val_max_slope": ("180.00 ‰", "≤ 54.03 ‰"),

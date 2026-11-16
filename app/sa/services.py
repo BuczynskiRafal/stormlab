@@ -21,8 +21,9 @@ from .models import CalculationSession, ConduitData, NodeData, SessionGeometry, 
 from .core.data import DataManager, RecommendationModelUnavailable
 from .core.errors import AnalysisInputError, unexpected_failure_message
 from .core.geometry import NETMAP_MAX_ELEMENTS, NETMAP_MAX_POINTS, extract_geometry
-from .core.predictor import get_model_metadata
+from .core.predictor import get_model_metadata, gnn_model_paths
 from .core.round import max_depth_value, max_filling, max_velocity_value, min_velocity_value
+from .labels import ACTION_LABELS, CATEGORY_LABELS, action_label, category_label
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,39 @@ def fill_percent(filling: Any, diameter: Any) -> float | None:
     if not math.isfinite(diameter_val) or diameter_val <= 0.0 or not math.isfinite(filling_val):
         return None
     return min(100.0, max(0.0, 100.0 * filling_val / diameter_val))
+
+
+_COUNT_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
+
+
+def describe_model(metadata: dict[str, Any] | None) -> dict[str, Any]:
+    """The model behind the recommendations, in plain words and as technical detail.
+
+    ``summary`` is the line a reader sees ("Graph model, five runs averaged"); the
+    identifiers stay available for whoever needs them, with the weights digest also
+    shortened to its first 12 hex characters for display.  ``None`` or a metadata of
+    kind ``none`` describes the state without recommendations.
+    """
+    meta = metadata or {}
+    kind = meta.get("model_kind")
+    if kind == "gnn":
+        runs = len(gnn_model_paths)
+        count = _COUNT_WORDS[runs] if runs < len(_COUNT_WORDS) else str(runs)
+        summary = f"Graph model, {count} runs averaged" if runs > 1 else "Graph model"
+    elif kind == "mlp":
+        summary = "Plain neural network (MLP), one conduit at a time"
+    else:
+        summary = "None (recommendations are switched off)"
+    digest = meta.get("weights_sha256") or None
+    return {
+        "kind": kind or "none",
+        "summary": summary,
+        "model_id": meta.get("model_id") or None,
+        "feature_contract": meta.get("feature_contract") or None,
+        "target_contract": meta.get("target_contract") or None,
+        "weights_digest": digest,
+        "weights_digest_short": digest[:12] if isinstance(digest, str) else None,
+    }
 
 
 def simple_band_rule_passed(filling: Any, diameter: Any, velocity: Any) -> bool:
@@ -686,7 +720,6 @@ class CalculationRetrievalService:
 
         # The recommendation code -> confidence field mapping the conduit panel already owns.
         rec_to_conf_field = {code: field for code, _label, field in PREDICTION_CLASSES}
-        rec_to_label = {code: label for code, label, _field in PREDICTION_CLASSES}
 
         # -------------------------------------------------------------------------
         # 1. Conduits Serialization
@@ -738,7 +771,9 @@ class CalculationRetrievalService:
             selected_conf = clean(getattr(c, conf_field, None)) if conf_field else None
             confidence_display = clean(round(selected_conf * 100.0, 1)) if selected_conf is not None else None
             confidence_margin = confidence_margin_pct(c)
-            rec_label = rec_to_label.get(rec_norm, rec or "—")
+            # ``recommendation_label`` keeps its original wording: the server CSV exports
+            # it verbatim.  The pages show ``action_label``, the label of sa.labels.
+            rec_label = PAYLOAD_RECOMMENDATION_LABELS.get(rec_norm, rec or "—")
             simple_rule = simple_band_rule_passed(filling_val, geom1_val, clean(c.max_v))
 
             # ``None`` (not ``False``) where the diameter is outside 0.2-2.0 m and the
@@ -833,10 +868,12 @@ class CalculationRetrievalService:
                     # Confidences
                     "confidence": confidence_display,
                     "confidence_margin": confidence_margin,
-                    # A key added later goes after every existing key, so that the columns of
+                    # Keys added later go after every existing key, so that the columns of
                     # the server CSV keep their positions: whether the design criteria
-                    # covered the diameter.
+                    # covered the diameter, then the display labels.
                     "limits_assessed": limits_assessed,
+                    "action_label": action_label(rec),
+                    "category_label": category_label(c.sbc_category),
                 }
             )
 
@@ -890,6 +927,8 @@ class CalculationRetrievalService:
                     "detail_url": node_url,
                     "panel_url": node_url,
                     "link": node_url,
+                    # Display label, after every existing key (see the conduits above).
+                    "category_label": category_label(n.sbc_category),
                 }
             )
 
@@ -928,6 +967,8 @@ class CalculationRetrievalService:
                     "detail_url": sbc_url,
                     "panel_url": sbc_url,
                     "link": sbc_url,
+                    # Display label, after every existing key (see the conduits above).
+                    "category_label": category_label(s.category),
                 }
             )
 
@@ -952,15 +993,21 @@ class CalculationRetrievalService:
         # -------------------------------------------------------------------------
         # The header renders the file name, date and zone straight from the ``session``
         # object, so the payload carries only what the script itself reads: the id for
-        # the CSV file name, the frost zone for the coverage threshold, and active model metadata.
+        # the CSV file name, the frost zone for the coverage threshold, and the metadata of
+        # the model stored with the session.
+        model_metadata = session_model_metadata(session)
         session_meta = {
             "id": session.id,
             "frost_zone": clean(session.frost_zone),
-            "model_metadata": session_model_metadata(session),
+            "model_metadata": model_metadata,
+            # The same model in plain words, for the Info tab (see describe_model).
+            "model": describe_model(model_metadata),
         }
 
         return {
             "session": session_meta,
+            # The one copy of the display labels the scripts read (see sa.labels).
+            "labels": {"actions": ACTION_LABELS, "categories": CATEGORY_LABELS},
             "summary": summary,
             "conduits": serialized_conduits,
             "nodes": serialized_nodes,
@@ -1021,16 +1068,13 @@ VALIDATION_FLAGS: tuple[str, ...] = (
 
 # The nine recommendation classes of the model: the value of ``ConduitData.recommendation``,
 # the label shown to the user and the field holding the confidence of that class.
-PREDICTION_CLASSES: tuple[tuple[str, str, str], ...] = (
-    ("valid", "No changes needed", "confidence_valid"),
-    ("diameter_increase", "Increase diameter", "confidence_diameter_increase"),
-    ("diameter_reduction", "Reduce diameter", "confidence_diameter_reduction"),
-    ("slope_increase", "Increase slope", "confidence_slope_increase"),
-    ("slope_reduction", "Reduce slope", "confidence_slope_reduction"),
-    ("depth_increase", "Increase depth", "confidence_depth_increase"),
-    ("pump", "Pump station", "confidence_pump"),
-    ("tank", "Retention tank", "confidence_tank"),
-    ("seepage_boxes", "Seepage boxes", "confidence_seepage_boxes"),
+# The wording ``recommendation_label`` of the Results V2 payload has always carried.  It
+# is part of the exported data, so it stays as it was when the display labels moved to
+# sa.labels (where "valid" reads "No changes").
+PAYLOAD_RECOMMENDATION_LABELS: dict[str, str] = {**ACTION_LABELS, "valid": "No changes needed"}
+
+PREDICTION_CLASSES: tuple[tuple[str, str, str], ...] = tuple(
+    (code, label, f"confidence_{code}") for code, label in ACTION_LABELS.items()
 )
 
 
@@ -1171,6 +1215,7 @@ class ConduitPanel:
     confidence_margin: float | None = None
     simple_rule_passed: bool = False
     model_metadata: dict[str, Any] | None = None
+    model: dict[str, Any] | None = None
 
     @property
     def checks_failed(self) -> int:
@@ -1289,6 +1334,7 @@ class ConduitPanelService:
 
         confidence_margin = confidence_margin_pct(conduit)
         simple_rule = simple_band_rule_passed(conduit.filling, conduit.geom1, conduit.max_v)
+        model_metadata = session_model_metadata(session)
 
         return ConduitPanel(
             conduit=conduit,
@@ -1311,7 +1357,8 @@ class ConduitPanelService:
             prediction_others=prediction_others,
             confidence_margin=confidence_margin,
             simple_rule_passed=simple_rule,
-            model_metadata=session_model_metadata(session),
+            model_metadata=model_metadata,
+            model=describe_model(model_metadata),
         )
 
     @staticmethod
@@ -1378,8 +1425,8 @@ class ConduitPanelService:
             measured.append(
                 (
                     passed,
-                    f"{actual} ({100.0 * filling / diameter:.0f} %)",
-                    f"{limit} ({100.0 * filling_limit / diameter:.1f} %)",
+                    f"{actual} ({100.0 * filling / diameter:.0f}%)",
+                    f"{limit} ({100.0 * filling_limit / diameter:.1f}%)",
                 )
             )
 

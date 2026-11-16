@@ -180,26 +180,25 @@
    */
 
   /**
-   * The nine recommendation codes of the model, each with the class that paints it
-   * and the label the legend shows.
+   * The nine recommendation codes of the model, each with the class that paints it.
    *
-   * A copy of ``ACTIONS`` of results-v2.js (line 56) and deliberately a copy: the two
-   * files share no module system, and an import would make the map depend on the load
-   * order of the table.  The class names are written out in full rather than built
-   * from the code with a template, because a static test reads them out of this file
-   * and matches them against the rules of network-map.css - a name assembled at run
-   * time is invisible to that test, and an unpainted class is invisible on screen.
+   * The labels the legend shows are not here: they come with the Results V2 payload
+   * (``labels.actions``, written by sa/labels.py), so the page holds one copy of them.
+   * The class names are written out in full rather than built from the code with a
+   * template, because a static test reads them out of this file and matches them
+   * against the rules of network-map.css - a name assembled at run time is invisible to
+   * that test, and an unpainted class is invisible on screen.
    */
   const REC_CLASSES = [
-    ['valid', 'nm-c-valid', 'No changes'],
-    ['diameter_increase', 'nm-c-diameter_increase', 'Increase diameter'],
-    ['diameter_reduction', 'nm-c-diameter_reduction', 'Reduce diameter'],
-    ['slope_increase', 'nm-c-slope_increase', 'Increase slope'],
-    ['slope_reduction', 'nm-c-slope_reduction', 'Reduce slope'],
-    ['depth_increase', 'nm-c-depth_increase', 'Increase depth'],
-    ['pump', 'nm-c-pump', 'Pump station'],
-    ['tank', 'nm-c-tank', 'Retention tank'],
-    ['seepage_boxes', 'nm-c-seepage_boxes', 'Seepage boxes']
+    ['valid', 'nm-c-valid'],
+    ['diameter_increase', 'nm-c-diameter_increase'],
+    ['diameter_reduction', 'nm-c-diameter_reduction'],
+    ['slope_increase', 'nm-c-slope_increase'],
+    ['slope_reduction', 'nm-c-slope_reduction'],
+    ['depth_increase', 'nm-c-depth_increase'],
+    ['pump', 'nm-c-pump'],
+    ['tank', 'nm-c-tank'],
+    ['seepage_boxes', 'nm-c-seepage_boxes']
   ];
 
   /** Code -> class, built once from the table above. */
@@ -217,7 +216,7 @@
    */
   const FILL_CLASSES = ['nm-f-0', 'nm-f-1', 'nm-f-2', 'nm-f-3', 'nm-f-4'];
   const FILL_BOUNDS = [25, 50, 75, 100];
-  const FILL_LABELS = ['0-25 %', '25-50 %', '50-75 %', '75-100 %', 'Full (>= 100 %)'];
+  const FILL_LABELS = ['0\u201325%', '25\u201350%', '50\u201375%', '75\u2013100%', 'Full (\u2265 100%)'];
 
   /** The three colouring modes, in the order the switch shows them. */
   const MODES = [
@@ -266,12 +265,12 @@
    */
   const CARD_FIELDS = {
     link: [
-      {label: 'Recommendation', key: 'recommendation_label'},
-      {label: 'Model confidence', key: 'confidence', unit: '%', digits: 1},
+      {label: 'Recommendation', key: 'action_label'},
+      {label: 'Model score', key: 'confidence', unit: '%', digits: 1},
       {label: 'Checks passed', format: checksText},
       {label: 'Filling', format: fillingText},
-      {label: 'Max. flow', key: 'flow', unit: 'm\u00b3/s', digits: 3},
-      {label: 'Max. velocity', key: 'velocity', unit: 'm/s', digits: 2},
+      {label: 'Max flow', key: 'flow', unit: 'm\u00b3/s', digits: 3},
+      {label: 'Max velocity', key: 'velocity', unit: 'm/s', digits: 2},
       {label: 'Diameter', format: diameterText},
       {label: 'Slope', key: 'slope', unit: '\u2030', digits: 2},
       {label: 'Length', key: 'length', unit: 'm', digits: 2}
@@ -279,13 +278,13 @@
     node: [
       {label: 'Ground elevation', key: 'ground', unit: 'm', digits: 2},
       {label: 'Node invert', key: 'invert', unit: 'm', digits: 2},
-      {label: 'Node depth', key: 'depth', unit: 'm', digits: 2},
-      {label: 'Max. water depth', key: 'waterDepth', unit: 'm', digits: 2},
-      {label: 'Flooding volume', key: 'floodVolume', unit: 'm\u00b3', digits: 1, factor: 1000},
-      {label: 'Flooding duration', key: 'floodHours', unit: 'h', digits: 2}
+      {label: 'Manhole depth', key: 'depth', unit: 'm', digits: 2},
+      {label: 'Max water depth', key: 'waterDepth', unit: 'm', digits: 2},
+      {label: 'Flood volume', key: 'floodVolume', unit: 'm\u00b3', digits: 1, factor: 1000},
+      {label: 'Flood duration', key: 'floodHours', unit: 'h', digits: 2}
     ],
     poly: [
-      {label: 'Category', key: 'category'},
+      {label: 'Category', key: 'category_label'},
       {label: 'Outlet node', key: 'outlet'},
       {label: 'Area', key: 'area', unit: 'ha', digits: 3},
       {label: 'Imperviousness', key: 'impervious', unit: '%', digits: 1},
@@ -526,7 +525,9 @@
       NUMBER_FORMATS.set(digits, format);
     }
     const text = format.format(scaled);
-    return unit ? `${text} ${unit}` : text;
+    // A space between a number and its unit, none before the percent sign.
+    if (!unit) return text;
+    return unit === '%' ? `${text}%` : `${text} ${unit}`;
   }
 
   /**
@@ -915,15 +916,25 @@
     }
   }
 
-  /** The legend of one mode: ``[key, label]`` pairs, the grey class last. */
-  function legendEntries(mode) {
+  /**
+   * The legend of one mode: ``[key, label]`` pairs, the grey class last.
+   *
+   * *actionLabels* is ``labels.actions`` of the payload; a code it does not name is
+   * spelled out as words, as the server does for a code it does not know.
+   */
+  function legendEntries(mode, actionLabels) {
     if (mode === 'validity') {
       return VALIDITY_CLASSES.map((cls, passed) => [cls, `${passed} / 7 checks passed`]).concat([[NO_DATA_CLASS, 'No data']]);
     }
     if (mode === 'filling') {
       return FILL_CLASSES.map((cls, band) => [cls, FILL_LABELS[band]]).concat([[NO_DATA_CLASS, 'No data']]);
     }
-    return REC_CLASSES.map(entry => [entry[1], entry[2]]).concat([[NO_DATA_CLASS, 'No data']]);
+    const labels = actionLabels && typeof actionLabels === 'object' ? actionLabels : {};
+    return REC_CLASSES.map(entry => {
+      const own = Object.prototype.hasOwnProperty.call(labels, entry[0]) && typeof labels[entry[0]] === 'string';
+      const words = entry[0].replace(/_/g, ' ');
+      return [entry[1], own ? labels[entry[0]] : words.charAt(0).toUpperCase() + words.slice(1)];
+    }).concat([[NO_DATA_CLASS, 'No data']]);
   }
 
   /** The symbol of one node kind, in units of its own radius around (0, 0). */
@@ -1942,11 +1953,17 @@
     });
 
     let legendButtons = [];
+    // Read from the same flag markFlooded() paints by, on the nodes the drawing has.
+    const hasFloodedNode = (Array.isArray(data.nodes) ? data.nodes : []).some(node => {
+      const row = rowFor('node', String(node.n));
+      return Boolean(row && row.is_flooded === true);
+    });
 
     /** The legend of the current mode, rebuilt from scratch on every change of mode. */
     function buildLegend() {
       while (legend.firstChild) legend.removeChild(legend.firstChild);
-      legendButtons = legendEntries(mode).map(entry => {
+      const actionLabels = results && results.labels && typeof results.labels === 'object' ? results.labels.actions : null;
+      legendButtons = legendEntries(mode, actionLabels).map(entry => {
         const item = document.createElement('li');
         const button = document.createElement('button');
         button.type = 'button';
@@ -1967,6 +1984,20 @@
         legend.appendChild(item);
         return { key: entry[0], el: button };
       });
+      // Flooding is drawn in every mode, so its key is in every legend - and it is a key,
+      // not a toggle: it stands for a mark on the node, not for a colour class.
+      if (hasFloodedNode) {
+        const key = document.createElement('li');
+        key.className = 'nm-legend-key';
+        const swatch = document.createElement('span');
+        swatch.className = 'nm-swatch nm-swatch-flooded';
+        swatch.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        label.textContent = 'Flooded node';
+        key.appendChild(swatch);
+        key.appendChild(label);
+        legend.appendChild(key);
+      }
     }
 
     /**
@@ -3231,5 +3262,5 @@
     };
   }
 
-  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded, resolveLabels};
+  if (typeof module !== "undefined" && module.exports) module.exports = {fitViewBox, zoomAt, pointsToPath, outletPath, elementCount, symbolRadiusPx, isDrag, trackDist, wheelAction, kindToTab, tabToKind, analysedElements, dimSet, findResult, pickColor, nextLegendState, readMapPrefs, clampCardPos, writeMapPrefs, placeLabels, cardRows, symbolsCrowded, resolveLabels, legendEntries};
 })();

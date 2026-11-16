@@ -390,19 +390,19 @@ group('water tooltips: the pipe shows the conduit maximum, each shaft its node m
   // The two levels are different SWMM maxima and are drawn as they are; the titles say
   // which is which, with the numbers the drawing uses (two decimals).
   const { html } = render(CASES.large);
-  assert.deepStrictEqual(titles(html, 'water'), [['Max conduit depth 0.19 m (32 %)']]);
+  assert.deepStrictEqual(titles(html, 'water'), [['Max conduit depth 0.19 m (32%)']]);
   assert.deepStrictEqual(titles(html, 'shaft-water'), [
     ['Max water depth at N1: 0.19 m'],
     ['Max water depth at N2: 0.19 m'],
   ]);
   const flat = render(CASES.flatWide).html;
-  assert.deepStrictEqual(titles(flat, 'water'), [['Max conduit depth 0.30 m (100 %)']]);
+  assert.deepStrictEqual(titles(flat, 'water'), [['Max conduit depth 0.30 m (100%)']]);
   assert.deepStrictEqual(titles(flat, 'shaft-water'), [
     ['Max water depth at N1: 3.40 m'],
     ['Max water depth at N2: 0.30 m'],
   ]);
   // The flood marker keeps its own title; the pipe body and the walls carry none.
-  assert.deepStrictEqual(titles(flat, 'flood'), [['Flooding: 0.40 h, 0.011 × 10⁶ l']]);
+  assert.deepStrictEqual(titles(flat, 'flood'), [['Flooding: 0.40 h, 0.011 × 10⁶ L']]);
   for (const role of ['pipe', 'pipe-wall', 'shaft', 'shaft-wall']) {
     assert.ok(titles(flat, role).every((t) => t.length === 0), `${role}: no title`);
   }
