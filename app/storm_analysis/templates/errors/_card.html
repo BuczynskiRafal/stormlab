@@ -1,0 +1,16 @@
+{% comment %}
+The body of the 400, 403 and 404 pages. Include with ``code``, ``heading`` and ``text``.
+500.html repeats this markup instead of including it, because it must render without
+a request and without the context processors base.html relies on.
+{% endcomment %}
+<div class="error-page">
+    <div class="error-card">
+        <p class="error-code">Error {{ code }}</p>
+        <h1 class="error-title">{{ heading }}</h1>
+        <p class="error-text">{{ text }}</p>
+        <div class="error-actions">
+            <a class="btn btn-primary" href="{% url 'sa:index' %}">Home</a>
+            <a class="btn btn-outline-primary" href="{% url 'sa:analysis' %}">Analysis</a>
+        </div>
+    </div>
+</div>

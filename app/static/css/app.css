@@ -321,30 +321,6 @@ a {
     color: var(--water-700);
 }
 
-.accordion-item {
-    position: relative;
-}
-
-.accordion-item .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-header .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-collapse {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-body {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
 #sessionsTable {
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
@@ -369,83 +345,6 @@ a {
     border-radius: 0;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
-}
-
-.accordion-item .accordion-button:not(.collapsed) {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item .accordion-button::before,
-.accordion-item .accordion-button::after {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion-item:first-child .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type .accordion-header {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-.accordion > .accordion-item:first-of-type .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-}
-
-#accordionMenu .accordion-item:first-child,
-#accordionMenu .accordion-item:first-child .accordion-header,
-#accordionMenu .accordion-item:first-child .accordion-button {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-    border-radius: 12px 12px 0 0 !important;  /* bije .accordion-item poniżej (też !important) */
-}
-
-.accordion-header {
-    transition: all 0.2s ease-in-out;
-}
-
-.accordion-header.sticky {
-    position: fixed;
-    z-index: var(--z-sticky-bar);
-    background-color: var(--slate-band-top);
-    box-shadow: var(--shadow-1);
-    padding: 0;
-    margin: 0;
-    border-radius: 0;
-    transition: none;
-}
-
-.accordion-header.sticky .accordion-button {
-    border-radius: 0;
-    margin: 0;
-}
-
-.accordion-body {
-    position: relative;
-}
-
-.accordion-header.sticky .accordion-button {
-    border: 1px solid var(--slate-300);
 }
 
 .card {
@@ -539,9 +438,21 @@ a {
     padding-right: 1.5rem;
 }
 
+:root {
+    /* Side gutter of every page: header, content and footer share it. */
+    --page-gutter: 2rem;
+}
+
+/* 16 px on phones, the same as the conduit panel's own padding. */
+@media (max-width: 575.98px) {
+    :root {
+        --page-gutter: 1rem;
+    }
+}
+
 .containerwide {
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-left: var(--page-gutter);
+    padding-right: var(--page-gutter);
 }
 
 .alert {
@@ -596,10 +507,63 @@ a {
     width: 100%;
 }
 
+/* Visually hidden but in place: the input keeps keyboard focus and the browser's
+   validation bubble anchors to the drop zone, not to a point 9999 px off-screen.
+   The ring on the wrapper (:focus-within) shows where the focus is. */
 .file-input-wrapper input[type=file] {
     position: absolute;
-    left: -9999px;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
     opacity: 0;
+}
+
+.file-input-wrapper:focus-within .file-input-display {
+    outline: 2px solid var(--water-600);
+    outline-offset: 2px;
+    border-color: var(--water-600);
+}
+
+.file-input-wrapper.has-error .file-input-display {
+    border-color: var(--bad);
+    background-color: var(--bad-wash);
+}
+
+/* Compact variant (avatar on the account page): one row, icon on the left. */
+.file-input-wrapper--compact .file-input-display {
+    gap: 0.9rem;
+    min-height: 0;
+    padding: 0.85rem 1rem;
+    text-align: left;
+    font-weight: 400;
+}
+
+.file-input-wrapper--compact .file-input-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    text-align: left;
+}
+
+.file-input-wrapper--compact .file-input-icon {
+    flex: none;
+    margin: 0;
+    font-size: 1.6rem;
+}
+
+.file-input-wrapper--compact .file-input-text {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.file-input-wrapper--compact .file-input-display:hover {
+    transform: none;
 }
 
 .file-input-display {
@@ -637,6 +601,16 @@ a {
     text-align: center;
 }
 
+/* The drop zone is a <label> (it opens the picker without script), so its parts are
+   spans and have to be stacked explicitly. */
+.file-input-content > span {
+    display: block;
+}
+
+.file-input-display {
+    font-weight: 400;
+}
+
 .file-input-icon {
     font-size: 3rem;
     color: var(--water-600);
@@ -653,6 +627,8 @@ a {
     color: var(--text);
     font-weight: 600;
     margin-bottom: 0.5rem;
+    /* A chosen file's name replaces the text and may be one long word. */
+    overflow-wrap: anywhere;
 }
 
 .file-input-subtext {
@@ -704,6 +680,50 @@ a {
 
 .upload-card:hover {
     box-shadow: var(--shadow-2);
+}
+
+/* The page heading sits in the card's header band, at the band's size. */
+.upload-title {
+    margin: 0;
+    font-size: 1.05rem;
+    text-align: center;
+}
+
+.upload-help {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+.upload-error {
+    margin-top: 0.5rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--bad);
+}
+
+.upload-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 1rem 0 0;
+    color: var(--water-700);
+    font-weight: 600;
+}
+
+/* Bootstrap paints a disabled .btn-primary in its own blue; keep the water colour. */
+#uploadForm .btn-primary:disabled {
+    background-color: var(--water-600);
+    border-color: var(--water-600);
+    opacity: 0.55;
+}
+
+/* While SWMM runs the form is aria-busy: the drop zone no longer invites a drop. */
+#uploadForm[aria-busy="true"] .file-input-display {
+    opacity: 0.6;
+    pointer-events: none;
 }
 
 /* Footer styling */
@@ -1256,57 +1276,6 @@ thead th:not(:where(.conduit-page *)) {
 }
 
 /* ============================================================
-   ACCORDION REFINEMENTS
-   ============================================================ */
-
-.accordion {
-    border-radius: var(--radius-md);
-}
-
-.accordion-item {
-    border: 1px solid var(--slate-300);
-    border-radius: var(--radius-md) !important;  /* bije .accordion-item:last-of-type Bootstrapa */
-    margin-bottom: 0.75rem;
-    overflow: hidden;
-}
-
-.accordion-button {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--ink);
-    /* To samo pasmo co .card-header - nagłówek sekcji wyników ma być widoczną
-       krawędzią, nie kolejnym odcieniem papieru. */
-    background-color: var(--slate-band-top);
-    background-image: linear-gradient(to bottom, var(--slate-band-top) 0%, var(--slate-band-bottom) 100%);
-    padding: 1rem 1.25rem;
-    border: none;
-    border-bottom: 1px solid var(--slate-300);
-}
-
-.accordion-button:not(.collapsed) {
-    background-color: var(--slate-band-bottom);
-    background-image: none;
-    color: var(--ink);
-    box-shadow: none;
-}
-
-.accordion-button:focus {
-    box-shadow: none;
-    border-color: var(--rule-strong);
-}
-
-.accordion-button::after {
-    background-size: 1rem;
-    opacity: 0.6;
-}
-
-.accordion-body {
-    padding: 0;
-    background-color: var(--surface-0);
-}
-
-/* ============================================================
    SESSION INFO HEADER
    ============================================================ */
 
@@ -1385,6 +1354,61 @@ small {
     display: block;
     height: 44px;
     width: auto;
+}
+
+/* The brand is a link: logo + wordmark. justify-content keeps it at the left edge
+   now that the flank grows with flex: 1 above the collapse breakpoint. */
+.site-brand {
+    gap: 0.55rem;
+    justify-content: flex-start;
+    color: var(--ink);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+}
+
+.site-wordmark {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.site-brand:hover .site-wordmark {
+    color: var(--water-700);
+}
+
+.site-brand:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 4px;
+}
+
+/* Skip link: the first focusable element of every page, off-screen until focused. */
+.skip-link {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: calc(var(--z-header) + 1);
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-sm);
+    background-color: var(--water-700);
+    color: #ffffff;
+    font-weight: 600;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+    color: #ffffff;
+}
+
+/* <main> takes focus from the skip link only; it never needs a visible ring. */
+#main-content:focus {
+    outline: none;
 }
 
 .site-nav .nav {
@@ -1577,6 +1601,157 @@ footer {
     text-decoration: underline;
 }
 
+/* BEGIN site-messages */
+/* ============================================================
+   MESSAGES (django.contrib.messages, rendered by base.html)
+   ============================================================ */
+
+/* One strip under the header, outside <main>, so the full-bleed pages (conduit
+   panel, results) keep their own negative margins against .content-wrapper. */
+.site-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 1rem;
+}
+
+.site-message {
+    --message-ink: var(--info);
+    --message-wash: var(--info-wash);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0.7rem 0.85rem 0.7rem 1rem;
+    border: 1px solid var(--rule-soft);
+    border-left: 4px solid var(--message-ink);
+    border-radius: var(--radius-md);
+    background-color: var(--message-wash);
+    box-shadow: var(--shadow-1);
+    color: var(--ink);
+    font-size: 0.95rem;
+}
+
+.site-message--success { --message-ink: var(--ok);   --message-wash: var(--ok-wash); }
+.site-message--warning { --message-ink: var(--warn); --message-wash: var(--warn-wash); }
+.site-message--error   { --message-ink: var(--bad);  --message-wash: var(--bad-wash); }
+
+.site-message-icon {
+    flex: none;
+    margin-top: 0.2rem;
+    color: var(--message-ink);
+}
+
+.site-message-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Bootstrap positions the close button absolutely inside .alert-dismissible; in a
+   flex row it is simply the last item, and the padding Bootstrap reserves for it
+   is not needed. */
+.site-message.alert-dismissible {
+    padding-right: 0.5rem;
+}
+
+.site-message .btn-close {
+    position: static;
+    flex: none;
+    padding: 0.6rem;
+    margin: -0.25rem 0 -0.25rem auto;
+    opacity: 0.6;
+}
+
+.site-message .btn-close:hover {
+    opacity: 1;
+}
+
+.site-message .btn-close:focus {
+    box-shadow: none;
+}
+
+.site-message .btn-close:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+    opacity: 1;
+}
+/* END site-messages */
+
+/* BEGIN error-pages */
+/* ============================================================
+   ERROR PAGES (400, 403, 404, 500)
+   ============================================================ */
+
+.error-page {
+    display: flex;
+    justify-content: center;
+    padding: 3rem 0 4rem;
+}
+
+.error-card {
+    width: 100%;
+    max-width: 520px;
+    padding: 2rem;
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+}
+
+.error-code {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+.error-title {
+    margin: 0 0 0.6rem;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    text-align: left;
+    color: var(--ink);
+}
+
+.error-text {
+    margin: 0 0 1.5rem;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+.error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* 500.html loads no Bootstrap, so the buttons get their box from here. */
+.error-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    text-decoration: none;
+}
+
+@media (max-width: 575.98px) {
+    .error-page {
+        padding: 1rem 0 2rem;
+    }
+
+    .error-card {
+        padding: 1.5rem 1.25rem;
+    }
+}
+/* END error-pages */
+
 /* ============================================================
    BACK TO TOP
    ============================================================ */
@@ -1584,7 +1759,9 @@ footer {
 .back-to-top {
     position: fixed;
     right: 1.5rem;
-    bottom: 1.5rem;
+    /* main.js sets the lift to the height of the footer showing in the viewport, so
+       the button stops above the footer instead of covering its links. */
+    bottom: calc(1.5rem + var(--back-to-top-lift, 0px));
     z-index: var(--z-fab);
     width: 44px;
     height: 44px;
@@ -1775,7 +1952,6 @@ tr.selected:hover td:first-child {
 /* Scoped to /history/ (`.history-page` wraps the view). The status pill, the bulk
    bar and the row checkboxes are styled higher up in this file; what follows is the
    page frame, the filter bar, the count chips and the two empty states. */
-
 
 /* Filter bar: search grows, the three selects keep their natural width. */
 .history-filters {
@@ -1979,6 +2155,324 @@ tr.selected:hover td:first-child {
     }
 }
 
+/* Rows, controls and dialogs added with the card layout -------------------- */
+
+.bulk-action-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.5rem 0;
+}
+
+.bulk-action-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+}
+
+/* A 44 px tap target around each 18 px checkbox. */
+.check-target {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin: -0.75rem -0.5rem;
+    cursor: pointer;
+}
+
+.history-table .checkbox-cell {
+    vertical-align: middle;
+}
+
+/* The file name is cut with an ellipsis in the table; the full name is in the title
+   and, on a phone, in the card. */
+.history-file {
+    display: inline-block;
+    max-width: 22rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    word-break: normal;
+}
+
+.history-processing {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--warn);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.history-error-toggle[aria-expanded="true"] {
+    background-color: var(--bad-wash);
+    border-color: var(--bad);
+}
+
+#sessionsTable tbody tr.history-error-row td {
+    padding: 0.75rem 1rem 0.9rem;
+    text-align: left;
+    white-space: normal;
+    background-color: var(--bad-wash);
+    border-bottom: 1px solid var(--rule-soft);
+}
+
+.history-error-text {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.history-error-text strong {
+    color: var(--bad);
+}
+
+#deleteModal .modal-title,
+#bulkDeleteModal .modal-title {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+#deleteModal .modal-body strong {
+    overflow-wrap: anywhere;
+}
+
+.history-modal-error {
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--bad);
+    border-radius: var(--radius-sm);
+    background-color: var(--bad-wash);
+    color: var(--bad);
+    font-size: 0.9rem;
+}
+
+.history-empty h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Cards below 992 px: nine columns do not fit a phone or a portrait tablet, and scrolling
+   the table sideways hid "View Results" and the bin. Each row becomes a card: file and status on top,
+   then date, zone and counts as labelled lines, actions at the bottom. */
+@media (max-width: 991.98px) {
+    .history-table-wrapper {
+        overflow: visible;
+        border: none;
+        box-shadow: none;
+    }
+
+    .history-table,
+    .history-table tbody {
+        display: block;
+        width: 100%;
+        border: none;
+        box-shadow: none;
+    }
+
+    #sessionsTable {
+        overflow: visible;
+        border-radius: 0;
+    }
+
+    .history-table thead {
+        /* The select-all box stays reachable: only the column labels are hidden. */
+        display: block;
+    }
+
+    .history-table thead tr {
+        display: flex;
+        align-items: center;
+    }
+
+    .history-table thead th:not(.checkbox-cell) {
+        display: none;
+    }
+
+    #sessionsTable thead th.checkbox-cell {
+        position: static;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: auto;
+        padding: 0 0 0.5rem;
+        background: transparent !important;  /* beats the app-wide thead th band */
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    #sessionsTable thead th.checkbox-cell::after {
+        content: "Select all";
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--muted);
+    }
+
+    .history-table tbody tr[data-session-id] {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        column-gap: 0.75rem;
+        row-gap: 0.15rem;
+        margin-top: 0.75rem;
+        padding: 0.85rem 1rem;
+        background-color: var(--surface-0);
+        border: 1px solid var(--slate-300);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-1);
+    }
+
+    .history-table tbody tr[data-session-id] > td {
+        position: static;
+        display: block;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        text-align: left;
+        white-space: normal;
+        overflow: visible;
+    }
+
+    .history-table tbody tr:hover td,
+    .history-table tbody tr:hover td:first-child {
+        background: transparent;
+    }
+
+    .history-table tbody tr.selected {
+        background-color: var(--water-100);
+        border-color: var(--water-300);
+    }
+
+    tr.selected td,
+    tr.selected td:first-child,
+    tr.selected:hover td,
+    tr.selected:hover td:first-child {
+        background-color: transparent !important;  /* the card carries the selection colour */
+    }
+
+    .history-table td.checkbox-cell {
+        grid-column: 1;
+        grid-row: 1;
+        width: auto;
+    }
+
+    .history-table td.history-file-cell {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .history-table td.history-status {
+        grid-column: 3;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .history-file {
+        max-width: none;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .history-table tbody tr[data-session-id] > td.history-date,
+    .history-table tbody tr[data-session-id] > td.history-zone,
+    .history-table tbody tr[data-session-id] > td.count-col {
+        grid-column: 1 / -1;
+        white-space: nowrap;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        font-size: 0.88rem;
+        color: var(--text);
+    }
+
+    .history-table td[data-label]:not(.history-file-cell):not(.history-status)::before {
+        content: attr(data-label);
+        flex: 0 0 7.25rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+
+    .history-table td.history-date time {
+        display: inline-flex;
+        flex-wrap: wrap;
+        column-gap: 0.4rem;
+        white-space: nowrap;
+    }
+
+    .history-table tbody tr[data-session-id] > td.history-date {
+        white-space: normal;
+    }
+
+    .history-date-day,
+    .history-date-time {
+        display: inline;
+        font-size: 0.85rem;
+    }
+
+    .history-table .count-chip {
+        min-width: 0;
+        padding: 0;
+        background: none;
+    }
+
+    .history-table td.actions-col {
+        grid-column: 1 / -1;
+        margin-top: 0.6rem;
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--rule-soft);
+    }
+
+    .history-actions {
+        justify-content: space-between;
+    }
+
+    .history-actions .btn-sm {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .history-actions .delete-btn {
+        width: 44px;
+        height: 44px;
+        margin-left: auto;
+    }
+
+    .history-table tbody tr.history-error-row:not([hidden]) {
+        display: block;
+        margin-top: -0.35rem;
+        border: 1px solid var(--slate-300);
+        border-top: none;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        overflow: hidden;
+    }
+
+    .history-table tbody tr.history-error-row td {
+        display: block;
+        position: static;
+        box-shadow: none;
+    }
+
+    .history-filters-label {
+        margin-top: 0.25rem;
+    }
+}
 /* END history */
 
 /* BEGIN mobile-nav */
@@ -2279,6 +2773,190 @@ tr.selected:hover td:first-child {
     }
 }
 /* END auth */
+
+/* BEGIN account */
+/* ============================================================
+   ACCOUNT PAGE (/accounts/user/profile/)
+   ============================================================ */
+
+.account-page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0.5rem 0 2rem;
+}
+
+.account-header {
+    margin-bottom: 1.5rem;
+}
+
+.account-kicker {
+    margin: 0 0 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* The heading is the e-mail address: left-aligned like the cards and broken
+   anywhere, because an address has no spaces to wrap at. */
+.account-title {
+    margin: 0 0 0.3rem;
+    font-size: 1.9rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.account-meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.account-card {
+    margin-bottom: 1.25rem;
+    padding: 1.5rem;
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+    scroll-margin-top: calc(var(--header-h) + 1rem);
+}
+
+.account-card.has-errors {
+    border-color: var(--bad);
+}
+
+.account-card-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.25rem;
+}
+
+.account-card-lede {
+    margin: 0 0 1.25rem;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.account-field {
+    margin-bottom: 1rem;
+}
+
+.account-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.account-optional {
+    font-weight: 400;
+    color: var(--muted);
+}
+
+.account-field input {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+    color: var(--text);
+    background-color: var(--surface-0);
+    border: 1px solid var(--slate-300);
+    border-radius: var(--radius-sm);
+}
+
+.account-field input:focus {
+    border-color: var(--water-600);
+    outline: none;
+}
+
+.account-field input:focus-visible {
+    outline: 2px solid var(--water-600);
+    outline-offset: 1px;
+}
+
+.account-field.has-error input {
+    border-color: var(--bad);
+}
+
+.account-help {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.account-help ul {
+    margin: 0.2rem 0 0;
+    padding-left: 1.1rem;
+}
+
+.account-error,
+.account-form-error {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--bad);
+}
+
+.account-form-error {
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--bad);
+    border-radius: var(--radius-sm);
+    background-color: var(--bad-wash);
+}
+
+.account-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.account-actions .btn {
+    min-height: 40px;
+}
+
+.account-avatar {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+}
+
+.account-avatar-image {
+    flex: none;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--slate-300);
+}
+
+.account-avatar-form {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+@media (max-width: 575.98px) {
+    .account-title {
+        font-size: 1.5rem;
+    }
+
+    .account-card {
+        padding: 1.25rem 1rem;
+    }
+
+    .account-avatar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .account-avatar-image {
+        width: 72px;
+        height: 72px;
+    }
+}
+/* END account */
 
 /* BEGIN conduit-panel */
 /* Skin of the conduit panel. The page carries its own light palette, which takes
@@ -3241,6 +3919,29 @@ tr.selected:hover td:first-child {
     }
 }
 /* END conduit-panel */
+
+/* BEGIN page-gutter */
+/* On phones the page gutter (--page-gutter) is the only side margin: the pages'
+   own inner padding goes, so content starts 16 px from the edge on every page. Placed
+   after the conduit-panel block because its full-bleed margins must follow the
+   gutter, and source order decides between rules of equal weight. */
+@media (max-width: 575.98px) {
+    .index-page {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .history-page.container-fluid {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .conduit-page {
+        margin-left: calc(-1 * var(--page-gutter));
+        margin-right: calc(-1 * var(--page-gutter));
+    }
+}
+/* END page-gutter */
 
 /* ============================================================
    PREFERS-REDUCED-MOTION

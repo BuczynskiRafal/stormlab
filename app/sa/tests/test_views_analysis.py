@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from unittest import mock
 
@@ -127,3 +128,60 @@ class FailedAnalysisTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'role="alert"')
         self.assertContains(response, 'id="uploadForm"')
+
+
+class AnalysisFormTemplateTests(TestCase):
+    """The upload form states its requirements and is operable without a mouse."""
+
+    def setUp(self) -> None:
+        self.client.force_login(make_user())
+        self.response = self.client.get(reverse("sa:analysis"))
+
+    def test_page_has_a_level_one_heading(self):
+        self.assertContains(self.response, '<h1 class="upload-title">')
+        self.assertNotContains(self.response, "<h4")
+
+    def test_help_texts_and_file_requirements_are_rendered(self):
+        self.assertContains(self.response, 'id="id_file_helptext"')
+        self.assertContains(self.response, "Upload your SWMM model file with .inp extension.")
+        self.assertContains(self.response, "Flow units must be CMS (SI); up to 50.0\xa0MB.")
+        self.assertContains(self.response, "Select the appropriate frost zone for your region.")
+
+    def test_drop_zone_is_a_label_for_the_file_input(self):
+        self.assertContains(self.response, '<label class="file-input-display" for="id_file" id="fileInputDisplay">')
+        self.assertContains(self.response, 'id="id_file_error" data-file-error aria-live="polite"')
+
+    def test_frost_zones_are_labelled_from_their_depths_with_unchanged_values(self):
+        html = self.response.content.decode()
+        options = re.findall(r'<option value="(\d)"( selected)?>([^<]+)</option>', html)
+
+        self.assertEqual(
+            [(value, label) for value, _, label in options],
+            [("1", "Zone I (0.8 m)"), ("2", "Zone II (1.0 m)"), ("3", "Zone III (1.2 m)"), ("4", "Zone IV (1.4 m)")],
+        )
+        # Nothing is preselected, so the browser starts on the first zone, as before.
+        self.assertFalse(any(selected for _, selected, _ in options))
+        self.assertContains(self.response, '<select name="zone" id="id_zone" class="form-select" required')
+
+    def test_rejected_upload_keeps_the_chosen_zone(self):
+        upload = SimpleUploadedFile("network.inp", b"[TITLE]\n", content_type="application/octet-stream")
+
+        response = self.client.post(reverse("sa:analysis"), {"file": upload, "zone": 3})
+
+        self.assertContains(response, '<option value="3" selected>Zone III (1.2 m)</option>')
+        self.assertContains(response, "FLOW_UNITS")
+
+    def test_progress_line_and_buttons_use_the_house_spelling(self):
+        self.assertContains(self.response, 'id="uploadStatus" aria-live="polite"')
+        self.assertContains(self.response, "Analysing… this can take up to a minute.")
+        self.assertContains(self.response, "Upload &amp; Analyse")
+        self.assertNotContains(self.response, "Analyze")
+
+    def test_page_carries_no_inline_script(self):
+        self.assertNotContains(self.response, "<script>")
+
+    def test_file_input_is_hidden_in_place_and_shows_focus(self):
+        css = (Path(__file__).resolve().parents[2] / "static" / "css" / "app.css").read_text(encoding="utf-8")
+
+        self.assertNotIn("left: -9999px", css)
+        self.assertIn(".file-input-wrapper:focus-within .file-input-display", css)

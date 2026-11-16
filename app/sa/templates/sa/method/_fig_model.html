@@ -1,5 +1,5 @@
 <figure class="method-fig method-fig--model">
-  <div class="method-fig-scroll">
+  <div class="method-fig-scroll" tabindex="0" role="region" aria-label="Figure 4, scrolls sideways">
     <svg viewBox="0 0 720 562" role="img" aria-labelledby="mf-model-title mf-model-desc" xmlns="http://www.w3.org/2000/svg">
       <title id="mf-model-title">The model, layer by layer</title>
       <desc id="mf-model-desc">Layer diagram of the graph model, top to bottom; n is the number of conduits in the network. Input: 66 features per conduit, a matrix of n by 66. Normalisation with the statistics of the training set. Graph step 1: relu of X times W self, plus A-hat times X times W neigh, plus b; followed by layer normalisation and dropout 0.2, giving n by 64. Graph step 2: the same form applied to that output, again with layer normalisation and dropout 0.2, giving n by 64. A dense layer with softmax maps 64 to 9 for each conduit. Output: 9 action probabilities per conduit, n by 9. The aggregation matrix A-hat, n by n and built from the network, is a side input to both graph steps. A bracket around normalisation to softmax notes 5 training runs whose probabilities are averaged, and 17,742 parameters per run.</desc>
@@ -54,5 +54,6 @@
       <text class="mf-meta" x="564" y="346">per run</text>
     </svg>
   </div>
-  <figcaption><strong>Figure 3.</strong> Two graph steps with shared weights for every conduit, which is why one set of weights serves a network of any size.</figcaption>
+  <p class="method-fig-hint" hidden>Scroll to see the rest <span aria-hidden="true">→</span></p>
+  <figcaption><strong>Figure 4.</strong> Two graph steps with shared weights for every conduit, which is why one set of weights serves a network of any size.</figcaption>
 </figure>

@@ -74,9 +74,22 @@
     }
 
     var activeIndex = -1;
+    // An entry the reader clicked stays active until they scroll by themselves: a
+    // target near the end of the page cannot reach the header line, so the position
+    // alone would name a later entry.
+    var pinnedIndex = -1;
 
     function currentIndex() {
-        var line = headerHeight() + ACTIVE_BAND;
+        if (pinnedIndex >= 0) {
+            return pinnedIndex;
+        }
+        var top = headerHeight() + ACTIVE_BAND;
+        // Over the last screen of the page the activation line slides from below the
+        // header to the bottom of the viewport, so the last sections, which can never
+        // scroll up to the header, still become active one after another.
+        var remaining = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+        var reach = Math.min(1, Math.max(0, 1 - remaining / window.innerHeight));
+        var line = top + (window.innerHeight - top - ACTIVE_BAND) * reach;
         var index = 0; // żaden cel nad linią (początek strony) => pierwsza pozycja
         for (var i = 0; i < entries.length; i++) {
             if (entries[i].target.getBoundingClientRect().top <= line) {
@@ -119,6 +132,24 @@
     function markUserMoved() {
         userMoved = true;
     }
+
+    function unpin() {
+        if (pinnedIndex >= 0) {
+            pinnedIndex = -1;
+            schedule();
+        }
+    }
+
+    ['wheel', 'touchstart', 'keydown'].forEach(function (name) {
+        window.addEventListener(name, unpin, { passive: true });
+    });
+
+    entries.forEach(function (entry, index) {
+        entry.link.addEventListener('click', function () {
+            pinnedIndex = index;
+            updateActive();
+        });
+    });
 
     ['wheel', 'touchstart', 'keydown'].forEach(function (name) {
         window.addEventListener(name, markUserMoved, { passive: true, once: true });
@@ -172,5 +203,46 @@
         setAnchorOffset();
         alignHashTarget();
         updateActive();
+    });
+})();
+
+/*
+ * Wide figures of the Method page (.method-fig-scroll). On a narrow screen a drawing
+ * keeps a legible size and scrolls sideways; without a hint half of it went unnoticed.
+ * While a scroller overflows it gets .is-scrollable (edge fades in method-figures.css)
+ * and .is-at-start / .is-at-end, and the "Scroll to see the rest" line under the figure
+ * is shown until the reader has scrolled it.
+ */
+(function () {
+    'use strict';
+
+    var SCROLLED_PX = 24;
+    var scrollers = document.querySelectorAll('.method-fig-scroll');
+    if (!scrollers.length) {
+        return;
+    }
+
+    Array.prototype.forEach.call(scrollers, function (scroller) {
+        var figure = scroller.closest('figure');
+        var hint = figure ? figure.querySelector('.method-fig-hint') : null;
+        var scrolled = false;
+
+        function sync() {
+            var overflow = scroller.scrollWidth - scroller.clientWidth > 1;
+            var left = scroller.scrollLeft;
+            if (left > SCROLLED_PX) {
+                scrolled = true;
+            }
+            scroller.classList.toggle('is-scrollable', overflow);
+            scroller.classList.toggle('is-at-start', left <= 1);
+            scroller.classList.toggle('is-at-end', left >= scroller.scrollWidth - scroller.clientWidth - 1);
+            if (hint) {
+                hint.hidden = !overflow || scrolled;
+            }
+        }
+
+        scroller.addEventListener('scroll', sync, { passive: true });
+        window.addEventListener('resize', sync);
+        sync();
     });
 })();

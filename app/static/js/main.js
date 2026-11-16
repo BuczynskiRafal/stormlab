@@ -16,115 +16,197 @@ const initBackToTop = function() {
     }
 
     const SHOW_AFTER_PX = 600;
+    const GAP_PX = 16;
+    const footer = document.querySelector('.site-footer');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // Below 768 px the text column is the whole width, so a fixed button always covers
+    // some text: there it appears only while the reader scrolls up, i.e. heads back.
+    const narrow = window.matchMedia('(max-width: 767.98px)');
     let pending = false;
+    let lastY = window.scrollY;
 
     const syncVisibility = function() {
         pending = false;
-        button.classList.toggle('is-visible', window.scrollY > SHOW_AFTER_PX);
+        const y = window.scrollY;
+        const scrollingUp = y < lastY;
+        lastY = y;
+        const show = y > SHOW_AFTER_PX && (!narrow.matches || scrollingUp);
+        button.classList.toggle('is-visible', show);
+
+        // Stop above the footer instead of covering its links.
+        let lift = 0;
+        if (footer) {
+            const overlap = window.innerHeight - footer.getBoundingClientRect().top;
+            if (overlap > 0) lift = overlap;
+        }
+        button.style.setProperty('--back-to-top-lift', lift + 'px');
+        button.style.setProperty('--back-to-top-gap', GAP_PX + 'px');
     };
 
     // The scroll event fires far more often than the class can meaningfully change,
     // so the read of scrollY is deferred to one animation frame per burst.
-    window.addEventListener('scroll', function() {
+    const schedule = function() {
         if (pending) {
             return;
         }
         pending = true;
         window.requestAnimationFrame(syncVisibility);
-    }, { passive: true });
+    };
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
 
     button.addEventListener('click', function() {
         window.scrollTo({ top: 0, behavior: reducedMotion.matches ? 'auto' : 'smooth' });
+        // Focus follows the scroll: the button is about to disappear.
+        const main = document.getElementById('main-content');
+        if (main) main.focus({ preventScroll: true });
     });
 
     syncVisibility();
-}
+};
 
-document.addEventListener('DOMContentLoaded', function() {
-    const accordionHeaders = document.querySelectorAll('.accordion-header');
-    const accordionItems = document.querySelectorAll('.accordion-item');
+/**
+ * File controls built as .file-input-wrapper[data-file-input]: a visually hidden
+ * <input type="file"> and a <label> drop zone. The label opens the picker by itself;
+ * this adds the chosen file's name and size, and drag and drop.
+ */
+const formatBytes = function(bytes) {
+    if (bytes >= 1024 * 1024) {
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    return Math.max(1, Math.round(bytes / 1024)) + ' kB';
+};
 
-    // Pins the open section's header under the navigation bar while that section
-    // scrolls past (the accordions of the profile page).
-    function handleStickyHeaders() {
-        if (accordionItems.length === 0) return;
+const initFileInputs = function() {
+    document.querySelectorAll('[data-file-input]').forEach(function(wrapper) {
+        const input = wrapper.querySelector('input[type="file"]');
+        const display = wrapper.querySelector('.file-input-display');
+        const name = wrapper.querySelector('[data-file-name]');
+        const detail = wrapper.querySelector('[data-file-detail]');
+        if (!input || !display) return;
 
-        const header = document.querySelector('header');
-        const headerHeight = header ? header.offsetHeight : 0;
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const sync = function() {
+            const file = input.files && input.files[0];
+            display.classList.toggle('file-input-selected', Boolean(file));
+            if (file) {
+                wrapper.classList.remove('has-error');
+            }
+            if (name) name.textContent = file ? file.name : name.dataset.emptyText;
+            if (detail) detail.textContent = file ? formatBytes(file.size) : detail.dataset.emptyText;
+            wrapper.dispatchEvent(new CustomEvent('file-input:change', { bubbles: true, detail: { file: file || null } }));
+        };
 
-        // Get current position of navigation header
-        const headerRect = header ? header.getBoundingClientRect() : null;
-        const navBottomPosition = headerRect ? Math.max(0, headerRect.bottom) : 0;
+        input.addEventListener('change', sync);
 
-        accordionItems.forEach((item) => {
-            const accordionHeader = item.querySelector('.accordion-header');
-            const collapse = item.querySelector('.accordion-collapse');
-            // An accordion item without a header or a collapse pane is not ours to stick.
-            if (!accordionHeader || !collapse) return;
-
-            const itemRect = item.getBoundingClientRect();
-            const itemTop = itemRect.top + scrollTop;
-            const itemBottom = itemRect.bottom + scrollTop;
-
-            const isExpanded = collapse.classList.contains('show');
-            const shouldBeSticky = isExpanded &&
-                                 scrollTop > (itemTop - headerHeight) &&
-                                 scrollTop < (itemBottom - headerHeight - 100);
-
-            if (shouldBeSticky) {
-                accordionHeader.classList.add('sticky');
-
-                // Position sticky header to follow navigation bar smoothly
-                accordionHeader.style.top = navBottomPosition + 'px';
-
-                // Add appropriate class based on nav position
-                if (navBottomPosition > 0) {
-                    accordionHeader.classList.add('sticky-with-nav');
-                    accordionHeader.classList.remove('sticky-top');
-                } else {
-                    accordionHeader.classList.add('sticky-top');
-                    accordionHeader.classList.remove('sticky-with-nav');
-                }
-
-                // Keep original position and width
-                const itemCurrentRect = item.getBoundingClientRect();
-                accordionHeader.style.left = itemCurrentRect.left + 'px';
-                accordionHeader.style.width = item.offsetWidth + 'px';
-
-                // Adjust accordion content padding
-                collapse.style.paddingTop = (accordionHeader.offsetHeight || 60) + 'px';
-            } else {
-                accordionHeader.classList.remove('sticky', 'sticky-with-nav', 'sticky-top');
-                accordionHeader.style.top = '';
-                accordionHeader.style.left = '';
-                accordionHeader.style.width = '';
-                collapse.style.paddingTop = '';
+        display.addEventListener('dragover', function(event) {
+            event.preventDefault();
+            display.classList.add('drag-over');
+        });
+        display.addEventListener('dragleave', function() {
+            display.classList.remove('drag-over');
+        });
+        display.addEventListener('drop', function(event) {
+            event.preventDefault();
+            display.classList.remove('drag-over');
+            if (event.dataTransfer && event.dataTransfer.files.length > 0) {
+                input.files = event.dataTransfer.files;
+                sync();
             }
         });
-    }
 
-    // Throttle scroll events for better performance
-    let ticking = false;
-    function requestTick() {
-        if (!ticking) {
-            requestAnimationFrame(handleStickyHeaders);
-            ticking = true;
-            setTimeout(() => { ticking = false; }, 16);
-        }
-    }
-
-    window.addEventListener('scroll', requestTick);
-    window.addEventListener('resize', handleStickyHeaders);
-
-    // Handle accordion toggle events
-    accordionHeaders.forEach(header => {
-        header.addEventListener('click', function() {
-            // Small delay to allow accordion animation to start
-            setTimeout(handleStickyHeaders, 50);
-        });
+        // A page restored from the back/forward cache keeps the chosen file.
+        sync();
     });
+};
+
+/**
+ * The analysis form (#uploadForm).
+ * - An empty "Upload & Analyse" shows an inline error under the drop zone instead of
+ *   the browser bubble (the demo button has formnovalidate and is not checked).
+ * - While SWMM runs (up to a minute) both buttons are disabled, a spinner and a status
+ *   line are shown and the form is aria-busy; a second submit is ignored.
+ * - Coming back with the Back button restores the form from the bfcache, where it
+ *   would otherwise stay disabled.
+ */
+const initAnalysisForm = function() {
+    const form = document.getElementById('uploadForm');
+    if (!form) return;
+    const input = form.querySelector('input[type="file"]');
+    const wrapper = form.querySelector('[data-file-input]');
+    const error = form.querySelector('[data-file-error]');
+    const status = document.getElementById('uploadStatus');
+    const buttons = Array.from(form.querySelectorAll('button[type="submit"]'));
+    const EMPTY_MESSAGE = 'Choose a .inp file to analyse, or try the demo data.';
+    let busy = false;
+
+    const showError = function(text) {
+        if (!error) return;
+        error.textContent = text;
+        error.classList.remove('d-none');
+        if (wrapper) wrapper.classList.add('has-error');
+    };
+
+    const clearError = function() {
+        if (!error) return;
+        error.textContent = '';
+        error.classList.add('d-none');
+        if (wrapper) wrapper.classList.remove('has-error');
+    };
+
+    const setBusy = function(on) {
+        busy = on;
+        form.setAttribute('aria-busy', on ? 'true' : 'false');
+        buttons.forEach(function(button) { button.disabled = on; });
+        if (status) status.classList.toggle('d-none', !on);
+    };
+
+    if (input) {
+        input.addEventListener('invalid', function(event) {
+            event.preventDefault();
+            showError(EMPTY_MESSAGE);
+            input.focus();
+        });
+    }
+    if (wrapper) {
+        wrapper.addEventListener('file-input:change', function(event) {
+            if (event.detail.file) clearError();
+        });
+    }
+
+    form.addEventListener('submit', function(event) {
+        if (busy) {
+            event.preventDefault();
+            return;
+        }
+        // Disabled buttons are left out of the form data, so the clicked one (the demo
+        // button carries name="use_test_file") is disabled only after it was sent.
+        busy = true;
+        window.setTimeout(function() { setBusy(true); }, 0);
+    });
+
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) setBusy(false);
+    });
+};
+
+/**
+ * The account page names the section whose form was rejected; move focus to its first
+ * invalid field so the error is the next thing a keyboard or screen reader user meets.
+ */
+const focusRejectedSection = function() {
+    const page = document.querySelector('[data-error-section]');
+    if (!page) return;
+    const section = document.getElementById(page.dataset.errorSection);
+    if (!section) return;
+    const field = section.querySelector('[aria-invalid="true"]') || section.querySelector('input:not([type="hidden"])');
+    section.scrollIntoView({ block: 'start' });
+    if (field) field.focus({ preventScroll: true });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    initFileInputs();
+    initAnalysisForm();
+    focusRejectedSection();
 
     // =========================================================================
     // Keyboard Navigation for Detail Pages
@@ -186,16 +268,83 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    /**
+     * Where to go after rows were deleted: the current page if it still exists,
+     * otherwise the last page that does. Reloading a page that no longer exists (the
+     * last rows of the last page) answered 404.
+     */
+    function reloadAfterDelete(deletedCount) {
+        const table = document.getElementById('sessionsTable');
+        const url = new URL(window.location.href);
+        if (table) {
+            const page = parseInt(table.dataset.page, 10) || 1;
+            const perPage = parseInt(table.dataset.perPage, 10) || 10;
+            const total = parseInt(table.dataset.total, 10) || 0;
+            const lastPage = Math.max(1, Math.ceil(Math.max(0, total - deletedCount) / perPage));
+            if (page > lastPage) {
+                if (lastPage === 1) {
+                    url.searchParams.delete('page');
+                } else {
+                    url.searchParams.set('page', String(lastPage));
+                }
+                window.location.assign(url.toString());
+                return;
+            }
+        }
+        window.location.reload();
+    }
+
+    function sessionCount(count) {
+        return count + (count === 1 ? ' session' : ' sessions');
+    }
+
+    function showModalError(element, text) {
+        if (!element) return;
+        element.textContent = text;
+        element.classList.remove('d-none');
+    }
+
+    function hideModalError(element) {
+        if (!element) return;
+        element.textContent = '';
+        element.classList.add('d-none');
+    }
+
+    function postJson(url, body) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+            body: body === undefined ? undefined : JSON.stringify(body),
+        }).then(function(response) {
+            return response.json().catch(function() { return { success: false }; });
+        });
+    }
+
+    // "View Error" opens the full message in the row below (click, tap, Enter or Space).
+    function initErrorToggles() {
+        document.querySelectorAll('.history-error-toggle').forEach(function(button) {
+            const row = document.getElementById(button.getAttribute('aria-controls'));
+            if (!row) return;
+            button.addEventListener('click', function() {
+                const open = button.getAttribute('aria-expanded') !== 'true';
+                button.setAttribute('aria-expanded', open ? 'true' : 'false');
+                button.textContent = open ? 'Hide Error' : 'View Error';
+                row.hidden = !open;
+            });
+        });
+    }
+
     function initSingleDelete() {
         const deleteModal = document.getElementById('deleteModal');
-        const sessionToDeleteElement = document.getElementById('sessionToDelete');
+        const nameElement = document.getElementById('sessionToDelete');
+        const dateElement = document.getElementById('sessionToDeleteDate');
         const confirmDeleteButton = document.getElementById('confirmDelete');
-        const deleteDescription = document.getElementById('deleteDescription');
-        const modalTitle = document.getElementById('deleteModalLabel');
+        const errorElement = document.getElementById('deleteError');
 
-        if (!deleteModal || !sessionToDeleteElement || !confirmDeleteButton || !deleteDescription || !modalTitle) return;
+        if (!deleteModal || !nameElement || !confirmDeleteButton) return;
 
-        const cancelButton = deleteModal.querySelector('[data-bs-dismiss="modal"]');
+        const cancelButton = deleteModal.querySelector('.modal-footer [data-bs-dismiss="modal"]');
         const deleteText = confirmDeleteButton.querySelector('.delete-text');
         const deleteLoading = confirmDeleteButton.querySelector('.delete-loading');
 
@@ -203,85 +352,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let sessionIdToDelete = null;
 
+        const setLoading = function(on) {
+            deleteText.classList.toggle('d-none', on);
+            deleteLoading.classList.toggle('d-none', !on);
+            confirmDeleteButton.disabled = on;
+            cancelButton.disabled = on;
+        };
+
         // Bootstrap opens the modal declaratively (data-bs-target); this only fills it
-        // from the row whose trash button was clicked.
+        // from the row whose bin was clicked: the file and the date the row shows.
         document.addEventListener('click', function(e) {
             const button = e.target.closest('[data-bs-target="#deleteModal"]');
             if (!button) return;
 
             sessionIdToDelete = button.getAttribute('data-session-id');
-            sessionToDeleteElement.textContent = button.getAttribute('data-session-name');
-
-            const row = button.closest('tr');
-            const statusBadge = row ? row.querySelector('.badge') : null;
-            const isProcessing = statusBadge !== null && statusBadge.textContent.trim() === 'Processing';
-
-            if (isProcessing) {
-                modalTitle.textContent = 'Cancel Processing';
-                deleteDescription.textContent = 'This will cancel the current processing and remove the session. This action cannot be undone.';
-            } else {
-                modalTitle.textContent = 'Confirm Deletion';
-                deleteDescription.textContent = 'This action cannot be undone. All related data (conduits, nodes, subcatchments) will be permanently deleted.';
-            }
-
-            const buttonText = isProcessing ? 'Cancel Processing' : 'Delete Session';
-            deleteText.innerHTML = `<i class="fas fa-trash me-1" aria-hidden="true"></i>${buttonText}`;
-            deleteText.classList.remove('d-none');
-            deleteLoading.classList.add('d-none');
-            confirmDeleteButton.disabled = false;
-            cancelButton.disabled = false;
-            confirmDeleteButton.classList.remove('btn-success');
-            confirmDeleteButton.classList.add('btn-outline-danger');
+            nameElement.textContent = button.getAttribute('data-session-name');
+            if (dateElement) dateElement.textContent = button.getAttribute('data-session-date');
+            hideModalError(errorElement);
+            setLoading(false);
         });
 
         confirmDeleteButton.addEventListener('click', function() {
             if (!sessionIdToDelete) return;
+            hideModalError(errorElement);
+            setLoading(true);
 
-            deleteText.classList.add('d-none');
-            deleteLoading.classList.remove('d-none');
-            confirmDeleteButton.disabled = true;
-            cancelButton.disabled = true;
-
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-
-            fetch(`/session/${sessionIdToDelete}/delete/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    deleteLoading.classList.add('d-none');
-
-                    // The title still says what the row was when the modal opened.
-                    const successText = modalTitle.textContent === 'Cancel Processing' ? 'Cancelled' : 'Deleted';
-                    deleteText.innerHTML = `<i class="fas fa-check me-1"></i>${successText}`;
-                    deleteText.classList.remove('d-none');
-                    confirmDeleteButton.classList.remove('btn-outline-danger');
-                    confirmDeleteButton.classList.add('btn-success');
-
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 800);
-                } else {
-                    deleteLoading.classList.add('d-none');
-                    deleteText.classList.remove('d-none');
-                    confirmDeleteButton.disabled = false;
-                    cancelButton.disabled = false;
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                deleteLoading.classList.add('d-none');
-                deleteText.classList.remove('d-none');
-                confirmDeleteButton.disabled = false;
-                cancelButton.disabled = false;
-                console.error('Error:', error);
-                alert('An error occurred while deleting the session.');
-            });
+            postJson(`/session/${sessionIdToDelete}/delete/`)
+                .then(function(data) {
+                    if (data.success) {
+                        reloadAfterDelete(1);
+                        return;
+                    }
+                    setLoading(false);
+                    showModalError(errorElement, data.message || 'The session could not be deleted. Try again.');
+                })
+                .catch(function() {
+                    setLoading(false);
+                    showModalError(errorElement, 'The session could not be deleted. Check the connection and try again.');
+                });
         });
     }
 
@@ -295,189 +403,108 @@ document.addEventListener('DOMContentLoaded', function() {
         const bulkDeleteModalElement = document.getElementById('bulkDeleteModal');
         const confirmBulkDeleteBtn = document.getElementById('confirmBulkDelete');
         const bulkDeleteCountElement = document.getElementById('bulkDeleteCount');
+        const bulkErrorElement = document.getElementById('bulkDeleteError');
 
-        // Only initialize if bulk selection elements exist
-        if (!bulkActionBar || !selectAllCheckbox) return;
+        if (!bulkActionBar || !selectAllCheckbox || !bulkDeleteModalElement || !confirmBulkDeleteBtn) return;
 
         const bulkDeleteModal = new bootstrap.Modal(bulkDeleteModalElement);
-        let selectedSessions = new Set();
+        const bulkDeleteText = confirmBulkDeleteBtn.querySelector('.bulk-delete-text');
+        const bulkDeleteLoading = confirmBulkDeleteBtn.querySelector('.bulk-delete-loading');
+        const cancelButton = bulkDeleteModalElement.querySelector('.modal-footer [data-bs-dismiss="modal"]');
+        const selectedSessions = new Set();
+
+        const rows = function() {
+            return Array.from(document.querySelectorAll('#sessionsTable tbody tr[data-session-id]'));
+        };
+
+        const setLoading = function(on) {
+            bulkDeleteText.classList.toggle('d-none', on);
+            bulkDeleteLoading.classList.toggle('d-none', !on);
+            confirmBulkDeleteBtn.disabled = on;
+            if (cancelButton) cancelButton.disabled = on;
+        };
 
         function updateUI() {
             const count = selectedSessions.size;
             selectedCountElement.textContent = count;
-            bulkDeleteCountElement.textContent = count;
+            bulkDeleteCountElement.textContent = sessionCount(count);
+            bulkActionBar.style.display = count > 0 ? 'block' : 'none';
 
-            // Show/hide bulk action bar
-            if (count > 0) {
-                bulkActionBar.style.display = 'block';
-            } else {
-                bulkActionBar.style.display = 'none';
-            }
-
-            // Update select all checkbox state
-            const visibleRows = document.querySelectorAll('#sessionsTable tbody tr[data-session-id]');
-            const visibleChecked = Array.from(visibleRows).filter(row => {
+            const visibleRows = rows();
+            const checked = visibleRows.filter(function(row) {
                 const checkbox = row.querySelector('.row-checkbox');
                 return checkbox && checkbox.checked;
             });
+            selectAllCheckbox.checked = visibleRows.length > 0 && checked.length === visibleRows.length;
+            selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < visibleRows.length;
 
-            if (visibleRows.length > 0 && visibleChecked.length === visibleRows.length) {
-                selectAllCheckbox.checked = true;
-                selectAllCheckbox.indeterminate = false;
-            } else if (visibleChecked.length > 0) {
-                selectAllCheckbox.checked = false;
-                selectAllCheckbox.indeterminate = true;
-            } else {
-                selectAllCheckbox.checked = false;
-                selectAllCheckbox.indeterminate = false;
-            }
-
-            // Update row styling
-            document.querySelectorAll('#sessionsTable tbody tr[data-session-id]').forEach(row => {
-                const sessionId = row.dataset.sessionId;
-                if (selectedSessions.has(sessionId)) {
-                    row.classList.add('selected');
-                } else {
-                    row.classList.remove('selected');
-                }
+            visibleRows.forEach(function(row) {
+                row.classList.toggle('selected', selectedSessions.has(row.dataset.sessionId));
             });
         }
 
-        // Handle individual checkbox changes
-        document.addEventListener('change', function(e) {
-            if (e.target.classList.contains('row-checkbox')) {
-                const sessionId = e.target.dataset.sessionId;
-                if (e.target.checked) {
-                    selectedSessions.add(sessionId);
+        function setAll(checked) {
+            rows().forEach(function(row) {
+                const checkbox = row.querySelector('.row-checkbox');
+                if (!checkbox) return;
+                checkbox.checked = checked;
+                if (checked) {
+                    selectedSessions.add(row.dataset.sessionId);
                 } else {
-                    selectedSessions.delete(sessionId);
+                    selectedSessions.delete(row.dataset.sessionId);
                 }
-                updateUI();
+            });
+            updateUI();
+        }
+
+        document.addEventListener('change', function(e) {
+            if (!e.target.classList.contains('row-checkbox')) return;
+            const sessionId = e.target.dataset.sessionId;
+            if (e.target.checked) {
+                selectedSessions.add(sessionId);
+            } else {
+                selectedSessions.delete(sessionId);
             }
-        });
-
-        // Handle select all checkbox
-        selectAllCheckbox.addEventListener('change', function() {
-            const visibleRows = document.querySelectorAll('#sessionsTable tbody tr[data-session-id]');
-            visibleRows.forEach(row => {
-                const checkbox = row.querySelector('.row-checkbox');
-                const sessionId = row.dataset.sessionId;
-                if (checkbox) {
-                    checkbox.checked = this.checked;
-                    if (this.checked) {
-                        selectedSessions.add(sessionId);
-                    } else {
-                        selectedSessions.delete(sessionId);
-                    }
-                }
-            });
             updateUI();
         });
 
-        // Handle "Select all visible" button
-        selectAllVisibleBtn.addEventListener('click', function() {
-            const visibleRows = document.querySelectorAll('#sessionsTable tbody tr[data-session-id]');
-            visibleRows.forEach(row => {
-                const checkbox = row.querySelector('.row-checkbox');
-                const sessionId = row.dataset.sessionId;
-                if (checkbox) {
-                    checkbox.checked = true;
-                    selectedSessions.add(sessionId);
-                }
-            });
-            updateUI();
-        });
+        selectAllCheckbox.addEventListener('change', function() { setAll(this.checked); });
+        selectAllVisibleBtn.addEventListener('click', function() { setAll(true); });
+        clearSelectionBtn.addEventListener('click', function() { setAll(false); });
 
-        // Handle "Clear selection" button
-        clearSelectionBtn.addEventListener('click', function() {
-            document.querySelectorAll('.row-checkbox').forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            selectAllCheckbox.checked = false;
-            selectedSessions.clear();
-            updateUI();
-        });
-
-        // Handle bulk delete button
         bulkDeleteBtn.addEventListener('click', function() {
-            if (selectedSessions.size > 0) {
-                bulkDeleteModal.show();
-            }
+            if (selectedSessions.size === 0) return;
+            hideModalError(bulkErrorElement);
+            bulkDeleteModal.show();
         });
 
-        // Handle confirm bulk delete
         confirmBulkDeleteBtn.addEventListener('click', function() {
             if (selectedSessions.size === 0) return;
+            hideModalError(bulkErrorElement);
+            setLoading(true);
 
-            const bulkDeleteText = confirmBulkDeleteBtn.querySelector('.bulk-delete-text');
-            const bulkDeleteLoading = confirmBulkDeleteBtn.querySelector('.bulk-delete-loading');
-            const cancelButton = document.querySelector('#bulkDeleteModal [data-bs-dismiss="modal"]');
-
-            // Show loading state
-            bulkDeleteText.classList.add('d-none');
-            bulkDeleteLoading.classList.remove('d-none');
-            confirmBulkDeleteBtn.disabled = true;
-            cancelButton.disabled = true;
-
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-            const sessionIds = Array.from(selectedSessions).map(id => parseInt(id));
-
-            fetch('/sessions/bulk-delete/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ session_ids: sessionIds })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success state briefly before reload
-                    bulkDeleteLoading.classList.add('d-none');
-                    bulkDeleteText.innerHTML = `<i class="fas fa-check me-1"></i>Deleted ${data.deleted_count} session(s)`;
-                    bulkDeleteText.classList.remove('d-none');
-                    confirmBulkDeleteBtn.classList.remove('btn-danger');
-                    confirmBulkDeleteBtn.classList.add('btn-success');
-
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 800);
-                } else {
-                    // Reset loading state on error
-                    bulkDeleteLoading.classList.add('d-none');
-                    bulkDeleteText.classList.remove('d-none');
-                    confirmBulkDeleteBtn.disabled = false;
-                    cancelButton.disabled = false;
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                // Reset loading state on error
-                bulkDeleteLoading.classList.add('d-none');
-                bulkDeleteText.classList.remove('d-none');
-                confirmBulkDeleteBtn.disabled = false;
-                cancelButton.disabled = false;
-                console.error('Error:', error);
-                alert('An error occurred while deleting sessions.');
-            });
+            const sessionIds = Array.from(selectedSessions).map(function(id) { return parseInt(id, 10); });
+            postJson('/sessions/bulk-delete/', { session_ids: sessionIds })
+                .then(function(data) {
+                    if (data.success) {
+                        reloadAfterDelete(data.deleted_count || sessionIds.length);
+                        return;
+                    }
+                    setLoading(false);
+                    showModalError(bulkErrorElement, data.message || 'The sessions could not be deleted. Try again.');
+                })
+                .catch(function() {
+                    setLoading(false);
+                    showModalError(bulkErrorElement, 'The sessions could not be deleted. Check the connection and try again.');
+                });
         });
 
-        // Reset bulk delete modal state when hidden
         bulkDeleteModalElement.addEventListener('hidden.bs.modal', function() {
-            const bulkDeleteText = confirmBulkDeleteBtn.querySelector('.bulk-delete-text');
-            const bulkDeleteLoading = confirmBulkDeleteBtn.querySelector('.bulk-delete-loading');
-
-            bulkDeleteText.innerHTML = '<i class="fas fa-trash me-1" aria-hidden="true"></i>Delete All Selected';
-            bulkDeleteText.classList.remove('d-none');
-            bulkDeleteLoading.classList.add('d-none');
-            confirmBulkDeleteBtn.disabled = false;
-            confirmBulkDeleteBtn.classList.remove('btn-success');
-            if (!confirmBulkDeleteBtn.classList.contains('btn-danger')) {
-                confirmBulkDeleteBtn.classList.add('btn-danger');
-            }
+            setLoading(false);
         });
     }
+
+    initErrorToggles();
 
     initHistoryFilters();
     initSingleDelete();

@@ -64,7 +64,7 @@ The figure below uses the network of the Rakowiec estate, the one loaded by **Tr
 
 ![What the model reads for one conduit of the Rakowiec network](images/method_receptive_field.png)
 
-*Rakowiec, Wrocław: 62 conduits. For the selected conduit, K38, the figure marks the conduits the model reads in two graph steps and their shares. Weights are those of the aggregation the application computes for this network; in the application the conduit can be chosen.*
+*Figure 3. Rakowiec, Wrocław: 62 conduits. For the selected conduit, K38, the figure marks the conduits the model reads in two graph steps and their shares. Weights are those of the aggregation the application computes for this network; in the application the conduit can be chosen.*
 
 Conduits at the head of a branch have nothing upstream and are assessed on their own description alone. In the test data they carry about a fifth of the weight, which bounds what any use of context can add.
 
@@ -103,7 +103,7 @@ flowchart TD
 h = relu(X·W_self + (Â·X)·W_neigh + b)
 ```
 
-*Figure 3. Two graph steps with shared weights for every conduit, which is why one set of weights serves a network of any size. The model is trained in five training runs, mean of the probabilities; 17,742 parameters per run.*
+*Figure 4. Two graph steps with shared weights for every conduit, which is why one set of weights serves a network of any size. The model is trained in five training runs, mean of the probabilities; 17,742 parameters per run.*
 
 In one graph step the model adds two terms: the conduit's own features passed through one weight matrix, and the weighted average over its inflow neighbourhood passed through another. Keeping the two apart lets the model compare a conduit with what feeds it, for instance its diameter with the diameters upstream.
 
@@ -173,7 +173,7 @@ The same model was trained reading the inflow side, the outflow side or both, wi
 | Outflow side, 1 link | 0.858 |
 | No neighbours (MLP) | 0.876 |
 
-Test accuracy of the main action, mean of five runs. The axis starts at 0.84 to make the differences visible.
+*Figure 5. Test accuracy of the main action, mean of five runs. The axis starts at 0.84 to make the differences visible.*
 
 Reading the inflow side wins. Reading the outflow side is no better than reading no neighbours at all, however far it reaches. The preference for two links over one was settled on the validation part and is small.
 
